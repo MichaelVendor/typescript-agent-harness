@@ -10,7 +10,7 @@
 ```sh
 npx @typescript-agent-harness/cli --help
 npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
-npx @typescript-agent-harness/cli chat
+npx @typescript-agent-harness/cli --mock chat
 ```
 
 全局安装：
@@ -23,7 +23,7 @@ tah run --mock "列出当前目录并说明这个项目"
 
 找不到 `tah` 时把 `$(npm prefix -g)/bin` 加入 `PATH`。不要 `sudo npm`。
 
-不加 `--mock` 且存在 `DEEPSEEK_API_KEY`（`<cwd>/.env`）时走 DeepSeek。
+不加 `--mock` 时需要 `DEEPSEEK_API_KEY`（`<cwd>/.env`），否则退出码 1。有 key 时走 DeepSeek。`--mock` 的「说明项目」是套话，测语义不要加 `--mock`。
 
 详见 [CLI](/guide/cli)。
 

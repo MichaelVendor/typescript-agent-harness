@@ -94,12 +94,12 @@ export function usage(): string {
 
 Usage:
   tah run <prompt>     one-shot session
-  tah chat             interactive session (/exit to quit, /reset new session)
+  tah chat             session; stdin lines until EOF or /exit (/reset new session)
   tah help
 
 Flags:
   --cwd <path>   workspace root (default: process.cwd())
-  --mock         force mock LLM even if DEEPSEEK_API_KEY is set
+  --mock         local fake LLM (required if no DEEPSEEK_API_KEY / OPENAI_API_KEY)
   --persist      SQLite at <cwd>/.tah/cli.db
   --quiet        only print assistant text
   --exec         mount execute_command + permissions gate (off by default)

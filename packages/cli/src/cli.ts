@@ -9,8 +9,16 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { loadCliEnv } = await import("./env.js");
+  const { loadCliEnv, hasLlmKey } = await import("./env.js");
   loadCliEnv(flags.cwd);
+
+  if (!flags.mock && !hasLlmKey()) {
+    console.error(
+      "tah: no DEEPSEEK_API_KEY or OPENAI_API_KEY. Set one in <cwd>/.env or pass --mock.",
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   if (flags.onceMs >= 0 && flags.command !== "run") {
     console.error("--once is only valid with tah run");
@@ -39,24 +47,32 @@ async function main(): Promise<void> {
   if (flags.command === "chat") {
     const { runtime, streamed } = await bootRuntime(flags);
     let session = await runtime.get(SESSION).create();
-    const readline = await import("node:readline/promises");
+    const readline = await import("node:readline");
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
+      terminal: Boolean(process.stdin.isTTY),
     });
     console.log("tah chat  —  /exit  /reset");
+    const prompt = () => process.stdout.write("you> ");
     try {
-      while (true) {
-        const line = (await rl.question("you> ")).trim();
-        if (!line) continue;
+      prompt();
+      for await (const raw of rl) {
+        const line = raw.trim();
+        if (!line) {
+          prompt();
+          continue;
+        }
         if (line === "/exit" || line === "/quit") break;
         if (line === "/reset") {
           session = await runtime.get(SESSION).create();
           console.log(`[tah] new session ${session.id}`);
+          prompt();
           continue;
         }
         const result = await session.run(line);
         endTurn(result.text, session, flags.quiet, streamed);
+        prompt();
       }
     } finally {
       rl.close();

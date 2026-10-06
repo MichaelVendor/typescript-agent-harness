@@ -25,14 +25,14 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  （全部是插件）
 ```
 
-## v0.18（当前）
+## v0.19（当前）
 
 从 Runtime 到 CLI。先用 npm：
 
 ```sh
 npx @typescript-agent-harness/cli --help
 npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
-npx @typescript-agent-harness/cli chat
+npx @typescript-agent-harness/cli --mock chat
 ```
 
 全局安装后命令是 `tah`：
@@ -66,7 +66,7 @@ await session.run("列出当前目录并总结");
 pnpm install
 pnpm build
 pnpm tah -- run --mock "列出当前目录并说明这个项目"
-pnpm tah -- chat
+pnpm tah -- --mock chat
 ```
 
 `pnpm dev` 仍跑 [`examples/basic-agent`](examples/basic-agent)。接 DeepSeek：复制 [`examples/basic-agent/.env.example`](examples/basic-agent/.env.example) 为同目录 `.env`。

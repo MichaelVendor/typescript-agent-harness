@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.0 — 2026-10-06
+
+CLI: piped `tah chat` runs every stdin line then exits 0 (no `readline was closed`). No API key is an error unless `--mock`.
+
 ## 0.18.0 — 2026-10-06
 
 Docs: global install `npm install -g @typescript-agent-harness/cli` provides the `tah` command.

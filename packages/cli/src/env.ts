@@ -29,3 +29,7 @@ export function loadCliEnv(cwd: string): void {
   loadDotEnv(path.join(cwd, ".env"));
   loadDotEnv(path.join(cwd, "examples/basic-agent/.env"));
 }
+
+export function hasLlmKey(): boolean {
+  return Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY);
+}

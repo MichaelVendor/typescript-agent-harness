@@ -8,7 +8,7 @@ LLM 增量文本会写到 stdout（`agent.assistant-stream`），不必等整段
 
 ```sh
 npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
-npx @typescript-agent-harness/cli chat
+npx @typescript-agent-harness/cli --mock chat
 ```
 
 全局安装：`npm install -g @typescript-agent-harness/cli`，之后直接 `tah …`。仓库内：`pnpm build` 后用 `pnpm tah -- …`。
@@ -16,7 +16,7 @@ npx @typescript-agent-harness/cli chat
 | 命令 | 作用 |
 | --- | --- |
 | `tah run <prompt>` | 一次性 Session |
-| `tah chat` | 同一 Session 多轮；`/reset` 新开，`/exit` 退出 |
+| `tah chat` | 同一 Session 多轮；stdin 每行一轮，直到 EOF 或 `/exit`；`/reset` 新开 |
 | `tah help` | 用法 |
 
 ## 标志
@@ -24,7 +24,7 @@ npx @typescript-agent-harness/cli chat
 | 标志 | 作用 |
 | --- | --- |
 | `--cwd <path>` | 工作区（工具的根目录） |
-| `--mock` | 强制 mock，忽略 API key |
+| `--mock` | 本地假模型；没有 API key 时必须加，否则退出码 1 |
 | `--persist` | SQLite：`<cwd>/.tah/cli.db` |
 | `--quiet` | 只打印模型回复 |
 | `--exec` | 挂上 `execute_command` 和 permissions 闸门（默认关） |
@@ -34,7 +34,13 @@ npx @typescript-agent-harness/cli chat
 | `--deny <tool>` | 黑名单（可重复；优先于 `--allow`） |
 | `--once <ms>` | 延迟后跑一轮 `tah run`（默认关；仅 `run`） |
 
-有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY` 时走真实模型。会从 `<cwd>/.env` 以及 `examples/basic-agent/.env` 读入。
+不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
+
+管道多轮：
+
+```sh
+printf '第一句\n第二句\n' | npx @typescript-agent-harness/cli --mock chat
+```
 
 ## 默认挂上的能力
 

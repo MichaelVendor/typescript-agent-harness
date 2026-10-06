@@ -21,7 +21,12 @@ export async function bootRuntime(
   const hasKey = Boolean(
     process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY,
   );
-  const provider = flags.mock || !hasKey ? "mock" : "openai-compatible";
+  if (!flags.mock && !hasKey) {
+    throw new Error(
+      "tah: no DEEPSEEK_API_KEY or OPENAI_API_KEY. Set one in <cwd>/.env or pass --mock.",
+    );
+  }
+  const provider = flags.mock ? "mock" : "openai-compatible";
   const runtime = new Runtime({ id: "tah-cli" });
 
   const streamed = { on: false };
