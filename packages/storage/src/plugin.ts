@@ -1,7 +1,6 @@
 import type { Plugin } from "@typescript-agent-harness/core";
 import { STORAGE } from "./contract.js";
 import { createMemoryStorage } from "./memory.js";
-import { createSqliteStorage } from "./sqlite.js";
 
 export type StoragePluginOptions = {
   driver?: "memory" | "sqlite";
@@ -14,11 +13,11 @@ export function storagePlugin(options: StoragePluginOptions = {}): Plugin {
 
   return {
     name: "storage",
-    setup(ctx) {
+    async setup(ctx) {
       const service =
         driver === "memory"
           ? createMemoryStorage()
-          : createSqliteStorage(filePath);
+          : (await import("./sqlite.js")).createSqliteStorage(filePath);
       ctx.provide(STORAGE, service);
     },
   };

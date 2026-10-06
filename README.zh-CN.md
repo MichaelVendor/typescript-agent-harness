@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  （全部是插件）
 ```
 
-## v0.16（当前）
+## v0.17（当前）
 
 从 Runtime 到 CLI。先用 npm：
 

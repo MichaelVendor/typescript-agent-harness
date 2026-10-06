@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.0 — 2026-10-06
+
+`tah --help` no longer loads `node:sqlite`. SQLite is imported only when `--persist` mounts storage.
+
 ## 0.16.0 — 2026-10-06
 
 Docs lead with `npx @typescript-agent-harness/cli`. Clone / `pnpm build` is the from-source path.
