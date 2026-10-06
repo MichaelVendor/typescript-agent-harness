@@ -52,6 +52,8 @@ Enable **Settings → Pages → Source: GitHub Actions** on the repository.
 
 Local: `pnpm build && pnpm publish:packages` (npm login required). Examples are private and are not published.
 
+Do not use `sudo npm`. This machine's default registry is a mirror; publishing must hit `https://registry.npmjs.org/`. npm now requires a **granular access token with bypass 2FA** (or interactive 2FA) to publish — a web `npm login` session is not enough.
+
 ## Pull requests
 
 CI: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (build, typecheck, tests, mock CLI).
