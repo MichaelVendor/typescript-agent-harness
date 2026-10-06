@@ -1,0 +1,21 @@
+{
+  "name": "@typescript-agent-harness/example-basic-agent",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@typescript-agent-harness/agent": "workspace:*",
+    "@typescript-agent-harness/core": "workspace:*",
+    "@typescript-agent-harness/llm": "workspace:*",
+    "@typescript-agent-harness/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

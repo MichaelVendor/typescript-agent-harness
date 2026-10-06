@@ -1,0 +1,42 @@
+{
+  "name": "typescript-agent-harness",
+  "private": true,
+  "version": "0.14.0",
+  "description": "TypeScript Agent Runtime — everything is a capability",
+  "packageManager": "pnpm@10.33.0",
+  "bin": {
+    "tah": "./packages/cli/dist/cli.js"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter @typescript-agent-harness/core --filter @typescript-agent-harness/llm --filter @typescript-agent-harness/permissions --filter @typescript-agent-harness/tools --filter @typescript-agent-harness/storage --filter @typescript-agent-harness/mcp --filter @typescript-agent-harness/scheduler --filter @typescript-agent-harness/agent --filter @typescript-agent-harness/cli build",
+    "tah": "node ./packages/cli/dist/cli.js",
+    "dev": "pnpm build && pnpm --filter @typescript-agent-harness/example-basic-agent start",
+    "demo:runtime": "pnpm --filter @typescript-agent-harness/core build && pnpm --filter @typescript-agent-harness/example-basic-runtime start",
+    "demo:resume": "pnpm build && pnpm --filter @typescript-agent-harness/example-resume-agent start",
+    "demo:multi": "pnpm build && pnpm --filter @typescript-agent-harness/example-multi-agent start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --filter \"./packages/**\" --if-present test",
+    "clean": "pnpm -r exec rm -rf dist",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelVendor/typescript-agent-harness.git"
+  },
+  "homepage": "https://MichaelVendor.github.io/typescript-agent-harness/",
+  "bugs": {
+    "url": "https://github.com/MichaelVendor/typescript-agent-harness/issues"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@typescript-agent-harness/cli": "workspace:*"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

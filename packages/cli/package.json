@@ -1,0 +1,34 @@
+{
+  "name": "@typescript-agent-harness/cli",
+  "version": "0.8.0",
+  "description": "typescript-agent-harness CLI (tah)",
+  "type": "module",
+  "bin": {
+    "tah": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "files": ["dist"],
+  "scripts": {
+    "start": "node dist/cli.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@typescript-agent-harness/agent": "workspace:*",
+    "@typescript-agent-harness/core": "workspace:*",
+    "@typescript-agent-harness/llm": "workspace:*",
+    "@typescript-agent-harness/mcp": "workspace:*",
+    "@typescript-agent-harness/permissions": "workspace:*",
+    "@typescript-agent-harness/scheduler": "workspace:*",
+    "@typescript-agent-harness/storage": "workspace:*",
+    "@typescript-agent-harness/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.2"
+  }
+}

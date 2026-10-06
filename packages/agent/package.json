@@ -1,0 +1,29 @@
+{
+  "name": "@typescript-agent-harness/agent",
+  "version": "0.3.0",
+  "description": "Session, DefaultLoop, and agent orchestration",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
+  },
+  "dependencies": {
+    "@typescript-agent-harness/core": "workspace:*",
+    "@typescript-agent-harness/llm": "workspace:*",
+    "@typescript-agent-harness/storage": "workspace:*",
+    "@typescript-agent-harness/tools": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
