@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  (all plugins)
 ```
 
-## v0.14 (current)
+## v0.15 (current)
 
 Runtime through CLI. Capabilities are plugins:
 
@@ -60,6 +60,8 @@ pnpm install
 pnpm build
 pnpm tah -- run --mock "列出当前目录"
 ```
+
+After npm publish: `npx @typescript-agent-harness/cli run --mock "列出当前目录"`
 
 ### Documentation site
 

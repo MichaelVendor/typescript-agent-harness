@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  （全部是插件）
 ```
 
-## v0.14（当前）
+## v0.15（当前）
 
 从 Runtime 到 CLI。能力仍然是插件：
 
@@ -60,6 +60,8 @@ pnpm install
 pnpm build
 pnpm tah -- run --mock "列出当前目录"
 ```
+
+npm 发布后：`npx @typescript-agent-harness/cli run --mock "列出当前目录"`
 
 ### 文档站
 

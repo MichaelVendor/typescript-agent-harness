@@ -9,5 +9,6 @@ dist
 .agent-harness
 .turbo
 .pnpm-store
+*.tgz
 docs/.vitepress/dist
 docs/.vitepress/cache

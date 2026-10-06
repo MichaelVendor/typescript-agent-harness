@@ -1,7 +1,7 @@
 {
   "name": "typescript-agent-harness",
   "private": true,
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "TypeScript Agent Runtime — everything is a capability",
   "packageManager": "pnpm@10.33.0",
   "bin": {
@@ -19,7 +19,8 @@
     "clean": "pnpm -r exec rm -rf dist",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "publish:packages": "pnpm -r --filter \"./packages/**\" publish --access public"
   },
   "engines": {
     "node": ">=22"

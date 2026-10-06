@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/core",
-  "version": "0.3.0",
+  "version": "0.15.0",
   "description": "Agent Runtime core: Runtime, Plugin, Context, Service, EventBus",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,5 +21,21 @@
   },
   "devDependencies": {
     "typescript": "^5.9.2"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelVendor/typescript-agent-harness.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://MichaelVendor.github.io/typescript-agent-harness/",
+  "bugs": {
+    "url": "https://github.com/MichaelVendor/typescript-agent-harness/issues"
   }
 }

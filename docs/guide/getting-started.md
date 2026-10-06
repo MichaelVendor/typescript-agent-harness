@@ -20,7 +20,13 @@ pnpm test
 ```sh
 pnpm tah -- run --mock "列出当前目录并说明这个项目"
 pnpm tah -- chat
-npx tah --help
+```
+
+npm 发布之后：
+
+```sh
+npx @typescript-agent-harness/cli --help
+npx @typescript-agent-harness/cli run --mock "列出当前目录"
 ```
 
 不加 `--mock` 且存在 `DEEPSEEK_API_KEY`（`<cwd>/.env` 或 `examples/basic-agent/.env`）时走 DeepSeek。

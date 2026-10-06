@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0 — 2026-10-06
+
+Packages are ready to publish to npm (`publishConfig.access: public`). CLI bin is `tah`.
+
+- `npx @typescript-agent-harness/cli --help` after the `@typescript-agent-harness` org exists on npm
+- Tag `v0.15.0` on `main` runs `.github/workflows/publish.yml` (needs `NPM_TOKEN`)
+
 ## 0.14.0 — 2026-10-06
 
 `tah --once <ms> run <prompt>` mounts the existing scheduler and delays one session. Default CLI still has no timers. No `--every`.

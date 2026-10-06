@@ -1,13 +1,15 @@
 {
   "name": "@typescript-agent-harness/cli",
-  "version": "0.8.0",
+  "version": "0.15.0",
   "description": "typescript-agent-harness CLI (tah)",
   "type": "module",
   "bin": {
     "tah": "./dist/cli.js"
   },
   "main": "./dist/cli.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "start": "node dist/cli.js",
     "build": "tsc -p tsconfig.json",
@@ -30,5 +32,18 @@
   "devDependencies": {
     "@types/node": "^22.18.0",
     "typescript": "^5.9.2"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelVendor/typescript-agent-harness.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://MichaelVendor.github.io/typescript-agent-harness/",
+  "bugs": {
+    "url": "https://github.com/MichaelVendor/typescript-agent-harness/issues"
   }
 }

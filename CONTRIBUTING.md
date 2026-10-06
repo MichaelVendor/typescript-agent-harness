@@ -7,7 +7,7 @@ Thanks for helping typescript-agent-harness.
 - `main` — released code (tagged, e.g. `v0.14.0`)
 - `v0.N` — next minor version; merge to `main` then tag `v0.N.0`
 
-Work the next cut on `v0.15`, not on `main`.
+Work the next cut on `v0.15`, not on `main`. After a release: `npx @typescript-agent-harness/cli --help`
 
 ## Development
 
@@ -43,6 +43,14 @@ Guidelines:
 
 GitHub Pages deploys from `main` via [`.github/workflows/docs.yml`](./.github/workflows/docs.yml).  
 Enable **Settings → Pages → Source: GitHub Actions** on the repository.
+
+## Publish
+
+1. Create the npm org `typescript-agent-harness` so `@typescript-agent-harness/*` can be public.
+2. Add repo secret `NPM_TOKEN`.
+3. Merge `v0.15` → `main` and tag `v0.15.0`. [`.github/workflows/publish.yml`](./.github/workflows/publish.yml) publishes `packages/*`.
+
+Local: `pnpm build && pnpm publish:packages` (npm login required). Examples are private and are not published.
 
 ## Pull requests
 

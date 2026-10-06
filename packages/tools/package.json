@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/tools",
-  "version": "0.3.0",
+  "version": "0.15.0",
   "description": "Tool registry and local filesystem tools",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -25,5 +27,21 @@
   "devDependencies": {
     "@types/node": "^22.18.0",
     "typescript": "^5.9.2"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelVendor/typescript-agent-harness.git",
+    "directory": "packages/tools"
+  },
+  "homepage": "https://MichaelVendor.github.io/typescript-agent-harness/",
+  "bugs": {
+    "url": "https://github.com/MichaelVendor/typescript-agent-harness/issues"
   }
 }
