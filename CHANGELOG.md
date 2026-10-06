@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.0 — 2026-10-06
+
+Docs: global install `npm install -g @typescript-agent-harness/cli` provides the `tah` command.
+
 ## 0.17.0 — 2026-10-06
 
 `tah --help` no longer loads `node:sqlite`. SQLite is imported only when `--persist` mounts storage.

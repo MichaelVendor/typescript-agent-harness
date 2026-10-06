@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  (all plugins)
 ```
 
-## v0.17 (current)
+## v0.18 (current)
 
 Runtime through CLI. Start with npm:
 
@@ -34,6 +34,16 @@ npx @typescript-agent-harness/cli --help
 npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
 npx @typescript-agent-harness/cli chat
 ```
+
+Install globally to get the `tah` command:
+
+```sh
+npm install -g @typescript-agent-harness/cli
+tah --help
+tah run --mock "列出当前目录并说明这个项目"
+```
+
+If `tah` is not found, add `$(npm prefix -g)/bin` to `PATH`. Do not use `sudo npm`.
 
 Capabilities are plugins:
 
@@ -67,6 +77,7 @@ Other demos: `pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi`
 
 ```sh
 npx @typescript-agent-harness/cli run --mock "列出当前目录"
+tah run --mock "列出当前目录"
 ```
 
 Node.js ≥ 22. From the repo: `pnpm install && pnpm build && pnpm tah -- run --mock "列出当前目录"`

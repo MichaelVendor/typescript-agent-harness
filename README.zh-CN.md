@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  （全部是插件）
 ```
 
-## v0.17（当前）
+## v0.18（当前）
 
 从 Runtime 到 CLI。先用 npm：
 
@@ -34,6 +34,16 @@ npx @typescript-agent-harness/cli --help
 npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
 npx @typescript-agent-harness/cli chat
 ```
+
+全局安装后命令是 `tah`：
+
+```sh
+npm install -g @typescript-agent-harness/cli
+tah --help
+tah run --mock "列出当前目录并说明这个项目"
+```
+
+找不到 `tah` 时，把 `$(npm prefix -g)/bin` 加进 `PATH`。不要用 `sudo npm`。
 
 能力仍然是插件：
 
@@ -67,6 +77,7 @@ pnpm tah -- chat
 
 ```sh
 npx @typescript-agent-harness/cli run --mock "列出当前目录"
+tah run --mock "列出当前目录"
 ```
 
 需要 Node.js ≥ 22。仓库内：`pnpm install && pnpm build && pnpm tah -- run --mock "列出当前目录"`

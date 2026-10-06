@@ -11,7 +11,7 @@ npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个�
 npx @typescript-agent-harness/cli chat
 ```
 
-仓库内：`pnpm build` 后用 `pnpm tah -- …`。
+全局安装：`npm install -g @typescript-agent-harness/cli`，之后直接 `tah …`。仓库内：`pnpm build` 后用 `pnpm tah -- …`。
 
 | 命令 | 作用 |
 | --- | --- |
