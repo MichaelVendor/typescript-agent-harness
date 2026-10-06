@@ -3,9 +3,21 @@
 ## 环境要求
 
 - Node.js ≥ 22（SQLite 用 `node:sqlite`）
-- [pnpm](https://pnpm.io) ≥ 10
+- 跑 CLI 不需要 clone；改框架才需要 [pnpm](https://pnpm.io) ≥ 10
 
-## 安装
+## 用 CLI 跑一轮（推荐）
+
+```sh
+npx @typescript-agent-harness/cli --help
+npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
+npx @typescript-agent-harness/cli chat
+```
+
+不加 `--mock` 且存在 `DEEPSEEK_API_KEY`（`<cwd>/.env`）时走 DeepSeek。
+
+详见 [CLI](/guide/cli)。
+
+## 从源码开发
 
 ```sh
 git clone https://github.com/MichaelVendor/typescript-agent-harness.git typescript-agent-harness
@@ -13,25 +25,8 @@ cd typescript-agent-harness
 pnpm install
 pnpm build
 pnpm test
-```
-
-## 用 CLI 跑一轮（推荐）
-
-```sh
 pnpm tah -- run --mock "列出当前目录并说明这个项目"
-pnpm tah -- chat
 ```
-
-npm 发布之后：
-
-```sh
-npx @typescript-agent-harness/cli --help
-npx @typescript-agent-harness/cli run --mock "列出当前目录"
-```
-
-不加 `--mock` 且存在 `DEEPSEEK_API_KEY`（`<cwd>/.env` 或 `examples/basic-agent/.env`）时走 DeepSeek。
-
-详见 [CLI](/guide/cli)。
 
 ## 分 Phase 的演示
 

@@ -7,10 +7,11 @@ LLM 增量文本会写到 stdout（`agent.assistant-stream`），不必等整段
 ## 命令
 
 ```sh
-pnpm build
-pnpm tah -- run --mock "列出当前目录并说明这个项目"
-pnpm tah -- chat
+npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
+npx @typescript-agent-harness/cli chat
 ```
+
+仓库内：`pnpm build` 后用 `pnpm tah -- …`。
 
 | 命令 | 作用 |
 | --- | --- |

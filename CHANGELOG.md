@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.16.0 — 2026-10-06
+
+Docs lead with `npx @typescript-agent-harness/cli`. Clone / `pnpm build` is the from-source path.
+
 ## 0.15.0 — 2026-10-06
 
 Packages are ready to publish to npm (`publishConfig.access: public`). CLI bin is `tah`.

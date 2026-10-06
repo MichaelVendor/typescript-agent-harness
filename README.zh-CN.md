@@ -25,9 +25,17 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  （全部是插件）
 ```
 
-## v0.15（当前）
+## v0.16（当前）
 
-从 Runtime 到 CLI。能力仍然是插件：
+从 Runtime 到 CLI。先用 npm：
+
+```sh
+npx @typescript-agent-harness/cli --help
+npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
+npx @typescript-agent-harness/cli chat
+```
+
+能力仍然是插件：
 
 ```ts
 const runtime = new Runtime();
@@ -41,6 +49,8 @@ await runtime.start();
 const session = await runtime.get(SESSION).create();
 await session.run("列出当前目录并总结");
 ```
+
+从源码（演示和文档站）：
 
 ```sh
 pnpm install
@@ -56,12 +66,10 @@ pnpm tah -- chat
 ## 快速开始
 
 ```sh
-pnpm install
-pnpm build
-pnpm tah -- run --mock "列出当前目录"
+npx @typescript-agent-harness/cli run --mock "列出当前目录"
 ```
 
-npm 发布后：`npx @typescript-agent-harness/cli run --mock "列出当前目录"`
+需要 Node.js ≥ 22。仓库内：`pnpm install && pnpm build && pnpm tah -- run --mock "列出当前目录"`
 
 ### 文档站
 
