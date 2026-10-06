@@ -127,5 +127,6 @@ npx tah --help
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- 每个 Phase 结束打 tag（如 `v0.1.0-phase1`）  
+- `main`：已发布代码；每个发布打 tag（当前 `v0.14.0`）  
+- `v0.N`：下一个小版本的开发分支，合入 `main` 后打 `v0.N.0`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  

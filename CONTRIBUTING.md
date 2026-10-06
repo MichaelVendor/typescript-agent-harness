@@ -2,6 +2,13 @@
 
 Thanks for helping typescript-agent-harness.
 
+## Branches
+
+- `main` — released code (tagged, e.g. `v0.14.0`)
+- `v0.N` — next minor version; merge to `main` then tag `v0.N.0`
+
+Work the next cut on `v0.15`, not on `main`.
+
 ## Development
 
 ```sh
