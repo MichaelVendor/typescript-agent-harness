@@ -1,6 +1,6 @@
 # CLI
 
-状态：✅ Phase 5 最小实现（`packages/cli`）
+状态：✅ Phase 5（`packages/cli`）· v0.21 默认偏向本机 coding
 
 LLM 增量文本会写到 stdout（`agent.assistant-stream`），不必等整段 `generate` 结束。
 
@@ -16,7 +16,7 @@ npx @typescript-agent-harness/cli --mock chat
 | 命令 | 作用 |
 | --- | --- |
 | `tah run <prompt>` | 一次性 Session |
-| `tah chat` | 同一 Session 多轮；stdin 每行一轮，直到 EOF 或 `/exit`；`/reset` 新开 |
+| `tah chat` | 多轮；**默认续上一次持久化 Session**；stdin 每行一轮，直到 EOF 或 `/exit`；`/reset` 新开 |
 | `tah help` | 用法 |
 
 ## 标志
@@ -25,9 +25,12 @@ npx @typescript-agent-harness/cli --mock chat
 | --- | --- |
 | `--cwd <path>` | 工作区（工具的根目录） |
 | `--mock` | 本地假模型；没有 API key 时必须加，否则退出码 1 |
-| `--persist` | SQLite：`<cwd>/.tah/cli.db` |
+| `--persist` | SQLite：`<cwd>/.tah/cli.db`（**默认开**） |
+| `--no-persist` | 关掉 SQLite；chat 不会跨 `/exit` 续聊 |
 | `--quiet` | 只打印模型回复 |
-| `--exec` | 挂上 `execute_command`（要测 / 构建 / 跑程序时需要；默认关） |
+| `--exec` | 挂上 `execute_command`（**默认开**） |
+| `--no-exec` | 关掉 `execute_command` |
+| `--max-steps <n>` | 每轮 LLM 上限（**默认 32**） |
 | `--mcp <cmd>` | 挂上 stdio MCP 工具（默认关） |
 | `--mcp-arg <a>` | `--mcp` 的额外参数（可重复） |
 | `--allow <tool>` | 白名单（可重复；不写则不限制） |
@@ -36,7 +39,7 @@ npx @typescript-agent-harness/cli --mock chat
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
 
-默认不挂 `execute_command`；模型会提示用 `tah --exec` 重开。走到 LLM 步数上限时会打印 `finishReason=max_steps` 和可读说明（不再空回复 + `state=failed`）。
+走到 LLM 步数上限时会打印 `finishReason=max_steps`；可加大 `--max-steps` 或拆任务。
 
 管道多轮：
 
@@ -44,13 +47,26 @@ npx @typescript-agent-harness/cli --mock chat
 printf '第一句\n第二句\n' | npx @typescript-agent-harness/cli --mock chat
 ```
 
-## 默认挂上的能力
-
-LLM + `list_files` / `read_file` / `grep` / `write_file` + Agent Loop。  
-默认不挂 `execute_command` / MCP / scheduler。需要跑命令：
+续聊（默认 persist）：
 
 ```sh
-pnpm tah -- --exec --mock "用 node 打印 1+1"
+tah --mock chat          # 聊几句后 /exit
+tah --mock chat          # 应看到 resumed session …
+```
+
+## 默认挂上的能力
+
+LLM + `list_files` / `read_file` / `grep` / `write_file` + **`execute_command`** + Agent Loop + SQLite。  
+MCP / scheduler 仍默认关。
+
+```sh
+pnpm tah -- --mock run "用 node 打印 1+1"
+```
+
+关掉命令执行：
+
+```sh
+pnpm tah -- --no-exec --mock chat
 ```
 
 挂 stdio MCP（子进程，不是官方 SDK）：
@@ -59,13 +75,13 @@ pnpm tah -- --exec --mock "用 node 打印 1+1"
 pnpm tah -- --mcp node --mcp-arg ./packages/mcp/test/fixtures/ping-server.mjs --mock "调用 ping"
 ```
 
-只读策略（现有 permissions 插件，不是新闸门）：
+只读策略：
 
 ```sh
-pnpm tah -- --deny write_file --mock "只读这个仓库"
+pnpm tah -- --deny write_file --deny execute_command --mock "只读这个仓库"
 ```
 
-延迟一轮（现有 scheduler，不是新调度器）：
+延迟一轮：
 
 ```sh
 pnpm tah -- --once 200 --mock run "列出当前目录"

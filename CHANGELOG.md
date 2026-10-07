@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.21.0 — 2026-10-07
+
+CLI defaults for local coding: `execute_command` on (`--no-exec` to disable), SQLite persist on (`--no-persist` to disable), `maxSteps=32` (`--max-steps <n>`). `tah chat` resumes the latest persisted session across `/exit`.
+
 ## 0.20.0 — 2026-10-07
 
 CLI / agent: hitting `maxSteps` prints a readable stop message (`finishReason=max_steps`) instead of an empty failed turn. Without `--exec`, the system prompt tells the model to ask the user to restart with `tah --exec` for test/build/run.

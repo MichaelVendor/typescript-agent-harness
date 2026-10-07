@@ -7,7 +7,7 @@ Thanks for helping typescript-agent-harness.
 - `main` — released code (tagged, e.g. `v0.14.0`)
 - `v0.N` — next minor version; merge to `main` then tag `v0.N.0`
 
-Work the next cut on `v0.20`, not on `main`. After a release: `npx @typescript-agent-harness/cli --help` or `npm install -g @typescript-agent-harness/cli` then `tah --help`.
+Work the next cut on `v0.21`, not on `main`. After a release: `npx @typescript-agent-harness/cli --help` or `npm install -g @typescript-agent-harness/cli` then `tah --help`.
 
 ## Development
 

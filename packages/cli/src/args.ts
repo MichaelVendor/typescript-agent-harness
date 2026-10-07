@@ -1,3 +1,5 @@
+export const DEFAULT_MAX_STEPS = 32;
+
 export type CliFlags = {
   command: string;
   prompt: string;
@@ -11,6 +13,7 @@ export type CliFlags = {
   allow: string[];
   deny: string[];
   onceMs: number;
+  maxSteps: number;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -19,14 +22,15 @@ export function parseArgv(argv: string[]): CliFlags {
     prompt: "",
     cwd: process.cwd(),
     mock: false,
-    persist: false,
+    persist: true,
     quiet: false,
-    exec: false,
+    exec: true,
     mcpCommand: "",
     mcpArgs: [],
     allow: [],
     deny: [],
     onceMs: -1,
+    maxSteps: DEFAULT_MAX_STEPS,
   };
   const rest: string[] = [];
   let help = false;
@@ -35,8 +39,10 @@ export function parseArgv(argv: string[]): CliFlags {
     if (arg === "--" || arg === undefined) continue;
     if (arg === "--mock") flags.mock = true;
     else if (arg === "--persist") flags.persist = true;
+    else if (arg === "--no-persist") flags.persist = false;
     else if (arg === "--quiet") flags.quiet = true;
     else if (arg === "--exec") flags.exec = true;
+    else if (arg === "--no-exec") flags.exec = false;
     else if (arg === "--mcp") {
       const next = argv[i + 1];
       if (!next) throw new Error("--mcp requires a command");
@@ -66,6 +72,15 @@ export function parseArgv(argv: string[]): CliFlags {
       }
       flags.onceMs = ms;
       i += 1;
+    } else if (arg === "--max-steps") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--max-steps requires a positive integer");
+      const n = Number(next);
+      if (!Number.isInteger(n) || n < 1) {
+        throw new Error("--max-steps requires a positive integer");
+      }
+      flags.maxSteps = n;
+      i += 1;
     } else if (arg === "--cwd") {
       const next = argv[i + 1];
       if (!next) throw new Error("--cwd requires a path");
@@ -94,19 +109,22 @@ export function usage(): string {
 
 Usage:
   tah run <prompt>     one-shot session
-  tah chat             session; stdin lines until EOF or /exit (/reset new session)
+  tah chat             continue last session if persisted; /exit /reset
   tah help
 
 Flags:
-  --cwd <path>   workspace root (default: process.cwd())
-  --mock         local fake LLM (required if no DEEPSEEK_API_KEY / OPENAI_API_KEY)
-  --persist      SQLite at <cwd>/.tah/cli.db
-  --quiet        only print assistant text
-  --exec         mount execute_command (needed to test/build/run programs; off by default)
-  --mcp <cmd>    mount stdio MCP tools from a child process (off by default)
-  --mcp-arg <a>  extra argv for --mcp (repeatable)
-  --allow <tool> allowlist (repeatable; omit = all tools allowed)
-  --deny <tool>  denylist (repeatable; wins over --allow)
-  --once <ms>    delay then run once via scheduler (off by default; tah run only)
+  --cwd <path>        workspace root (default: process.cwd())
+  --mock              local fake LLM (required if no DEEPSEEK_API_KEY / OPENAI_API_KEY)
+  --persist           SQLite at <cwd>/.tah/cli.db (on by default)
+  --no-persist        disable SQLite; chat will not resume across exits
+  --quiet             only print assistant text
+  --exec              mount execute_command (on by default)
+  --no-exec           disable execute_command
+  --max-steps <n>     LLM round limit per turn (default: ${DEFAULT_MAX_STEPS})
+  --mcp <cmd>         mount stdio MCP tools from a child process (off by default)
+  --mcp-arg <a>       extra argv for --mcp (repeatable)
+  --allow <tool>      allowlist (repeatable; omit = all tools allowed)
+  --deny <tool>       denylist (repeatable; wins over --allow)
+  --once <ms>         delay then run once via scheduler (off by default; tah run only)
 `;
 }

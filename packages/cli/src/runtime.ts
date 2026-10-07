@@ -40,7 +40,7 @@ export async function bootRuntime(
 
   if (!flags.quiet) {
     console.log(
-      `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : ""}${flags.exec ? " exec=on" : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`,
+      `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${flags.exec ? " exec=on" : " exec=off"} maxSteps=${flags.maxSteps}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`,
     );
     runtime.on("llm.request", (e) => {
       const p = e as { model?: string; messageCount: number };
@@ -98,6 +98,7 @@ export async function bootRuntime(
 
   runtime.use(
     agentPlugin({
+      maxSteps: flags.maxSteps,
       systemPrompt: buildSystemPrompt({
         exec: flags.exec,
         mcp: Boolean(flags.mcpCommand),
@@ -112,6 +113,23 @@ export async function bootRuntime(
 
   await runtime.start();
   return { runtime, streamed };
+}
+
+export async function openChatSession(
+  runtime: Runtime,
+  flags: CliFlags,
+): Promise<{ session: Session; resumed: boolean }> {
+  const sessions = runtime.get(SESSION);
+  if (flags.persist) {
+    const listed = await sessions.list();
+    const latest = listed[0];
+    if (latest) {
+      const session = await sessions.get(latest.id);
+      if (session) return { session, resumed: true };
+    }
+  }
+  const session = await sessions.create();
+  return { session, resumed: false };
 }
 
 export async function runOnce(
@@ -164,7 +182,7 @@ export function formatStatusLine(
   let line = `[tah] state=${state} steps=${steps}`;
   if (finishReason === "max_steps") {
     line +=
-      " finishReason=max_steps — LLM step limit hit; split the task or raise maxSteps";
+      " finishReason=max_steps — LLM step limit hit; split the task or pass --max-steps";
   }
   return line;
 }

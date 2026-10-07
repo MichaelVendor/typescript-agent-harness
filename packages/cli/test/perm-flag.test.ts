@@ -22,6 +22,7 @@ function baseFlags(cwd: string) {
     allow: [] as string[],
     deny: [] as string[],
     onceMs: -1,
+    maxSteps: 32,
   };
 }
 

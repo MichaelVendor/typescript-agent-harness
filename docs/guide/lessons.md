@@ -19,25 +19,33 @@
 
 ---
 
-## 0.20（开发中）— 长任务失败难看 + 没 shell 空转
+## 0.21（开发中）— 默认太「安全」导致不好用
+
+| | |
+| --- | --- |
+| **问题** | 易触 max iteration；`/exit` 无记忆；默认无 `execute_command`；工具面偏窄。 |
+| **原因** | CLI 默认 `maxSteps=8`、无 persist 续聊、exec 默认关——偏演示安全，不偏本机 coding。 |
+| **改法** | 默认 `maxSteps=32`（`--max-steps`）、默认 persist（`--no-persist` 关掉）、默认 exec（`--no-exec` 关掉）；`tah chat` 自动 resume 最近 Session。 |
+
+---
+
+## 0.20 — 长任务失败难看 + 没 shell 空转
 
 ### 1. `state=failed` 却几乎没说明
 
 | | |
 | --- | --- |
 | **问题** | 分析大项目、连读很多文件后出现 `[tah] state=failed steps=几十`，助手正文为空或像突然断掉。 |
-| **原因** | DefaultLoop 的 LLM 轮次触达 `maxSteps`（CLI 默认 8）时，`finishReason=max_steps`，但 `text` 是空串；状态被标成 `failed`，用户分不清是崩溃还是步数用尽。 |
-| **改法** | Loop 在 `max_steps` 时写入可读说明（含 `maxSteps=N`）；CLI 状态行增加 `finishReason=max_steps` 提示「拆任务或提高 maxSteps」。 |
+| **原因** | DefaultLoop 的 LLM 轮次触达 `maxSteps`（当时 CLI 默认 8）时，`finishReason=max_steps`，但 `text` 是空串；状态被标成 `failed`，用户分不清是崩溃还是步数用尽。 |
+| **改法** | Loop 在 `max_steps` 时写入可读说明（含 `maxSteps=N`）；CLI 状态行增加 `finishReason=max_steps`。额度默认抬高见 0.21。 |
 
 ### 2. 「帮我跑测试」却只能静态看代码
 
 | | |
 | --- | --- |
 | **问题** | 用户说「测试 / 构建 / 跑一下」，模型长篇解释「我没有 shell」，不知道可以开 `--exec`。 |
-| **原因** | 默认故意不挂 `execute_command`（安全默认）；system prompt 只说有哪些工具，没说「要跑命令请用 `tah --exec` 重开」。 |
-| **改法** | 无 `--exec` 时 system prompt 明确：不能跑程序；若用户要测/构建/跑命令，告诉其 `tah --exec …`。`--help` 同步注明。 |
-
-**本地用法（未发前）：** `pnpm tah -- --exec chat`（仓库内）；发版后用全局 / npx 的 0.20。
+| **原因** | 默认故意不挂 `execute_command`；system prompt 未说明如何开启。 |
+| **改法** | 0.20：无 exec 时提示 `tah --exec`。0.21：默认打开 exec，关掉用 `--no-exec`。 |
 
 ---
 
@@ -139,12 +147,11 @@
 
 | 问题 | 说明 |
 | --- | --- |
-| `/exit` 后再说「继续」失忆 | `--persist` 只写库；CLI 每次 `create()` 新 Session，没有 `tah resume` |
 | 流式偶发同一段回复打两遍 | stream + 非 stream 打印路径可能重叠；未专项修 |
 | 仓库根目录跑 tah 会读 `examples/basic-agent/.env` | `loadCliEnv` 故意兼容；别的项目请用该项目的 `--cwd` + `.env` |
-| `--persist` 时 sqlite ExperimentalWarning | 0.17 只保证 `--help` 不加载；persist 路径仍会警告 |
-| 默认 `maxSteps=8` 对「分析整个仓库」偏紧 | 0.20 只让失败可读；未默认抬高上限，也未做 `--max-steps` |
-| 无浏览器 / 无跨工作区 `cp` | 刻意不做；需要人用 `--exec` 或自己在终端操作 |
+| 默认 persist 时 sqlite ExperimentalWarning | 0.17 只保证 `--help` 不加载；persist 路径仍会警告 |
+| 无浏览器 / 无跨工作区 `cp` | 刻意不做；需要 `--exec`（现已默认开）或自己在终端操作 |
+| 续聊只接「最近一个」Session | `/reset` 后旧 Session 仍在库里，但 reopen 总是最新一条 |
 
 ---
 
@@ -153,12 +160,12 @@
 | 你想做的事 | 正确用法 |
 | --- | --- |
 | 测真 DeepSeek | 项目目录 `.env` 放 key；**不要** `--mock` |
-| 跑测试 / 构建 | `tah --exec chat`（或 `pnpm tah -- --exec …`） |
+| 跑测试 / 构建 | `tah chat`（0.21 默认已有 exec；关掉用 `--no-exec`） |
 | 管道多轮 | `printf 'a\nb\n' \| tah --mock chat`（0.19+） |
-| 只读 | `tah --deny write_file …` |
+| 只读 | `tah --deny write_file --deny execute_command …` |
 | 全局 `tah` | `npm i -g @typescript-agent-harness/cli`（权限见 0.18） |
-| 长任务失败 | 看是否 `finishReason=max_steps`；拆小任务（0.20+） |
-| 跨 `/exit` 续聊 | **还不能**；先别 `/exit`，或等 resume |
+| 长任务失败 | 看 `finishReason=max_steps`；加大 `--max-steps` 或拆任务 |
+| 跨 `/exit` 续聊 | 再开 `tah chat`（默认 persist；`--no-persist` 则不会续） |
 
 ---
 

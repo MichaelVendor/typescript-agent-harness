@@ -35,6 +35,7 @@ test("bootRuntime mounts stdio MCP tools only with --mcp", async () => {
     allow: [] as string[],
     deny: [] as string[],
     onceMs: -1,
+    maxSteps: 32,
   };
 
   const off = await bootRuntime(base);

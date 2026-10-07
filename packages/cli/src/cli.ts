@@ -27,7 +27,9 @@ async function main(): Promise<void> {
   }
 
   const { SESSION } = await import("@typescript-agent-harness/agent");
-  const { bootRuntime, endTurn, runPrompt } = await import("./runtime.js");
+  const { bootRuntime, endTurn, openChatSession, runPrompt } = await import(
+    "./runtime.js"
+  );
 
   if (flags.command === "run") {
     if (!flags.prompt) {
@@ -46,7 +48,7 @@ async function main(): Promise<void> {
 
   if (flags.command === "chat") {
     const { runtime, streamed } = await bootRuntime(flags);
-    let session = await runtime.get(SESSION).create();
+    let { session, resumed } = await openChatSession(runtime, flags);
     const readline = await import("node:readline");
     const rl = readline.createInterface({
       input: process.stdin,
@@ -54,6 +56,11 @@ async function main(): Promise<void> {
       terminal: Boolean(process.stdin.isTTY),
     });
     console.log("tah chat  —  /exit  /reset");
+    if (resumed) {
+      console.log(`[tah] resumed session ${session.id}`);
+    } else {
+      console.log(`[tah] session ${session.id}`);
+    }
     const prompt = () => process.stdout.write("you> ");
     try {
       prompt();
@@ -73,6 +80,11 @@ async function main(): Promise<void> {
         const result = await session.run(line);
         endTurn(result, session, flags.quiet, streamed);
         prompt();
+      }
+      if (flags.persist && !flags.quiet) {
+        console.log(
+          `[tah] session ${session.id} saved — run tah chat again to continue`,
+        );
       }
     } finally {
       rl.close();
