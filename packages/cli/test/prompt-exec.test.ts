@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { buildSystemPrompt } from "../dist/prompt.js";
+
+test("buildSystemPrompt without --exec tells user to restart with tah --exec", () => {
+  const prompt = buildSystemPrompt({ exec: false, mcp: false });
+  assert.match(prompt, /tah --exec/);
+  assert.doesNotMatch(prompt, /Use execute_command/);
+});
+
+test("buildSystemPrompt with --exec mentions execute_command", () => {
+  const prompt = buildSystemPrompt({ exec: true, mcp: false });
+  assert.match(prompt, /execute_command/);
+  assert.doesNotMatch(prompt, /restart with tah --exec/);
+});

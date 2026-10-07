@@ -102,7 +102,7 @@ Flags:
   --mock         local fake LLM (required if no DEEPSEEK_API_KEY / OPENAI_API_KEY)
   --persist      SQLite at <cwd>/.tah/cli.db
   --quiet        only print assistant text
-  --exec         mount execute_command + permissions gate (off by default)
+  --exec         mount execute_command (needed to test/build/run programs; off by default)
   --mcp <cmd>    mount stdio MCP tools from a child process (off by default)
   --mcp-arg <a>  extra argv for --mcp (repeatable)
   --allow <tool> allowlist (repeatable; omit = all tools allowed)

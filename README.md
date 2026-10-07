@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  (all plugins)
 ```
 
-## v0.19 (current)
+## v0.20 (current)
 
 Runtime through CLI. Start with npm:
 

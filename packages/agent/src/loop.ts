@@ -138,7 +138,7 @@ export function createDefaultLoop(deps: {
         type: "agent.finished",
         result: {
           sessionId: session.id,
-          text: "",
+          text: `Stopped: reached the agent LLM step limit (maxSteps=${session.maxSteps}). Split the task into smaller asks, or raise maxSteps when creating the agent.`,
           finishReason: "max_steps",
           steps: [],
         },

@@ -27,7 +27,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--mock` | 本地假模型；没有 API key 时必须加，否则退出码 1 |
 | `--persist` | SQLite：`<cwd>/.tah/cli.db` |
 | `--quiet` | 只打印模型回复 |
-| `--exec` | 挂上 `execute_command` 和 permissions 闸门（默认关） |
+| `--exec` | 挂上 `execute_command`（要测 / 构建 / 跑程序时需要；默认关） |
 | `--mcp <cmd>` | 挂上 stdio MCP 工具（默认关） |
 | `--mcp-arg <a>` | `--mcp` 的额外参数（可重复） |
 | `--allow <tool>` | 白名单（可重复；不写则不限制） |
@@ -35,6 +35,8 @@ npx @typescript-agent-harness/cli --mock chat
 | `--once <ms>` | 延迟后跑一轮 `tah run`（默认关；仅 `run`） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
+
+默认不挂 `execute_command`；模型会提示用 `tah --exec` 重开。走到 LLM 步数上限时会打印 `finishReason=max_steps` 和可读说明（不再空回复 + `state=failed`）。
 
 管道多轮：
 

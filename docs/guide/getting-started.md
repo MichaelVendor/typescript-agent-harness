@@ -25,7 +25,7 @@ tah run --mock "列出当前目录并说明这个项目"
 
 不加 `--mock` 时需要 `DEEPSEEK_API_KEY`（`<cwd>/.env`），否则退出码 1。有 key 时走 DeepSeek。`--mock` 的「说明项目」是套话，测语义不要加 `--mock`。
 
-详见 [CLI](/guide/cli)。
+详见 [CLI](/guide/cli)。踩坑对照：[版本踩坑与改动](/guide/lessons)。
 
 ## 从源码开发
 

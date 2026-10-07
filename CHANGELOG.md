@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.0 — 2026-10-07
+
+CLI / agent: hitting `maxSteps` prints a readable stop message (`finishReason=max_steps`) instead of an empty failed turn. Without `--exec`, the system prompt tells the model to ask the user to restart with `tah --exec` for test/build/run.
+
+Docs: [版本踩坑与改动](docs/guide/lessons.md) — problem / why / how by version.
+
 ## 0.19.0 — 2026-10-06
 
 CLI: piped `tah chat` runs every stdin line then exits 0 (no `readline was closed`). No API key is an error unless `--mock`.

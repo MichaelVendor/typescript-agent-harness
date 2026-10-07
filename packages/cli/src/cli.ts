@@ -71,7 +71,7 @@ async function main(): Promise<void> {
           continue;
         }
         const result = await session.run(line);
-        endTurn(result.text, session, flags.quiet, streamed);
+        endTurn(result, session, flags.quiet, streamed);
         prompt();
       }
     } finally {

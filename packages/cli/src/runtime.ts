@@ -12,6 +12,7 @@ import {
   executeCommandTool,
 } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
+import { buildSystemPrompt } from "./prompt.js";
 
 export type StreamFlag = { on: boolean };
 
@@ -95,15 +96,14 @@ export async function bootRuntime(
     );
   }
 
-  let systemPrompt =
-    "You are a workspace coding agent. Prefer list_files, read_file, and grep before answering. Use write_file only when asked to change files.";
-  if (flags.exec) {
-    systemPrompt += " Use execute_command only when asked to run a program.";
-  }
-  if (flags.mcpCommand) {
-    systemPrompt += " MCP tools from --mcp are also available.";
-  }
-  runtime.use(agentPlugin({ systemPrompt }));
+  runtime.use(
+    agentPlugin({
+      systemPrompt: buildSystemPrompt({
+        exec: flags.exec,
+        mcp: Boolean(flags.mcpCommand),
+      }),
+    }),
+  );
 
   if (flags.onceMs >= 0) {
     const { schedulerPlugin } = await import("@typescript-agent-harness/scheduler");
@@ -122,7 +122,7 @@ export async function runOnce(
 ): Promise<void> {
   const session = await runtime.get(SESSION).create();
   const result = await session.run(prompt);
-  endTurn(result.text, session, quiet, streamed);
+  endTurn(result, session, quiet, streamed);
 }
 
 const ONCE_JOB = "tah-run";
@@ -151,8 +151,26 @@ export async function runPrompt(
   });
 }
 
+export type TurnResult = {
+  text: string;
+  finishReason: string;
+};
+
+export function formatStatusLine(
+  state: string,
+  steps: number,
+  finishReason: string,
+): string {
+  let line = `[tah] state=${state} steps=${steps}`;
+  if (finishReason === "max_steps") {
+    line +=
+      " finishReason=max_steps — LLM step limit hit; split the task or raise maxSteps";
+  }
+  return line;
+}
+
 export function endTurn(
-  text: string,
+  result: TurnResult,
   session: Session,
   quiet: boolean,
   streamed: StreamFlag,
@@ -160,21 +178,28 @@ export function endTurn(
   if (streamed.on) {
     process.stdout.write("\n");
     streamed.on = false;
+    if (result.finishReason === "max_steps" && result.text) {
+      console.log(`\n${result.text}`);
+    }
     if (!quiet) {
-      console.log(`\n[tah] state=${session.state} steps=${session.steps.length}`);
+      console.log(
+        `\n${formatStatusLine(session.state, session.steps.length, result.finishReason)}`,
+      );
     }
     return;
   }
-  printAssistant(text, session, quiet);
+  printAssistant(result, session, quiet);
 }
 
 export function printAssistant(
-  text: string,
+  result: TurnResult,
   session: Session,
   quiet: boolean,
 ): void {
-  console.log(`\n${text}\n`);
+  console.log(`\n${result.text}\n`);
   if (!quiet) {
-    console.log(`[tah] state=${session.state} steps=${session.steps.length}`);
+    console.log(
+      formatStatusLine(session.state, session.steps.length, result.finishReason),
+    );
   }
 }
