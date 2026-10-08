@@ -155,6 +155,7 @@ async function main(): Promise<void> {
           const result = await session.run(line);
           endTurn(result, session, flags.quiet, streamed);
         } catch (err) {
+          streamed.flush();
           if (streamed.on) process.stdout.write("\n");
           streamed.on = false;
           streamed.midLine = false;

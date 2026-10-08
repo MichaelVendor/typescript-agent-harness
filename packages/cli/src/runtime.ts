@@ -20,11 +20,15 @@ import {
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
+import { createMarkdownStream, dim, renderMarkdown, useColor } from "./markdown.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { formatSessions, resolveSessionRef, toRows } from "./sessions.js";
 
-/** `midLine`: streamed text did not end with a newline, so log lines must break first. */
-export type StreamFlag = { on: boolean; midLine: boolean };
+/**
+ * `midLine`: streamed text did not end with a newline, so log lines must break first.
+ * `flush`: write any assistant text still buffered for styling; call before printing anything else.
+ */
+export type StreamFlag = { on: boolean; midLine: boolean; flush: () => void };
 
 /** ~25k tokens of English/code (CJK costs more); leaves room for tool schemas and the reply on 64k-context models. */
 export const DEFAULT_CONTEXT_CHARS = 100_000;
@@ -48,20 +52,26 @@ export async function bootRuntime(
   const provider = flags.mock ? "mock" : "openai-compatible";
   const runtime = new Runtime({ id: "tah-cli" });
 
-  const streamed: StreamFlag = { on: false, midLine: false };
+  const color = useColor();
+  const write = (s: string) => {
+    process.stdout.write(s);
+  };
+  const md = color ? createMarkdownStream(write) : { push: write, flush() {} };
+  const streamed: StreamFlag = { on: false, midLine: false, flush: () => md.flush() };
   runtime.on("agent.assistant-stream", (e) => {
     const text = (e as { text?: string }).text ?? "";
     if (!text) return;
     streamed.on = true;
     streamed.midLine = !text.endsWith("\n");
-    process.stdout.write(text);
+    md.push(text);
   });
   const log = (line: string) => {
+    md.flush();
     if (streamed.midLine) {
       process.stdout.write("\n");
       streamed.midLine = false;
     }
-    console.log(line);
+    console.log(color ? dim(line) : line);
   };
 
   if (!flags.quiet) {
@@ -117,7 +127,15 @@ export async function bootRuntime(
     runtime.use(permissionsPlugin(perms));
   }
   if (ask) {
-    runtime.use(approvalPlugin({ tools: APPROVAL_TOOLS, ask }));
+    runtime.use(
+      approvalPlugin({
+        tools: APPROVAL_TOOLS,
+        ask: (call, signal) => {
+          md.flush();
+          return ask(call, signal);
+        },
+      }),
+    );
   }
 
   runtime.use(llmPlugin({ provider })).use(toolsPlugin({ tools }));
@@ -274,17 +292,18 @@ export function endTurn(
   quiet: boolean,
   streamed: StreamFlag,
 ): void {
+  const color = useColor();
   if (streamed.on) {
+    streamed.flush();
     process.stdout.write("\n");
     streamed.on = false;
     streamed.midLine = false;
     if (result.finishReason === "max_steps" && result.text) {
-      console.log(`\n${result.text}`);
+      console.log(`\n${color ? renderMarkdown(result.text) : result.text}`);
     }
     if (!quiet) {
-      console.log(
-        `\n${formatStatusLine(session.state, session.steps.length, result.finishReason)}`,
-      );
+      const status = formatStatusLine(session.state, session.steps.length, result.finishReason);
+      console.log(`\n${color ? dim(status) : status}`);
     }
     return;
   }
@@ -296,10 +315,10 @@ export function printAssistant(
   session: Session,
   quiet: boolean,
 ): void {
-  console.log(`\n${result.text}\n`);
+  const color = useColor();
+  console.log(`\n${color ? renderMarkdown(result.text) : result.text}\n`);
   if (!quiet) {
-    console.log(
-      formatStatusLine(session.state, session.steps.length, result.finishReason),
-    );
+    const status = formatStatusLine(session.state, session.steps.length, result.finishReason);
+    console.log(color ? dim(status) : status);
   }
 }
