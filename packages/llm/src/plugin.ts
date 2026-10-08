@@ -10,6 +10,8 @@ export type LLMPluginOptions = {
   defaultModel?: string;
   baseURL?: string;
   apiKey?: string;
+  /** openai-compatible only: retries before the response starts (emits `llm.retry`). Default 3. */
+  maxRetries?: number;
 };
 
 function wrapWithEvents(
@@ -103,7 +105,13 @@ export function llmPlugin(options: LLMPluginOptions = {}): Plugin {
             "openai-compatible provider requires apiKey + baseURL (DEEPSEEK_API_KEY or OPENAI_API_KEY / OPENAI_BASE_URL)",
           );
         }
-        service = createOpenAICompatLLM({ baseURL, apiKey, defaultModel });
+        service = createOpenAICompatLLM({
+          baseURL,
+          apiKey,
+          defaultModel,
+          ...(options.maxRetries !== undefined ? { maxRetries: options.maxRetries } : {}),
+          onRetry: (info) => ctx.emit("llm.retry", info),
+        });
         ctx.provide(LLM, wrapWithEvents(service, ctx, defaultModel));
       } else {
         const mockModel = options.defaultModel ?? "mock";

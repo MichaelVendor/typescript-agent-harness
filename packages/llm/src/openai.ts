@@ -10,11 +10,40 @@ import type {
 } from "./types.js";
 import { nextId } from "./ids.js";
 
+export type LLMRetryInfo = { attempt: number; delayMs: number; reason: string };
+
 export type OpenAICompatConfig = {
   baseURL: string;
   apiKey: string;
   defaultModel: string;
+  /** Retries on network errors, 408/429/5xx. Only before the response starts, so streamed text is never repeated. Default 3. */
+  maxRetries?: number;
+  onRetry?: (info: LLMRetryInfo) => void | Promise<void>;
 };
+
+const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+const MAX_RETRY_DELAY_MS = 20_000;
+
+function retryAfterMs(header: string | null): number | undefined {
+  if (header === null) return undefined;
+  const seconds = Number(header);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined;
+}
+
+function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal!.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
 
 type OpenAIMessage = {
   role: string;
@@ -106,12 +135,29 @@ export function createOpenAICompatLLM(config: OpenAICompatConfig): LLMService {
       body: JSON.stringify(requestBody(request, model, stream)),
     };
     if (request.signal) init.signal = request.signal;
-    const res = await fetch(`${base}/chat/completions`, init);
-    if (!res.ok) {
+    const maxRetries = config.maxRetries ?? 3;
+
+    const retry = async (attempt: number, reason: string, hintMs?: number) => {
+      const delayMs = Math.min(hintMs ?? 1000 * 2 ** (attempt - 1), MAX_RETRY_DELAY_MS);
+      await config.onRetry?.({ attempt, delayMs, reason });
+      await sleep(delayMs, request.signal);
+    };
+
+    for (let attempt = 1; ; attempt += 1) {
+      let res: Response;
+      try {
+        res = await fetch(`${base}/chat/completions`, init);
+      } catch (error) {
+        if (request.signal?.aborted || attempt > maxRetries) throw error;
+        await retry(attempt, `network: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
+      if (res.ok) return res;
       const text = await res.text();
-      throw new Error(`OpenAI-compatible error ${res.status}: ${text}`);
+      const error = new Error(`OpenAI-compatible error ${res.status}: ${text}`);
+      if (!RETRYABLE_STATUS.has(res.status) || attempt > maxRetries) throw error;
+      await retry(attempt, `HTTP ${res.status}`, retryAfterMs(res.headers.get("retry-after")));
     }
-    return res;
   }
 
   async function generate(request: LLMRequest): Promise<LLMResponse> {
