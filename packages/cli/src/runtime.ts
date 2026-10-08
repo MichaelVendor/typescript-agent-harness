@@ -62,7 +62,7 @@ export async function bootRuntime(
     const text = (e as { text?: string }).text ?? "";
     if (!text) return;
     streamed.on = true;
-    streamed.midLine = !text.endsWith("\n");
+    streamed.midLine = color ? false : !text.endsWith("\n");
     md.push(text);
   });
   const log = (line: string) => {
