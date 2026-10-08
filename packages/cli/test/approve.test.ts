@@ -8,7 +8,7 @@ import { test } from "node:test";
 import type { Runtime } from "@typescript-agent-harness/core";
 import { TOOLS } from "@typescript-agent-harness/tools";
 import { parseArgv } from "../dist/args.js";
-import { createAsk, formatCall, lineReader, parseAnswer } from "../dist/approve.js";
+import { createAsk, formatPrompt, lineReader, parseAnswer } from "../dist/approve.js";
 import { bootRuntime } from "../dist/runtime.js";
 
 test("parseArgv: --yes / -y", () => {
@@ -52,15 +52,28 @@ test("cancelled approval answers no and leaves the next line for the chat loop",
   rl.close();
 });
 
-test("formatCall shows the command line and the write target", () => {
+test("formatPrompt shows a card with the command or write preview and the answer keys", () => {
+  const keys = (tool: string) =>
+    `  y allow once  ·  a always allow ${tool}  ·  n / Enter reject  › `;
   assert.equal(
-    formatCall({ name: "execute_command", arguments: { program: "npm", args: ["test"] } }),
-    "execute_command: npm test",
+    formatPrompt({ name: "execute_command", arguments: { program: "npm", args: ["test"] } }, false),
+    ["", "╭─ Run command", "│ $ npm test", "╰─", keys("execute_command")].join("\n"),
   );
+  const content = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`).join("\n");
   assert.equal(
-    formatCall({ name: "write_file", arguments: { path: "a.ts", content: "abc" } }),
-    "write_file: a.ts (3 chars)",
+    formatPrompt({ name: "write_file", arguments: { path: "a.ts", content } }, false),
+    [
+      "",
+      `╭─ Write file  a.ts (${content.length} chars)`,
+      ...Array.from({ length: 8 }, (_, i) => `│ line ${i + 1}`),
+      "│ … 2 more lines",
+      "╰─",
+      keys("write_file"),
+    ].join("\n"),
   );
+  const colored = formatPrompt({ name: "write_file", arguments: { path: "a.ts", content: "x" } }, true);
+  assert.match(colored, /\x1b\[33m╭─/);
+  assert.equal(colored.replace(/\x1b\[\d+m/g, ""), formatPrompt({ name: "write_file", arguments: { path: "a.ts", content: "x" } }, false));
 });
 
 test("bootRuntime asks before write_file; --yes skips the question", async () => {
