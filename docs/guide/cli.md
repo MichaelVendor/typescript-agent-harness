@@ -70,11 +70,13 @@ pnpm tah -- --mock run "用 node 打印 1+1"
 
 ## 审批（v0.22）
 
-`write_file` 和 `execute_command` 每次执行前会问：
+`write_file` 和 `execute_command` 每次执行前会弹一张卡片（写文件时预览前 8 行内容），输入字母后回车：
 
 ```text
-[approve] execute_command: npm test
-  allow? [y]es / [n]o / [a]lways:
+╭─ Run command
+│ $ npm test
+╰─
+  y allow once  ·  a always allow execute_command  ·  n / Enter reject  ›
 ```
 
 | 回答 | 效果 |
@@ -133,6 +135,13 @@ tah --system-file reviewer.md chat
 | 重试仍失败 | chat 打印 `[tah] turn failed …` 并回到 `you>`，不退出 |
 
 模型在调用工具前说的话（如「我先读一下文件」）会单独成行，和后面的 `[tool]` 日志分开；最终回答若复述了过程，那是模型行为，不是重复打印。
+
+## 输出样式
+
+在终端里，模型回复的 Markdown 会按行渲染：标题加粗、`**粗体**`、行内代码上色、列表变成 `•`、代码块加左侧边框、引用和表格竖线变暗；`[tah]` / `[llm]` / `[tool]` / `[ctx]` 日志变灰；审批卡片用黄色边框。
+
+- 每收到一整行才显示（不再逐字出现）
+- 输出不是终端（管道、重定向）、设置了 `NO_COLOR`、或 `TERM=dumb` 时，原样输出纯文本
 
 ## 长会话上下文（v0.22）
 
