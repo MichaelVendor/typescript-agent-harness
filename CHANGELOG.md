@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.2 — 2026-10-08
+
+CLI: assistant Markdown is styled line by line in a terminal (headings, bold, inline code, lists, code blocks, quotes, tables); `[tah]` / `[llm]` / `[tool]` / `[ctx]` logs are dimmed. Plain text when stdout is not a TTY, `NO_COLOR` is set, or `TERM=dumb`.
+
+CLI: approval prompts are a card — the command line, or the file path with an 8-line content preview — followed by the `y` / `a` / `n` keys.
+
 ## 0.22.1 — 2026-10-08
 
 CLI: `tah version` / `--version` / `-v` prints the CLI version.
