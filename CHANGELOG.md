@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.5 — 2026-10-08
+
+Agent: a reopened persisted session uses the current `maxSteps` instead of the value stored when it was created (old sessions were stuck at 8 even with `--max-steps`).
+
+Tools: `execute_command` accepts a per-call `timeoutMs` (default 30s, max 10 min), so installs and builds are no longer killed at 30s.
+
 ## 0.22.4 — 2026-10-08
 
 CLI: assistant Markdown is rendered by `marked-terminal` (default style, syntax-highlighted code blocks), one block at a time — replacing the built-in line renderer. New dependencies: `marked@12`, `marked-terminal@7`.
