@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.22.1 — 2026-10-08
+
+CLI: `tah version` / `--version` / `-v` prints the CLI version.
+
 ## 0.22.0 — 2026-10-08
 
 Core: waterfall interceptors — `ctx.intercept(name, handler)` / `ctx.waterfall(name, payload, final)`; a handler calls `next()` to delegate or returns to short-circuit.

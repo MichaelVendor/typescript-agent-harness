@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/core",
-  "version": "0.22.0",
+  "version": "0.22.1",
   "description": "Agent Runtime core: Runtime, Plugin, Context, Service, EventBus",
   "type": "module",
   "main": "./dist/index.js",
