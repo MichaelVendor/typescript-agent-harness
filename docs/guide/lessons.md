@@ -19,7 +19,59 @@
 
 ---
 
-## 0.21（开发中）— 默认太「安全」导致不好用
+## 0.22（开发中）— 默认能跑命令没人把关；长会话越聊越大；角色写死；打断与失败；只能续最近一个
+
+### 1. 写文件 / 跑命令不经确认
+
+| | |
+| --- | --- |
+| **问题** | 0.21 默认开 exec 后，模型可以不经确认就写文件、跑任意命令；只能事先 `--deny`，没有「执行前问我」。对标 DeepSeek Harness 时最大差距也在这：事件只能旁观，不能拦截。 |
+| **原因** | EventBus 只有 `emit`（顺序通知），没有可改写/可短路的拦截点；权限检查硬编码在 `toolsPlugin.execute` 里（直接 import `PERMISSIONS`），新策略只能改 tools 包。 |
+| **改法** | core 增加 waterfall：`ctx.intercept` / `ctx.waterfall`；所有工具调用走 `tool.execute`。`--allow/--deny` 改成 permissions 插件里的拦截器；新增 `approvalPlugin`。CLI 对 `write_file` / `execute_command` 问 `[y/n/a]`，`--yes` 跳过；非终端无 `--yes` 直接拒绝。 |
+
+### 2. 续聊默认开启后，上下文只增不减
+
+| | |
+| --- | --- |
+| **问题** | 0.21 起 `tah chat` 总是续最近 Session；聊得越久，每次请求越大，迟早超模型上限或 token 费暴涨。 |
+| **原因** | Loop 每步把 `session.messages` 全量发给 LLM，没有任何预算。 |
+| **改法** | `agentPlugin({ contextChars })` + 纯函数 `projectContext`：先省略旧工具输出，再整轮丢最早对话（保证 tool 调用/结果成对），当前轮保留；完整历史不删。CLI 默认 100,000 字符，裁剪时打印 `[ctx]`。 |
+
+### 3. 想换个角色只能改源码
+
+| | |
+| --- | --- |
+| **问题** | CLI 的「workspace coding agent」写死在 `prompt.ts`；而且续聊时用的是建 Session 时存下的 system，改了也不生效。 |
+| **原因** | system prompt 只在 `create()` 时写入 messages，重开 Session 直接用存储里的旧值。 |
+| **改法** | `--system-file <path>` 替换角色句；重开 Session 时用当前 `systemPrompt` 覆盖旧的那条。 |
+
+### 4. 打断不了、网络一抖整个 chat 退出
+
+| | |
+| --- | --- |
+| **问题** | 模型跑长命令时 Ctrl+C 停不下来（0.22 读审批回答后 `tah run` 也吞了 Ctrl+C）；接口偶发 429 / 断网，chat 直接抛错退出。 |
+| **原因** | readline 原始模式接管 ^C 但没人处理；LLM 请求无重试；chat 循环不捕获单轮异常。另：一轮在「模型已发 tool_calls、工具没跑完」时中断，下一轮请求缺 tool 结果，DeepSeek 会 400。 |
+| **改法** | chat：^C 取消当前轮（`session.cancel()`，审批等待也能取消），空闲时 ^C 退出；`run` 用 cooked 模式让 ^C 直接退出。openai-compatible 在响应开始前对网络错误 / 408 / 429 / 5xx 退避重试 3 次。新一轮开始前给未完成的 tool_calls 补「未执行」结果。单轮失败只打印，不退出。 |
+
+### 5. 「同一段回复打两遍」
+
+| | |
+| --- | --- |
+| **问题** | 0.8 起偶发看到回复像被打印了两次。 |
+| **原因** | 复现后确认每段流式文字只打印一次：模型在调工具前说的话与 `[tool]` 日志挤在同一行，最终回答又常复述过程，看起来像重复。 |
+| **改法** | 流式文字未换行时，日志先换行再打印；重试只发生在响应开始前，不会重放已打印的文字。 |
+
+### 6. 只能续「最近一个」Session，也回不到某一轮
+
+| | |
+| --- | --- |
+| **问题** | `/reset` 开了新话题后，旧 Session 还在库里但打不开；某一轮走偏了，只能整个重来。 |
+| **原因** | CLI 只会 `list()[0]`；Session 服务没有复制 / 截断历史的能力。 |
+| **改法** | `tah sessions` 列表；`tah chat --session <id\|n>`、chat 内 `/sessions` `/resume`；`SessionService.fork(id, { turns })` + `/fork [n]` 复制（或只留前 n 轮）到新 Session，原 Session 不动。 |
+
+---
+
+## 0.21 — 默认太「安全」导致不好用
 
 | | |
 | --- | --- |
@@ -137,7 +189,7 @@
 | 0.5 | `tah run` / `tah chat` | 默认 coding system prompt + 工作区工具 |
 | 0.6 | 测试 + CI + stdio MCP | 质量地板 |
 | 0.7 | 改名 typescript-agent-harness / `tah` / `.tah` | 旧名不再用 |
-| 0.8 | `llm.stream` + 增量输出 | 偶发「同一段打两遍」仍可能出现，见下 |
+| 0.8 | `llm.stream` + 增量输出 | 偶发「同一段打两遍」：0.22 查明是排版 + 模型复述，见 0.22 第 5 条 |
 
 ---
 
@@ -147,11 +199,13 @@
 
 | 问题 | 说明 |
 | --- | --- |
-| 流式偶发同一段回复打两遍 | stream + 非 stream 打印路径可能重叠；未专项修 |
+| 流式中途断开不重试 | 已经打印了一部分时不重放，直接报错；再说一次即可 |
 | 仓库根目录跑 tah 会读 `examples/basic-agent/.env` | `loadCliEnv` 故意兼容；别的项目请用该项目的 `--cwd` + `.env` |
 | 默认 persist 时 sqlite ExperimentalWarning | 0.17 只保证 `--help` 不加载；persist 路径仍会警告 |
 | 无浏览器 / 无跨工作区 `cp` | 刻意不做；需要 `--exec`（现已默认开）或自己在终端操作 |
-| 续聊只接「最近一个」Session | `/reset` 后旧 Session 仍在库里，但 reopen 总是最新一条 |
+| 分叉不记父子关系 | `tah sessions` 看不出谁 fork 自谁（只在 `session.forked` 事件里） |
+| 上下文裁剪不做摘要 | 丢掉的旧轮次模型就看不到了；按字符估算，不是真实 token 数 |
+| 每个 LLM step 都存一份完整 request | 长会话 `.tah/cli.db` 会明显变大；裁剪后单份有上限，但份数随步数线性增长 |
 
 ---
 
@@ -166,6 +220,13 @@
 | 全局 `tah` | `npm i -g @typescript-agent-harness/cli`（权限见 0.18） |
 | 长任务失败 | 看 `finishReason=max_steps`；加大 `--max-steps` 或拆任务 |
 | 跨 `/exit` 续聊 | 再开 `tah chat`（默认 persist；`--no-persist` 则不会续） |
+| 不想每次被问 y/n | 当次回 `a`（该工具本次不再问），或启动加 `--yes`（0.22+） |
+| 管道 / 脚本里要写文件 | 必须加 `--yes`，否则审批直接拒绝（0.22+） |
+| 换个角色（审查 / 写测试 …） | `tah --system-file role.md chat`（0.22+） |
+| 看到 `[ctx] trimmed` | 正常，旧内容被省略；换话题就 `/reset`（0.22+） |
+| 模型跑偏 / 命令太久 | chat 里 Ctrl+C 停这一轮，接着说（0.22+） |
+| 回到旧话题 | `tah sessions` 看序号，`tah chat --session <n>`；chat 里 `/resume <n>`（0.22+） |
+| 某一轮走偏想重来 | `/fork <n>` 只保留前 n 轮，原 Session 不动（0.22+） |
 
 ---
 

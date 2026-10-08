@@ -8,16 +8,16 @@
 | 📐 已设计 | 方向已定，代码未做或只做了一部分 |
 | 🧭 规划中 | 以后可能做，现在不要当 API |
 
-当前版本 **v0.21.0**。已实现的包：
+当前版本 **v0.22.0**。已实现的包：
 
 | 包 | 作用 |
 | --- | --- |
-| `@typescript-agent-harness/core` | Runtime / Plugin / Context / Service / EventBus |
+| `@typescript-agent-harness/core` | Runtime / Plugin / Context / Service / EventBus + waterfall 拦截 |
 | `@typescript-agent-harness/llm` | mock + OpenAI 兼容（DeepSeek） |
 | `@typescript-agent-harness/tools` | registry + list/read/write/grep + execute_command |
-| `@typescript-agent-harness/agent` | Session + DefaultLoop + resume + `run_subagent` |
+| `@typescript-agent-harness/agent` | Session + DefaultLoop + resume + `run_subagent` + 上下文裁剪 |
 | `@typescript-agent-harness/storage` | SQLite / memory、事件日志、checkpoint |
-| `@typescript-agent-harness/permissions` | allow / deny |
+| `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |
 | `@typescript-agent-harness/mcp` | `McpBackend` → Tool（进程内 ping + stdio） |
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
 | `@typescript-agent-harness/cli` | `tah run` / `tah chat` |

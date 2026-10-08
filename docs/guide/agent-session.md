@@ -122,7 +122,20 @@ async function* defaultLoop(ctx: AgentContext): AsyncIterable<AgentEvent> {
 
 已实现：`DefaultLoop`。其它 Loop（Coding / Research / Parallel / Team）🧭。
 
-`agentPlugin({ systemPrompt?, maxSteps? })` 在 setup 里创建 Loop，不单独暴露 `AGENT_LOOP` ServiceKey。
+`agentPlugin({ systemPrompt?, maxSteps?, contextChars? })` 在 setup 里创建 Loop，不单独暴露 `AGENT_LOOP` ServiceKey。
+
+- `systemPrompt`：新 Session 的首条 system；从存储重开旧 Session 时也会**替换**存下来的那条（当前配置优先，v0.22）
+- `contextChars`：每次 LLM 请求的字符预算（v0.22）；不设则发全量历史
+
+### 上下文裁剪（v0.22）
+
+`projectContext(messages, budgetChars)` 是纯函数：Session 里的完整历史不变，只裁「这次发给模型的那份」，并记进 LLM step 的 `request`。超预算时依次：
+
+1. 省略旧轮次的工具输出（替换成 `[tool output omitted … N chars]`）
+2. 从最早开始**整轮**丢弃（user 起到下一条 user 前），并在 system 末尾注明丢了几轮
+3. 仍超：省略当前轮里模型已经看过的工具输出；最新一批工具结果与当前轮始终保留
+
+整轮丢弃保证 `tool_calls` 与 tool 结果成对，不会触发 API 的配对校验错误。发生裁剪时发 `agent.context.trimmed`。不做 LLM 摘要。
 
 ## Session 服务
 
@@ -133,13 +146,18 @@ type SessionService = {
   create(): Promise<Session>;
   get(sessionId: string): Promise<Session | undefined>;
   list(): Promise<SessionSummary[]>;
+  fork(sessionId: string, options?: { turns?: number }): Promise<Session>; // v0.22
 };
 ```
 
 `create()` 会 `emit("session.created")`。有 storage 插件时，`get` 会从 SQLite 还原 Session。
+
+`fork()`：复制源 Session 的消息到一个新 Session（新 id、steps / events 从空开始），源 Session 不变；`turns: N` 只保留前 N 轮（按 user 消息分轮，`0` 只剩 system）。发 `session.forked`。用于「回到第 N 轮重来」或「同一上下文试另一条路」。
 
 ## Streaming / Cancel
 
 Loop 通过 `AsyncIterable<AgentLoopEvent>` 驱动 Session（含 `llm.delta`）。Session 转发为 `agent.assistant-stream`；CLI 订阅后边收边打字。
 
 `session.cancel()` → `AbortSignal` 传到 LLM / Tool。崩溃后续跑用 `session.resume()`，见 [Storage](./storage.md)。
+
+取消或失败后直接 `run()` 下一轮也可以：开始前会给上一轮没跑完的 tool_calls 补一条「未执行」结果（v0.22），避免 provider 因缺 tool 结果拒绝请求。

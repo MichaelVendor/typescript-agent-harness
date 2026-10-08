@@ -100,6 +100,8 @@ interface Context {
   provide<T>(key: ServiceKey<T>, value: T): void;
   emit<TName extends string>(type: TName, payload: EventPayload<TName>): Promise<void>;
   on<TName extends string>(type: TName, handler: EventHandler<EventPayload<TName>>): Unsubscribe;
+  intercept<P, R>(name: string, handler: Interceptor<P, R>): Unsubscribe;
+  waterfall<P, R>(name: string, payload: P, final: (payload: P) => Promise<R>): Promise<R>;
 }
 ```
 
@@ -110,6 +112,8 @@ interface Context {
 | `tryGet` | 可选依赖 |
 | `emit` | 顺序 `await` 所有 handler（Phase 1 保证可预测的副作用顺序） |
 | `on` | 订阅；返回 `Unsubscribe` |
+| `intercept` | 注册 waterfall 拦截器；先注册的在外层（v0.22） |
+| `waterfall` | 依次穿过拦截器再执行 `final`；拦截器不调 `next()` 即短路（v0.22） |
 
 ## ServiceKey
 
@@ -132,7 +136,20 @@ Phase 1 行为：
 - `emit` **顺序**执行 handler，并 `await` Promise  
 - 自定义事件名合法；内置事件见 [事件目录](./events.md)  
 
-后续可能增加：waterfall（可拦截）、并行 emit、按 plugin scope 自动 unsubscribe。Phase 1 不做。
+### Waterfall（v0.22）
+
+`emit` 只能旁观；要改写输入、拒绝执行、包装结果，用拦截器：
+
+```ts
+ctx.intercept<ToolExecution, ToolResult>("tool.execute", async (p, next) => {
+  if (p.call.name === "execute_command") console.log("about to run", p.call.arguments);
+  return next(p); // 不调 next 就是拦下，直接返回自己的结果
+});
+```
+
+内置拦截点：`tool.execute`（`packages/tools`，常量 `TOOL_EXECUTE`）。权限与审批都挂在这里。
+
+后续可能增加：并行 emit、按 plugin scope 自动 unsubscribe。
 
 ## 最小可运行示例
 

@@ -27,6 +27,7 @@ runtime.on("llm.request", (e) => console.log("llm", e));
 | 事件 | Payload |
 | --- | --- |
 | `session.created` | `{ sessionId }` |
+| `session.forked` | `{ sessionId, parentId, turns }`（v0.22） |
 | `session.turn.start` | `{ sessionId, turnId }` |
 | `session.turn.end` | `{ sessionId, turnId }` |
 | `agent.started` | `{ sessionId }` |
@@ -34,6 +35,7 @@ runtime.on("llm.request", (e) => console.log("llm", e));
 | `agent.failed` | `{ sessionId, error }` |
 | `agent.cancelled` | `{ sessionId }` |
 | `agent.assistant-stream` | `{ sessionId, text }` |
+| `agent.context.trimmed` | `{ sessionId, droppedTurns, elidedToolResults, chars }`（设了 `contextChars` 且本次请求被裁剪时，v0.22） |
 | `storage.checkpoint` | `{ sessionId, checkpointId, stepId, stepType }` |
 
 `agent.finished` / `cancelled` / `failed` 在 `drive()` 结束时发出。checkpoint 在持久化写盘之后发出。
@@ -45,6 +47,7 @@ runtime.on("llm.request", (e) => console.log("llm", e));
 | `llm.request` | `{ requestId, model, messageCount }` |
 | `llm.response` | `{ requestId, model, finishReason, usage }` |
 | `llm.error` | `{ requestId, error }` |
+| `llm.retry` | `{ attempt, delayMs, reason }`（openai-compatible 重试前，v0.22） |
 | `llm.stream` | `{ requestId, text }` |
 
 ## Tools / Permissions（`packages/tools`）
@@ -57,7 +60,9 @@ runtime.on("llm.request", (e) => console.log("llm", e));
 | `tool.finished` | `{ callId, tool, output }` |
 | `tool.failed` | `{ callId, tool, error }` |
 
-未知工具、权限拒绝、执行抛错都会走 `tool.failed`。
+未知工具、权限拒绝、用户拒绝审批、执行抛错都会走 `tool.failed`。
+
+拦截点（waterfall，v0.22）：`tool.execute`，payload `{ call, ctx }`，结果 `ToolResult`。见 [Runtime · Waterfall](./runtime.md#waterfall-v0-22)。
 
 ## Scheduler（`packages/scheduler`）
 
@@ -78,7 +83,7 @@ runtime.on("llm.request", (e) => console.log("llm", e));
 1. Handler 应快速返回；重活丢到队列 / 后台  
 2. 不要在 handler 里假设执行顺序（除 Runtime 生命周期文档写明的顺序 await）  
 3. Handler 抛错会中断后续 handler；业务插件应自行 try/catch，除非要 fail-fast  
-4. 需要拦截管道时，使用未来的 waterfall API，而不是依赖订阅顺序硬抢  
+4. 需要拦截管道时，用 `ctx.intercept`（waterfall），而不是依赖订阅顺序硬抢  
 
 ## 扩展类型（推荐做法）
 

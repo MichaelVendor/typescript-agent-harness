@@ -25,7 +25,7 @@ tah run --mock "列出当前目录并说明这个项目"
 
 不加 `--mock` 时需要 `DEEPSEEK_API_KEY`（`<cwd>/.env`），否则退出码 1。有 key 时走 DeepSeek。`--mock` 的「说明项目」是套话，测语义不要加 `--mock`。
 
-v0.21 起默认带 `execute_command`、SQLite 持久化、`maxSteps=32`；`tah chat` 会续上一次会话。关掉：`--no-exec` / `--no-persist`。
+v0.21 起默认带 `execute_command`、SQLite 持久化、`maxSteps=32`；`tah chat` 会续上一次会话。关掉：`--no-exec` / `--no-persist`。v0.22 起写文件、跑命令前会先问你 `[y/n/a]`；`--yes` 跳过。长会话自动裁剪上下文；`--system-file` 换角色。
 
 详见 [CLI](/guide/cli)。踩坑对照：[版本踩坑与改动](/guide/lessons)。
 

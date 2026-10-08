@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.22.0 — 2026-10-08
+
+Core: waterfall interceptors — `ctx.intercept(name, handler)` / `ctx.waterfall(name, payload, final)`; a handler calls `next()` to delegate or returns to short-circuit.
+
+Tools / permissions: every tool call runs through the `tool.execute` waterfall. `--allow` / `--deny` checks moved out of `toolsPlugin` into a `permissionsPlugin` interceptor. New `approvalPlugin({ tools, ask })` asks a human before gated tools (`yes` / `no` / `always`).
+
+CLI: `write_file` and `execute_command` ask `[y]es / [n]o / [a]lways` before running. `--yes` / `-y` skips the question. Without a TTY (piped stdin) and without `--yes`, gated calls are rejected.
+
+Agent: `agentPlugin({ contextChars })` trims what each LLM request sees (old tool outputs first, then whole oldest turns; the latest turn is kept) and emits `agent.context.trimmed`. Full history is unchanged. `projectContext()` is exported. Reopening a persisted session replaces its stored system prompt with the current `systemPrompt`.
+
+CLI: context budget 100,000 chars by default, `[ctx] trimmed …` line when it kicks in. `--system-file <path>` replaces the default "workspace coding agent" role (tool rules and exec hints stay); it also applies to a resumed `tah chat` session.
+
+LLM: openai-compatible retries network errors and 408/429/5xx with backoff (`maxRetries`, default 3; honours `Retry-After`), only before the response starts streaming; emits `llm.retry`.
+
+Agent: starting a turn fills in results for tool calls left unanswered by a cancelled or failed turn, so the next request is not rejected by the provider.
+
+CLI: in `tah chat`, Ctrl+C cancels the running turn (including a pending approval) and returns to the prompt; Ctrl+C at an idle prompt exits. A failed turn prints `[tah] turn failed …` instead of crashing the chat. `tah run` exits on Ctrl+C again (0.22 approval reading had swallowed it). Log lines no longer stick to streamed text that did not end with a newline.
+
+Agent: `SessionService.fork(sessionId, { turns? })` copies a session's history into a new session (optionally only the first N turns); the source is untouched; emits `session.forked`.
+
+CLI: `tah sessions` lists saved sessions newest first (no API key needed). `tah chat --session <id|n>` continues a specific session. In chat: `/sessions`, `/resume <id|n>`, `/fork [turns]`.
+
 ## 0.21.0 — 2026-10-07
 
 CLI defaults for local coding: `execute_command` on (`--no-exec` to disable), SQLite persist on (`--no-persist` to disable), `maxSteps=32` (`--max-steps <n>`). `tah chat` resumes the latest persisted session across `/exit`.

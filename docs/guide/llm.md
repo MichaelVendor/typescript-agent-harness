@@ -75,6 +75,12 @@ runtime.use(
 
 一次 Runtime 挂一个 provider。默认模型写进 `llm.request` 事件。
 
+### 重试（v0.22，openai-compatible）
+
+`maxRetries`（默认 3）：网络错误、408 / 429 / 5xx 时指数退避重试（1s、2s、4s…，单次最多 20s；有 `Retry-After` 就按它）。400 / 401 等不重试。
+
+只在**响应开始之前**重试：一旦开始流式输出，中途断了就直接报错，避免同一段文字被打印两次。退避期间 `signal` 取消立即生效。每次重试发 `llm.retry`。
+
 ## 事件
 
 LLM 插件在调用前后发事件，供 Trace / Billing 使用，**不**要求 Agent 感知：
@@ -85,6 +91,7 @@ LLM 插件在调用前后发事件，供 Trace / Billing 使用，**不**要求 
 | `llm.response` | `{ requestId, usage, finishReason }` |
 | `llm.error` | `{ requestId, error }` |
 | `llm.stream` | `{ requestId, text }` |
+| `llm.retry` | `{ attempt, delayMs, reason }`（v0.22） |
 
 ## 设计约束
 
