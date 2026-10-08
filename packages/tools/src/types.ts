@@ -15,6 +15,11 @@ export type Tool<TInput = unknown, TOutput = unknown> = {
   execute(input: TInput, ctx: ToolContext): Promise<TOutput>;
 };
 
+export type ToolExecution = {
+  call: ToolCall;
+  ctx: ToolContext;
+};
+
 export type ToolResult = {
   callId: string;
   name: string;
