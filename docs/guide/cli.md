@@ -19,6 +19,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `tah chat` | 多轮；**默认续上一次持久化 Session**；stdin 每行一轮，直到 EOF 或 `/exit`；`/reset` 新开 |
 | `tah sessions` | 列出已保存的 Session（最新在前；不需要 API key，v0.22） |
 | `tah help` | 用法 |
+| `tah version` | 打印 CLI 版本（也可 `--version` / `-v`） |
 
 ## 标志
 

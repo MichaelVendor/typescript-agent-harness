@@ -9,6 +9,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (flags.command === "version") {
+    const { readFileSync } = await import("node:fs");
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    console.log(pkg.version);
+    return;
+  }
+
   if (flags.command === "sessions") {
     const { listSavedSessions } = await import("./runtime.js");
     console.log(await listSavedSessions(flags.cwd));

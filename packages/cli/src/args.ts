@@ -40,6 +40,7 @@ export function parseArgv(argv: string[]): CliFlags {
   };
   const rest: string[] = [];
   let help = false;
+  let version = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--" || arg === undefined) continue;
@@ -105,14 +106,16 @@ export function parseArgv(argv: string[]): CliFlags {
       i += 1;
     } else if (arg === "--help" || arg === "-h") {
       help = true;
+    } else if (arg === "--version" || arg === "-v") {
+      version = true;
     } else if (!arg.startsWith("-")) {
       rest.push(arg);
     } else {
       throw new Error(`unknown flag: ${arg}`);
     }
   }
-  if (help) {
-    flags.command = "help";
+  if (help || version) {
+    flags.command = help ? "help" : "version";
     flags.prompt = "";
     return flags;
   }
@@ -130,6 +133,7 @@ Usage:
                        /exit /reset /sessions /resume <id|n> /fork [turns]
   tah sessions         list saved sessions (newest first; numbers work with --session)
   tah help
+  tah version          print the CLI version (also --version, -v)
 
 Flags:
   --cwd <path>        workspace root (default: process.cwd())
