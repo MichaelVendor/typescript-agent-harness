@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.22.4 — 2026-10-08
+
+CLI: assistant Markdown is rendered by `marked-terminal` (default style, syntax-highlighted code blocks), one block at a time — replacing the built-in line renderer. New dependencies: `marked@12`, `marked-terminal@7`.
+
 ## 0.22.3 — 2026-10-08
 
 CLI: Markdown tables render as aligned box tables (CJK and emoji count as two cells; wide cells wrap to fit the terminal). Bold / italic now work when they wrap inline code (`**fix `x`**`).

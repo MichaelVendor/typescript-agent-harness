@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/storage",
-  "version": "0.22.3",
+  "version": "0.22.4",
   "description": "Session persistence: SQLite event log and checkpoints",
   "type": "module",
   "main": "./dist/index.js",
