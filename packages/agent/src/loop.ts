@@ -1,13 +1,14 @@
 import type { Context } from "@typescript-agent-harness/core";
 import type { ChatMessage, LLMResponse, LLMService, ToolCall } from "@typescript-agent-harness/llm";
 import type { ToolService } from "@typescript-agent-harness/tools";
+import { projectContext } from "./context.js";
 import type {
   AgentLoop,
   RunResult,
   SessionHandle,
 } from "./types.js";
 
-function pendingToolCalls(messages: ChatMessage[]): ToolCall[] {
+export function pendingToolCalls(messages: ChatMessage[]): ToolCall[] {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const msg = messages[i];
     if (msg?.role === "assistant" && msg.toolCalls?.length) {
@@ -27,6 +28,8 @@ export function createDefaultLoop(deps: {
   llm: LLMService;
   tools: ToolService;
   ctx: Pick<Context, "get" | "tryGet" | "emit">;
+  /** Char budget for messages sent to the LLM; full history is still kept. Unset = send everything. */
+  contextChars?: number;
 }): AgentLoop {
   return {
     async *run(session: SessionHandle) {
@@ -64,8 +67,21 @@ export function createDefaultLoop(deps: {
         steps += 1;
         session.signal.throwIfAborted();
 
+        let messages = [...session.messages];
+        if (deps.contextChars !== undefined) {
+          const projected = projectContext(messages, deps.contextChars);
+          messages = projected.messages;
+          if (projected.droppedTurns > 0 || projected.elidedToolResults > 0) {
+            await deps.ctx.emit("agent.context.trimmed", {
+              sessionId: session.id,
+              droppedTurns: projected.droppedTurns,
+              elidedToolResults: projected.elidedToolResults,
+              chars: projected.chars,
+            });
+          }
+        }
         const request = {
-          messages: [...session.messages],
+          messages,
           tools: deps.tools.listSchemas(),
         };
         const llmStepId = `step_llm_${steps}`;

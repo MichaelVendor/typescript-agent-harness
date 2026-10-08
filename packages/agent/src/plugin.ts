@@ -16,9 +16,25 @@ import type {
 export const SESSION = createServiceKey<SessionService>("session");
 
 export type AgentPluginOptions = {
+  /** Also replaces the stored system prompt when a persisted session is reopened. */
   systemPrompt?: string;
   maxSteps?: number;
+  /** Char budget per LLM request (old tool outputs, then old turns are trimmed). Unset = no limit. */
+  contextChars?: number;
 };
+
+/** History up to (not including) the user message that starts turn `turns + 1`. */
+function firstTurns(messages: ChatMessage[], turns: number | undefined): ChatMessage[] {
+  if (turns === undefined) return messages;
+  let seen = 0;
+  for (let i = 0; i < messages.length; i += 1) {
+    if (messages[i]!.role === "user") {
+      seen += 1;
+      if (seen > turns) return messages.slice(0, i);
+    }
+  }
+  return messages;
+}
 
 function asState(value: string): SessionState {
   if (
@@ -45,7 +61,12 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
       const llm = ctx.get(LLM);
       const tools = ctx.get(TOOLS);
       const storage = ctx.tryGet(STORAGE);
-      const loop = createDefaultLoop({ llm, tools, ctx });
+      const loop = createDefaultLoop({
+        llm,
+        tools,
+        ctx,
+        ...(options.contextChars !== undefined ? { contextChars: options.contextChars } : {}),
+      });
       const sessions = new Map<string, Session>();
 
       async function hydrate(id: string): Promise<Session | undefined> {
@@ -60,6 +81,7 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
           loop,
           bus: ctx,
           maxSteps: row.maxSteps,
+          systemPrompt,
           storage,
           restored: {
             state: asState(row.status),
@@ -94,6 +116,36 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
         },
         async get(sessionId) {
           return hydrate(sessionId);
+        },
+        async fork(sessionId, forkOptions = {}) {
+          const source = await hydrate(sessionId);
+          if (!source) throw new Error(`session not found: ${sessionId}`);
+          const { turns } = forkOptions;
+          if (turns !== undefined && (!Number.isInteger(turns) || turns < 0)) {
+            throw new Error(`fork turns must be a non-negative integer, got ${turns}`);
+          }
+          const session = new MemorySession({
+            loop,
+            bus: ctx,
+            maxSteps,
+            systemPrompt,
+            ...(storage ? { storage } : {}),
+            restored: {
+              state: "idle",
+              messages: structuredClone(firstTurns(source.messages, turns)),
+              steps: [],
+              events: [],
+              createdAt: Date.now(),
+            },
+          });
+          sessions.set(session.id, session);
+          await session.persist();
+          await ctx.emit("session.forked", {
+            sessionId: session.id,
+            parentId: sessionId,
+            turns: session.messages.filter((m) => m.role === "user").length,
+          });
+          return session;
         },
         async list(): Promise<SessionSummary[]> {
           if (storage) {

@@ -61,6 +61,8 @@ export type SessionService = {
   create(): Promise<Session>;
   get(sessionId: string): Promise<Session | undefined>;
   list(): Promise<SessionSummary[]>;
+  /** New session with a copy of the source history; `turns` keeps only the first N user turns. Source is untouched. */
+  fork(sessionId: string, options?: { turns?: number }): Promise<Session>;
 };
 
 export type AgentLoopEvent =

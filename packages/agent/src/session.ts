@@ -1,6 +1,7 @@
 import type { Context } from "@typescript-agent-harness/core";
 import type { ChatMessage } from "@typescript-agent-harness/llm";
 import type { StorageService } from "@typescript-agent-harness/storage";
+import { pendingToolCalls } from "./loop.js";
 import type { AgentLoop } from "./types.js";
 import type {
   AgentStep,
@@ -60,6 +61,11 @@ export class MemorySession implements Session {
       this._state =
         init.restored.state === "running" ? "failed" : init.restored.state;
       this._messages.push(...init.restored.messages);
+      if (init.systemPrompt) {
+        const system = { role: "system" as const, content: init.systemPrompt };
+        if (this._messages[0]?.role === "system") this._messages[0] = system;
+        else this._messages.unshift(system);
+      }
       this._steps.push(
         ...init.restored.steps.filter((s) => s.status !== "pending"),
       );
@@ -100,6 +106,14 @@ export class MemorySession implements Session {
       throw new Error(`session ${this.id} is already running`);
     }
     this.abort = new AbortController();
+    // Providers reject a request whose assistant tool_calls lack results (e.g. after cancel/crash mid-tool).
+    for (const call of pendingToolCalls(this._messages)) {
+      this._messages.push({
+        role: "tool",
+        toolCallId: call.id,
+        content: JSON.stringify({ error: "not run: the previous turn was interrupted" }),
+      });
+    }
     this._messages.push({ role: "user", content: input });
     this.record("user.message", { content: input });
     await this.persist();
