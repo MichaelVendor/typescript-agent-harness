@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.22.3 — 2026-10-08
+
+CLI: Markdown tables render as aligned box tables (CJK and emoji count as two cells; wide cells wrap to fit the terminal). Bold / italic now work when they wrap inline code (`**fix `x`**`).
+
 ## 0.22.2 — 2026-10-08
 
 CLI: assistant Markdown is styled line by line in a terminal (headings, bold, inline code, lists, code blocks, quotes, tables); `[tah]` / `[llm]` / `[tool]` / `[ctx]` logs are dimmed. Plain text when stdout is not a TTY, `NO_COLOR` is set, or `TERM=dumb`.
