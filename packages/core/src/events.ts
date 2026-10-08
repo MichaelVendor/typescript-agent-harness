@@ -4,6 +4,12 @@ export type EventHandler<TPayload = unknown> = (
 
 export type Unsubscribe = () => void;
 
+/** Waterfall handler: call `next` to delegate, or return without it to short-circuit. */
+export type Interceptor<TPayload = unknown, TResult = unknown> = (
+  payload: TPayload,
+  next: (payload: TPayload) => Promise<TResult>,
+) => Promise<TResult>;
+
 export interface RuntimeEventMap {
   "runtime.starting": { runtimeId: string };
   "runtime.started": { runtimeId: string };

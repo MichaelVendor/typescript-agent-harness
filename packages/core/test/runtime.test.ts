@@ -62,6 +62,29 @@ test("reject duplicate plugin names and use after start", async () => {
   await runtime.stop();
 });
 
+test("waterfall runs interceptors outermost-first and can short-circuit", async () => {
+  const runtime = new Runtime({ id: "t4" });
+  const ctx = runtime.context();
+  const order: string[] = [];
+  ctx.intercept<number, string>("calc", async (n, next) => {
+    order.push("outer");
+    return `[${await next(n + 1)}]`;
+  });
+  const off = ctx.intercept<number, string>("calc", async (n, next) => {
+    order.push("inner");
+    if (n > 10) return "blocked";
+    return next(n * 2);
+  });
+
+  assert.equal(await ctx.waterfall("calc", 1, async (n) => String(n)), "[4]");
+  assert.deepEqual(order, ["outer", "inner"]);
+  assert.equal(await ctx.waterfall("calc", 20, async (n) => String(n)), "[blocked]");
+
+  off();
+  assert.equal(await ctx.waterfall("calc", 1, async (n) => String(n)), "[2]");
+  assert.equal(await ctx.waterfall("none", 7, async (n) => n), 7);
+});
+
 test("get before start throws", () => {
   const KEY = createServiceKey<number>("x");
   const runtime = new Runtime({ id: "t3" });

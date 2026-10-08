@@ -11,6 +11,7 @@ export { EventBus } from "./event-bus.js";
 export type {
   EventHandler,
   EventPayload,
+  Interceptor,
   KnownEventName,
   RuntimeEvent,
   RuntimeEventMap,

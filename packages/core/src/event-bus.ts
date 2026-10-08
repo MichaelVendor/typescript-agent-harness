@@ -1,7 +1,8 @@
-import type { EventHandler, Unsubscribe } from "./events.js";
+import type { EventHandler, Interceptor, Unsubscribe } from "./events.js";
 
 export class EventBus {
   private readonly handlers = new Map<string, Set<EventHandler>>();
+  private readonly interceptors = new Map<string, Interceptor[]>();
 
   on<TPayload = unknown>(
     event: string,
@@ -35,7 +36,42 @@ export class EventBus {
     }
   }
 
+  /** Register a waterfall interceptor. Earlier registrations run outermost. */
+  intercept<TPayload = unknown, TResult = unknown>(
+    event: string,
+    handler: Interceptor<TPayload, TResult>,
+  ): Unsubscribe {
+    let list = this.interceptors.get(event);
+    if (!list) {
+      list = [];
+      this.interceptors.set(event, list);
+    }
+    list.push(handler as Interceptor);
+
+    return () => {
+      const i = list!.indexOf(handler as Interceptor);
+      if (i >= 0) list!.splice(i, 1);
+      if (list!.length === 0) this.interceptors.delete(event);
+    };
+  }
+
+  /** Run `final` wrapped by every interceptor of `event`, in registration order. */
+  async waterfall<TPayload, TResult>(
+    event: string,
+    payload: TPayload,
+    final: (payload: TPayload) => Promise<TResult>,
+  ): Promise<TResult> {
+    const chain = [...(this.interceptors.get(event) ?? [])] as Interceptor<
+      TPayload,
+      TResult
+    >[];
+    const dispatch = (i: number, p: TPayload): Promise<TResult> =>
+      i < chain.length ? chain[i]!(p, (next) => dispatch(i + 1, next)) : final(p);
+    return dispatch(0, payload);
+  }
+
   clear(): void {
     this.handlers.clear();
+    this.interceptors.clear();
   }
 }

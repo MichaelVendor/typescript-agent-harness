@@ -2,6 +2,7 @@ import { EventBus } from "./event-bus.js";
 import type {
   EventHandler,
   EventPayload,
+  Interceptor,
   Unsubscribe,
 } from "./events.js";
 import {
@@ -28,6 +29,17 @@ export interface Context {
     type: TName,
     handler: EventHandler<EventPayload<TName>>,
   ): Unsubscribe;
+
+  intercept<TPayload = unknown, TResult = unknown>(
+    name: string,
+    handler: Interceptor<TPayload, TResult>,
+  ): Unsubscribe;
+
+  waterfall<TPayload, TResult>(
+    name: string,
+    payload: TPayload,
+    final: (payload: TPayload) => Promise<TResult>,
+  ): Promise<TResult>;
 }
 
 export class RuntimeContext implements Context {
@@ -68,6 +80,21 @@ export class RuntimeContext implements Context {
     handler: EventHandler<EventPayload<TName>>,
   ): Unsubscribe {
     return this.bus.on(type, handler);
+  }
+
+  intercept<TPayload = unknown, TResult = unknown>(
+    name: string,
+    handler: Interceptor<TPayload, TResult>,
+  ): Unsubscribe {
+    return this.bus.intercept(name, handler);
+  }
+
+  waterfall<TPayload, TResult>(
+    name: string,
+    payload: TPayload,
+    final: (payload: TPayload) => Promise<TResult>,
+  ): Promise<TResult> {
+    return this.bus.waterfall(name, payload, final);
   }
 
   /** Internal: wipe service registry on stop. */
