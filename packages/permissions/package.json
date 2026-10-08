@@ -22,6 +22,7 @@
     "@typescript-agent-harness/core": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^22.18.0",
     "typescript": "^5.9.2"
   },
   "license": "MIT",
