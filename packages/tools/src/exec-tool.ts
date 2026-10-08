@@ -4,6 +4,7 @@ import type { Readable } from "node:stream";
 import type { Tool, ToolContext } from "./types.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+const MAX_TIMEOUT_MS = 600_000;
 const MAX_BYTES = 32 * 1024;
 
 function resolveInRoot(root: string, rel: string): string {
@@ -27,6 +28,7 @@ function resolveProgram(workspaceRoot: string, program: string): string {
 export type ExecuteCommandInput = {
   program: string;
   args?: string[];
+  timeoutMs?: number;
 };
 
 export type ExecuteCommandOutput = {
@@ -38,6 +40,7 @@ export type ExecuteCommandOutput = {
 };
 
 export type ExecuteCommandOptions = {
+  /** Used when a call does not pass its own `timeoutMs`. */
   timeoutMs?: number;
 };
 
@@ -58,7 +61,7 @@ export function executeCommandTool(
   workspaceRoot: string,
   options: ExecuteCommandOptions = {},
 ): Tool<ExecuteCommandInput, ExecuteCommandOutput> {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const defaultTimeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const root = path.resolve(workspaceRoot);
 
   return {
@@ -77,6 +80,10 @@ export function executeCommandTool(
           items: { type: "string" },
           description: "Arguments; do not concatenate a shell string",
         },
+        timeoutMs: {
+          type: "integer",
+          description: `Kill the program after this many ms (default ${defaultTimeoutMs}, max ${MAX_TIMEOUT_MS}). Raise it for installs, builds, downloads, and test suites; if a result says timedOut, retry with a larger value.`,
+        },
       },
       required: ["program"],
       additionalProperties: false,
@@ -84,6 +91,11 @@ export function executeCommandTool(
     async execute(input, ctx: ToolContext) {
       const program = resolveProgram(root, input.program);
       const args = input.args ?? [];
+      const requested = input.timeoutMs;
+      const timeoutMs =
+        typeof requested === "number" && Number.isFinite(requested) && requested >= 1
+          ? Math.min(requested, MAX_TIMEOUT_MS)
+          : defaultTimeoutMs;
 
       const child = spawn(program, args, {
         cwd: root,

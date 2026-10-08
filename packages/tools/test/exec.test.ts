@@ -105,6 +105,34 @@ test("execute_command times out and does not hang", { timeout: 4000 }, async () 
   await runtime.stop();
 });
 
+test("execute_command: per-call timeoutMs overrides the default; invalid values fall back", { timeout: 6000 }, async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-to2-"));
+  const runtime = new Runtime({ id: "exec-timeout-per-call" });
+  runtime.use(toolsPlugin({ tools: [executeCommandTool(dir, { timeoutMs: 200 })] }));
+  await runtime.start();
+  const run = async (timeoutMs: unknown, script: string) => {
+    const started = Date.now();
+    const result = await runtime.get(TOOLS).execute(
+      {
+        id: "c1",
+        name: "execute_command",
+        arguments: { program: process.execPath, args: ["-e", script], timeoutMs },
+      },
+      toolCtx(runtime),
+    );
+    return { out: result.output as { timedOut: boolean; exitCode: number | null }, ms: Date.now() - started };
+  };
+
+  const longer = await run(3000, "setTimeout(() => {}, 600)");
+  assert.equal(longer.out.timedOut, false);
+  assert.equal(longer.out.exitCode, 0);
+
+  const invalid = await run(0, "setTimeout(() => {}, 30000)");
+  assert.equal(invalid.out.timedOut, true);
+  assert.ok(invalid.ms < 3000);
+  await runtime.stop();
+});
+
 test("execute_command stops when the call is aborted", { timeout: 4000 }, async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-abort-"));
   const runtime = new Runtime({ id: "exec-abort" });
