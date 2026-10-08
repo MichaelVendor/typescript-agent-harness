@@ -107,7 +107,7 @@ Main Agent
 | `list_files` | 2 | 列目录 |
 | `read_file` | 2 | 读文件 |
 | `write_file` | 2 | 写文件（可配 permission deny） |
-| `execute_command` | 9 | 工作区 cwd 起进程（非 shell；无 sandbox） |
+| `execute_command` | 9 | 工作区 cwd 起进程（非 shell；无 sandbox）；默认 30 秒超时，模型可按次传 `timeoutMs`（最长 10 分钟） |
 | `grep` | 11 | 工作区正则搜索（跳过 `node_modules` / `dist` / 点文件） |
 | MCP ping | 4 | `inProcessPingBackend` |
 | MCP stdio | 6 | `stdioMcpBackend` |

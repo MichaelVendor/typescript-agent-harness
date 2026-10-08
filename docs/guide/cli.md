@@ -64,6 +64,8 @@ tah --mock chat          # 应看到 resumed session …
 LLM + `list_files` / `read_file` / `grep` / `write_file` + **`execute_command`** + Agent Loop + SQLite。  
 MCP / scheduler 仍默认关。
 
+`execute_command` 默认 30 秒超时；装依赖、构建、跑测试这类慢命令，模型会按次传 `timeoutMs`（最长 10 分钟）。`--max-steps` 对续上的旧 Session 同样生效。
+
 ```sh
 pnpm tah -- --mock run "用 node 打印 1+1"
 ```
