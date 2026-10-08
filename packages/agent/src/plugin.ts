@@ -18,6 +18,7 @@ export const SESSION = createServiceKey<SessionService>("session");
 export type AgentPluginOptions = {
   /** Also replaces the stored system prompt when a persisted session is reopened. */
   systemPrompt?: string;
+  /** LLM rounds per turn. Like `systemPrompt`, applies to reopened sessions too. */
   maxSteps?: number;
   /** Char budget per LLM request (old tool outputs, then old turns are trimmed). Unset = no limit. */
   contextChars?: number;
@@ -80,7 +81,7 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
           id: row.id,
           loop,
           bus: ctx,
-          maxSteps: row.maxSteps,
+          maxSteps,
           systemPrompt,
           storage,
           restored: {
