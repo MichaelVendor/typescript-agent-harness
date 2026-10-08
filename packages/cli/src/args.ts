@@ -8,6 +8,9 @@ export type CliFlags = {
   persist: boolean;
   quiet: boolean;
   exec: boolean;
+  yes: boolean;
+  systemFile: string;
+  session: string;
   mcpCommand: string;
   mcpArgs: string[];
   allow: string[];
@@ -25,6 +28,9 @@ export function parseArgv(argv: string[]): CliFlags {
     persist: true,
     quiet: false,
     exec: true,
+    yes: false,
+    systemFile: "",
+    session: "",
     mcpCommand: "",
     mcpArgs: [],
     allow: [],
@@ -43,6 +49,7 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--quiet") flags.quiet = true;
     else if (arg === "--exec") flags.exec = true;
     else if (arg === "--no-exec") flags.exec = false;
+    else if (arg === "--yes" || arg === "-y") flags.yes = true;
     else if (arg === "--mcp") {
       const next = argv[i + 1];
       if (!next) throw new Error("--mcp requires a command");
@@ -81,6 +88,16 @@ export function parseArgv(argv: string[]): CliFlags {
       }
       flags.maxSteps = n;
       i += 1;
+    } else if (arg === "--system-file") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--system-file requires a path");
+      flags.systemFile = next;
+      i += 1;
+    } else if (arg === "--session") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--session requires a session id or number");
+      flags.session = next;
+      i += 1;
     } else if (arg === "--cwd") {
       const next = argv[i + 1];
       if (!next) throw new Error("--cwd requires a path");
@@ -109,7 +126,9 @@ export function usage(): string {
 
 Usage:
   tah run <prompt>     one-shot session
-  tah chat             continue last session if persisted; /exit /reset
+  tah chat             continue last session if persisted
+                       /exit /reset /sessions /resume <id|n> /fork [turns]
+  tah sessions         list saved sessions (newest first; numbers work with --session)
   tah help
 
 Flags:
@@ -120,7 +139,10 @@ Flags:
   --quiet             only print assistant text
   --exec              mount execute_command (on by default)
   --no-exec           disable execute_command
+  --yes, -y           skip approval for write_file / execute_command (asked by default; rejected if stdin is not a TTY)
   --max-steps <n>     LLM round limit per turn (default: ${DEFAULT_MAX_STEPS})
+  --system-file <p>   replace the default "workspace coding agent" role with this file's text
+  --session <id|n>    tah chat: continue this session instead of the latest
   --mcp <cmd>         mount stdio MCP tools from a child process (off by default)
   --mcp-arg <a>       extra argv for --mcp (repeatable)
   --allow <tool>      allowlist (repeatable; omit = all tools allowed)

@@ -9,6 +9,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (flags.command === "sessions") {
+    const { listSavedSessions } = await import("./runtime.js");
+    console.log(await listSavedSessions(flags.cwd));
+    return;
+  }
+
   const { loadCliEnv, hasLlmKey } = await import("./env.js");
   loadCliEnv(flags.cwd);
 
@@ -27,9 +33,17 @@ async function main(): Promise<void> {
   }
 
   const { SESSION } = await import("@typescript-agent-harness/agent");
-  const { bootRuntime, endTurn, openChatSession, runPrompt } = await import(
-    "./runtime.js"
-  );
+  const {
+    bootRuntime,
+    describeSessions,
+    endTurn,
+    openChatSession,
+    openSessionByRef,
+    runPrompt,
+  } = await import("./runtime.js");
+  const { createAsk, lineReader } = await import("./approve.js");
+  const readline = await import("node:readline");
+  const tty = Boolean(process.stdin.isTTY);
 
   if (flags.command === "run") {
     if (!flags.prompt) {
@@ -37,34 +51,62 @@ async function main(): Promise<void> {
       process.exitCode = 1;
       return;
     }
-    const { runtime, streamed } = await bootRuntime(flags);
+    // terminal:false keeps the TTY in cooked mode, so Ctrl+C stays a real SIGINT that exits `run`.
+    const rl = tty
+      ? readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+          terminal: false,
+        })
+      : undefined;
     try {
-      await runPrompt(runtime, flags, streamed);
+      const { runtime, streamed } = await bootRuntime(flags, {
+        ask: createAsk(rl && lineReader(rl)),
+      });
+      try {
+        await runPrompt(runtime, flags, streamed);
+      } finally {
+        await runtime.stop();
+      }
     } finally {
-      await runtime.stop();
+      rl?.close();
     }
     return;
   }
 
   if (flags.command === "chat") {
-    const { runtime, streamed } = await bootRuntime(flags);
-    let { session, resumed } = await openChatSession(runtime, flags);
-    const readline = await import("node:readline");
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      terminal: Boolean(process.stdin.isTTY),
+      terminal: tty,
     });
-    console.log("tah chat  —  /exit  /reset");
-    if (resumed) {
-      console.log(`[tah] resumed session ${session.id}`);
-    } else {
-      console.log(`[tah] session ${session.id}`);
+    const lines = lineReader(rl);
+    let booted;
+    try {
+      booted = await bootRuntime(flags, { ask: createAsk(tty ? lines : undefined) });
+    } catch (err) {
+      rl.close();
+      throw err;
     }
+    const { runtime, streamed } = booted;
     const prompt = () => process.stdout.write("you> ");
     try {
+      let { session, resumed } = await openChatSession(runtime, flags);
+      let running = false;
+      rl.on("SIGINT", () => {
+        if (running) void session.cancel();
+        else rl.close();
+      });
+      console.log(
+        "tah chat  —  /exit  /reset  /sessions  /resume <id|n>  /fork [turns]  (Ctrl+C stops the current turn)",
+      );
+      if (resumed) {
+        console.log(`[tah] resumed session ${session.id}`);
+      } else {
+        console.log(`[tah] session ${session.id}`);
+      }
       prompt();
-      for await (const raw of rl) {
+      for (let raw = await lines.next(); raw !== undefined; raw = await lines.next()) {
         const line = raw.trim();
         if (!line) {
           prompt();
@@ -77,13 +119,53 @@ async function main(): Promise<void> {
           prompt();
           continue;
         }
-        const result = await session.run(line);
-        endTurn(result, session, flags.quiet, streamed);
+        const [command, arg] = line.split(/\s+/, 2);
+        if (command === "/sessions" || command === "/resume" || command === "/fork") {
+          try {
+            if (command === "/sessions") {
+              console.log(await describeSessions(runtime, session.id));
+            } else if (command === "/resume") {
+              if (!arg) throw new Error("usage: /resume <id|n>");
+              session = await openSessionByRef(runtime, arg);
+              console.log(`[tah] resumed session ${session.id}`);
+            } else {
+              if (arg !== undefined && !/^\d+$/.test(arg)) throw new Error("usage: /fork [turns]");
+              const from = session.id;
+              session = await runtime
+                .get(SESSION)
+                .fork(from, arg === undefined ? {} : { turns: Number(arg) });
+              const turns = session.messages.filter((m) => m.role === "user").length;
+              console.log(`[tah] forked ${from} → ${session.id} (${turns} turn(s) kept; original unchanged)`);
+            }
+          } catch (err) {
+            console.error(`[tah] ${err instanceof Error ? err.message : String(err)}`);
+          }
+          prompt();
+          continue;
+        }
+        running = true;
+        try {
+          const result = await session.run(line);
+          endTurn(result, session, flags.quiet, streamed);
+        } catch (err) {
+          if (streamed.on) process.stdout.write("\n");
+          streamed.on = false;
+          streamed.midLine = false;
+          if (session.state === "cancelled") {
+            console.log("[tah] turn cancelled — history kept; keep chatting or /exit");
+          } else {
+            console.error(
+              `[tah] turn failed: ${err instanceof Error ? err.message : String(err)} — history kept; try again`,
+            );
+          }
+        } finally {
+          running = false;
+        }
         prompt();
       }
       if (flags.persist && !flags.quiet) {
         console.log(
-          `[tah] session ${session.id} saved — run tah chat again to continue`,
+          `[tah] session ${session.id} saved — continue with: tah chat --session ${session.id}`,
         );
       }
     } finally {
