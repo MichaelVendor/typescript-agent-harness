@@ -125,7 +125,7 @@ async function* defaultLoop(ctx: AgentContext): AsyncIterable<AgentEvent> {
 `agentPlugin({ systemPrompt?, maxSteps?, contextChars? })` 在 setup 里创建 Loop，不单独暴露 `AGENT_LOOP` ServiceKey。
 
 - `systemPrompt`：新 Session 的首条 system；从存储重开旧 Session 时也会**替换**存下来的那条（当前配置优先，v0.22）
-- `maxSteps`：每轮最多几次 LLM 调用（默认 8）；重开旧 Session 时同样用当前配置，不用存下来的旧值
+- `maxSteps`：每轮最多几次 LLM 调用（默认 20；`Infinity` 不限）；重开旧 Session 时同样用当前配置，不用存下来的旧值
 - `contextChars`：每次 LLM 请求的字符预算（v0.22）；不设则发全量历史
 
 ### 上下文裁剪（v0.22）

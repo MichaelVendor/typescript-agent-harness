@@ -33,7 +33,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--exec` | 挂上 `execute_command`（**默认开**） |
 | `--no-exec` | 关掉 `execute_command` |
 | `--yes` / `-y` | 跳过 `write_file` / `execute_command` 的审批 |
-| `--max-steps <n>` | 每轮 LLM 上限（**默认 32**） |
+| `--max-steps <n>` | 每轮 LLM 上限（**默认不限**，Ctrl+C 停） |
 | `--system-file <path>` | 用文件内容替换默认角色「workspace coding agent」（v0.22） |
 | `--session <id\|n>` | `tah chat` 续指定 Session，而不是最近一个（v0.22） |
 | `--mcp <cmd>` | 挂上 stdio MCP 工具（默认关） |
@@ -44,7 +44,7 @@ npx @typescript-agent-harness/cli --mock chat
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
 
-走到 LLM 步数上限时会打印 `finishReason=max_steps`；可加大 `--max-steps` 或拆任务。
+默认一轮跑到模型自己停下为止，中途 Ctrl+C 打断。传了 `--max-steps` 后，走到上限会打印 `finishReason=max_steps`（状态行的 `steps` 是本轮 LLM 次数）；`tah chat` 在终端里会接着问「继续？」，回车就用新的一份额度继续同一轮，`n` 停下。`tah run` 或管道输入时不问，可之后在会话里说「继续」。
 
 管道多轮：
 
