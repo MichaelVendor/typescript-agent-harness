@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.22.7 — 2026-10-09
+
+CLI: no more `ExperimentalWarning: SQLite is an experimental feature…` on startup; other Node warnings still print.
+
 ## 0.22.6 — 2026-10-09
 
 CLI: no step limit per turn by default (was 32), matching Claude Code / Cursor — a turn runs until the model stops; Ctrl+C interrupts. With `--max-steps <n>`, a chat turn that hits the limit asks `Step limit reached … Enter continue · n stop`; Enter resumes the same turn with a fresh budget. The status line's `steps` now counts this turn's LLM rounds (it was the session total), and the max_steps hint points at continuing or `--max-steps` instead of the SDK-facing text.
