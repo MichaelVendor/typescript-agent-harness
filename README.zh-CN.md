@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  （全部是插件）
 ```
 
-## v0.22（当前）
+## v0.23（当前）
 
 从 Runtime 到 CLI。先用 npm：
 
@@ -44,6 +44,27 @@ tah run --mock "列出当前目录并说明这个项目"
 ```
 
 找不到 `tah` 时，把 `$(npm prefix -g)/bin` 加进 `PATH`。不要用 `sudo npm`。
+
+### 做自己的 Agent
+
+不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具。
+
+```sh
+mkdir my-agent && cd my-agent
+npx @typescript-agent-harness/cli init
+npm install
+npx tah --mock chat
+```
+
+```text
+my-agent/
+├── AGENTS.md              # 人设和规则（替换默认的 coding 角色）
+├── tools/query-order.ts   # export default defineTool({...}) → 工具 query_order
+├── plugins/audit-log.ts   # export default definePlugin({...})（可选）
+└── package.json           # 依赖 @typescript-agent-harness/cli
+```
+
+规则见 [CLI · 约定式项目](./docs/guide/cli.md)；完整示例 [`examples/convention-agent`](examples/convention-agent)（`pnpm demo:convention`）。
 
 能力仍然是插件：
 
@@ -71,7 +92,7 @@ pnpm tah -- --mock chat
 
 `pnpm dev` 仍跑 [`examples/basic-agent`](examples/basic-agent)。接 DeepSeek：复制 [`examples/basic-agent/.env.example`](examples/basic-agent/.env.example) 为同目录 `.env`。
 
-其它演示：`pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi`
+其它演示：`pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi` · `pnpm demo:convention`
 
 ## 快速开始
 
@@ -104,12 +125,13 @@ packages/
   permissions/  allow / deny
   mcp/          MCP backend → Tool（ping + stdio）
   scheduler/    once / every
-  cli/          tah run / tah chat
+  cli/          tah run / tah chat / tah init + 约定式项目加载
 examples/
-  basic-runtime/  Phase 1 冒烟
-  basic-agent/    Phase 2 tool-use
-  resume-agent/   Phase 3 崩溃后续跑
-  multi-agent/    Phase 4 权限 + MCP + 调度
+  basic-runtime/     Phase 1 冒烟
+  basic-agent/       Phase 2 tool-use
+  resume-agent/      Phase 3 崩溃后续跑
+  multi-agent/       Phase 4 权限 + MCP + 调度
+  convention-agent/  Phase 8 AGENTS.md + tools/ + plugins/
 ```
 
 ## 路线图
@@ -121,7 +143,9 @@ examples/
 | **3** | SQLite 持久化、checkpoint / resume |
 | **4** | MCP、scheduler、子 agent、权限 |
 | **5** | CLI `tah run` / `tah chat`（无 Web/TUI） |
-| **6** | 测试 + CI + stdio MCP（当前） |
+| **6** | 测试 + CI + stdio MCP |
+| **7** | `llm.stream` 流式 + `tah` 增量输出 |
+| **8** | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init`（当前） |
 
 ## 文档
 

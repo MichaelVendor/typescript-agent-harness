@@ -20,7 +20,7 @@
 | `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |
 | `@typescript-agent-harness/mcp` | `McpBackend` → Tool（进程内 ping + stdio） |
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
-| `@typescript-agent-harness/cli` | `tah run` / `tah chat` |
+| `@typescript-agent-harness/cli` | `tah run` / `tah chat` / `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`） |
 
 未做：TUI、Web UI、官方 MCP SDK 封装、shell/sandbox、插件市场。
 

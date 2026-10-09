@@ -29,6 +29,32 @@ v0.21 起默认带 `execute_command`、SQLite 持久化、`maxSteps=32`；`tah c
 
 详见 [CLI](/guide/cli)。踩坑对照：[版本踩坑与改动](/guide/lessons)。
 
+## 做自己的 Agent（v0.23）
+
+不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具。
+
+```sh
+mkdir my-agent && cd my-agent
+npx @typescript-agent-harness/cli init
+npm install
+npx tah --mock chat
+```
+
+```ts
+// tools/query-order.ts → 工具 query_order
+import { defineTool } from "@typescript-agent-harness/cli";
+
+export default defineTool({
+  description: "按订单号查询订单状态",
+  inputSchema: { type: "object", properties: { orderId: { type: "string" } }, required: ["orderId"] },
+  async execute(input: { orderId: string }) {
+    return { id: input.orderId, status: "shipped" };
+  },
+});
+```
+
+规则（何时生效、内置工具、插件、报错）见 [CLI · 约定式项目](/guide/cli)；完整示例 `pnpm demo:convention`。
+
 ## 从源码开发
 
 ```sh

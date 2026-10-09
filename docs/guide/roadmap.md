@@ -10,7 +10,8 @@
 | 4 | 生态：MCP + Scheduler + Runnable/Subagent + Permissions | ✅ 完成 |
 | 5 | DX：CLI / TUI / Web / Tracing / Plugin 体验 | ✅ CLI 完成（无 Web/TUI） |
 | 6 | 质量地板 + stdio MCP | ✅ |
-| 7 | `llm.stream` + `tah` 增量输出 | ✅ 当前 |
+| 7 | `llm.stream` + `tah` 增量输出 | ✅ |
+| 8 | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init` | ✅ 当前 |
 
 ## Phase 1 — Runtime ✅
 
@@ -117,6 +118,24 @@ pnpm tah -- run --mock "你好"
 npx tah --help
 ```
 
+## Phase 8 — 约定式项目 ✅
+
+不写启动代码，按约定放文件就能基于 `tah` 做自己的 Agent。设计见 [设计说明](https://github.com/MichaelVendor/typescript-agent-harness/blob/main/docs/design/project-convention.md)。
+
+交付物：
+
+- `AGENTS.md` 替换默认人设；`tools/<name>.ts`（`defineTool`）、`plugins/<name>.ts`（`definePlugin`）自动加载，工具名由文件名推导
+- 只有 `package.json` 依赖 `@typescript-agent-harness/cli` 的目录才进入项目模式
+- 有 `tools/` 时默认不挂内置工具（`--builtin-tools` 恢复）
+- `tah init` 骨架；`examples/convention-agent`
+
+验收：
+
+```sh
+pnpm demo:convention
+mkdir my-agent && cd my-agent && npx @typescript-agent-harness/cli init && npm install && npx tah --mock chat
+```
+
 ## 非目标（刻意不做）
 
 - Phase 1–3 不做 Electron / 完整 Web IDE  
@@ -127,6 +146,6 @@ npx tah --help
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发 `v0.22`）  
+- `main`：已发布代码；每个发布打 tag（当前开发 `v0.23`）  
 - `v0.N`：下一个小版本的开发分支，合入 `main` 后打 `v0.N.0`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  

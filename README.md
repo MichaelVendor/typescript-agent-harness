@@ -25,7 +25,7 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  (all plugins)
 ```
 
-## v0.22 (current)
+## v0.23 (current)
 
 Runtime through CLI. Start with npm:
 
@@ -44,6 +44,27 @@ tah run --mock "列出当前目录并说明这个项目"
 ```
 
 If `tah` is not found, add `$(npm prefix -g)/bin` to `PATH`. Do not use `sudo npm`.
+
+### Build your own agent
+
+No startup code: `AGENTS.md` is the role, every file in `tools/` is a tool.
+
+```sh
+mkdir my-agent && cd my-agent
+npx @typescript-agent-harness/cli init
+npm install
+npx tah --mock chat
+```
+
+```text
+my-agent/
+├── AGENTS.md              # role and rules (replaces the default coding role)
+├── tools/query-order.ts   # export default defineTool({...}) → tool query_order
+├── plugins/audit-log.ts   # export default definePlugin({...}) (optional)
+└── package.json           # depends on @typescript-agent-harness/cli
+```
+
+Rules: [CLI · 约定式项目](./docs/guide/cli.md). Full example: [`examples/convention-agent`](examples/convention-agent) (`pnpm demo:convention`).
 
 Capabilities are plugins:
 
@@ -71,7 +92,7 @@ pnpm tah -- --mock chat
 
 `pnpm dev` still runs [`examples/basic-agent`](examples/basic-agent). DeepSeek: copy [`examples/basic-agent/.env.example`](examples/basic-agent/.env.example) to `.env` in that folder.
 
-Other demos: `pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi`
+Other demos: `pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi` · `pnpm demo:convention`
 
 ## Quick start
 
@@ -104,12 +125,13 @@ packages/
   permissions/  allow / deny
   mcp/          MCP backend → Tool (in-process ping + stdio)
   scheduler/    once / every
-  cli/          tah run / tah chat
+  cli/          tah run / tah chat / tah init + project loader
 examples/
-  basic-runtime/  Phase 1 smoke
-  basic-agent/    Phase 2 tool-use loop
-  resume-agent/   Phase 3 crash + resume
-  multi-agent/    Phase 4 permissions + MCP + scheduler
+  basic-runtime/     Phase 1 smoke
+  basic-agent/       Phase 2 tool-use loop
+  resume-agent/      Phase 3 crash + resume
+  multi-agent/       Phase 4 permissions + MCP + scheduler
+  convention-agent/  Phase 8 AGENTS.md + tools/ + plugins/
 ```
 
 ## Roadmap
@@ -121,7 +143,9 @@ examples/
 | **3** | SQLite persistence, checkpoint / resume |
 | **4** | MCP, scheduler, subagent-as-tool, permissions |
 | **5** | CLI `tah run` / `tah chat` (no Web/TUI) |
-| **6** | Tests + CI + stdio MCP (current) |
+| **6** | Tests + CI + stdio MCP |
+| **7** | Streaming `llm.stream` + incremental `tah` output |
+| **8** | Convention projects: `AGENTS.md` + `tools/` + `plugins/` + `tah init` (current) |
 
 ## Documentation
 
