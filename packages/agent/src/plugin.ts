@@ -18,7 +18,7 @@ export const SESSION = createServiceKey<SessionService>("session");
 export type AgentPluginOptions = {
   /** Also replaces the stored system prompt when a persisted session is reopened. */
   systemPrompt?: string;
-  /** LLM rounds per turn. Like `systemPrompt`, applies to reopened sessions too. */
+  /** LLM rounds per turn (default 20; `Infinity` = no limit). Like `systemPrompt`, applies to reopened sessions too. */
   maxSteps?: number;
   /** Char budget per LLM request (old tool outputs, then old turns are trimmed). Unset = no limit. */
   contextChars?: number;
@@ -51,7 +51,7 @@ function asState(value: string): SessionState {
 }
 
 export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
-  const maxSteps = options.maxSteps ?? 8;
+  const maxSteps = options.maxSteps ?? 20;
   const systemPrompt =
     options.systemPrompt ??
     "You are a helpful agent. Use tools when they help answer the user.";
