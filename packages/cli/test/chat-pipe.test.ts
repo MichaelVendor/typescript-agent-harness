@@ -27,4 +27,5 @@ test("piped tah chat runs two turns then exits 0", () => {
   });
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(result.stderr, /readline was closed/i);
+  assert.doesNotMatch(result.stderr, /ExperimentalWarning|SQLite/);
 });

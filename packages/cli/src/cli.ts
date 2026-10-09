@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 import { parseArgv, usage } from "./args.js";
 
+// Loading node:sqlite (session storage) prints an ExperimentalWarning that means nothing to CLI users.
+const emitWarning = process.emitWarning.bind(process) as (...args: unknown[]) => void;
+process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {
+  const message = typeof warning === "string" ? warning : warning.message;
+  if (message.startsWith("SQLite is an experimental feature")) return;
+  emitWarning(warning, ...rest);
+}) as typeof process.emitWarning;
+
 async function main(): Promise<void> {
   const flags = parseArgv(process.argv.slice(2));
 
