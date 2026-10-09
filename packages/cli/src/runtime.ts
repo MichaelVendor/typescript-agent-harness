@@ -76,7 +76,7 @@ export async function bootRuntime(
 
   if (!flags.quiet) {
     log(
-      `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${flags.exec ? " exec=on" : " exec=off"}${ask ? " approve=on" : " approve=off"} maxSteps=${flags.maxSteps}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`,
+      `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${flags.exec ? " exec=on" : " exec=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`,
     );
     runtime.on("llm.request", (e) => {
       const p = e as { model?: string; messageCount: number };
@@ -280,17 +280,23 @@ export function formatStatusLine(
 ): string {
   let line = `[tah] state=${state} steps=${steps}`;
   if (finishReason === "max_steps") {
-    line +=
-      " finishReason=max_steps — LLM step limit hit; split the task or pass --max-steps";
+    line += " finishReason=max_steps — step limit hit; say continue to keep going, or pass --max-steps <n>";
   }
   return line;
 }
 
+/** LLM rounds recorded since step index `from` — the unit `maxSteps` limits. */
+export function turnRounds(session: Pick<Session, "steps">, from: number): number {
+  return session.steps.slice(from).filter((s) => s.type === "llm").length;
+}
+
+/** `from`: `session.steps.length` before the turn, so the status line counts this turn only. */
 export function endTurn(
   result: TurnResult,
   session: Session,
   quiet: boolean,
   streamed: StreamFlag,
+  from = 0,
 ): void {
   const color = useColor();
   if (streamed.on) {
@@ -298,27 +304,28 @@ export function endTurn(
     process.stdout.write("\n");
     streamed.on = false;
     streamed.midLine = false;
-    if (result.finishReason === "max_steps" && result.text) {
-      console.log(`\n${color ? renderMarkdown(result.text) : result.text}`);
-    }
     if (!quiet) {
-      const status = formatStatusLine(session.state, session.steps.length, result.finishReason);
+      const status = formatStatusLine(session.state, turnRounds(session, from), result.finishReason);
       console.log(`\n${color ? dim(status) : status}`);
     }
     return;
   }
-  printAssistant(result, session, quiet);
+  printAssistant(result, session, quiet, from);
 }
 
 export function printAssistant(
   result: TurnResult,
   session: Session,
   quiet: boolean,
+  from = 0,
 ): void {
   const color = useColor();
-  console.log(`\n${color ? renderMarkdown(result.text) : result.text}\n`);
+  // The max_steps text is written for SDK callers; the status line carries the CLI hint.
+  if (result.finishReason !== "max_steps") {
+    console.log(`\n${color ? renderMarkdown(result.text) : result.text}\n`);
+  }
   if (!quiet) {
-    const status = formatStatusLine(session.state, session.steps.length, result.finishReason);
+    const status = formatStatusLine(session.state, turnRounds(session, from), result.finishReason);
     console.log(color ? dim(status) : status);
   }
 }

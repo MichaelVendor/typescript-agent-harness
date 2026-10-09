@@ -1,5 +1,3 @@
-export const DEFAULT_MAX_STEPS = 32;
-
 export type CliFlags = {
   command: string;
   prompt: string;
@@ -16,6 +14,7 @@ export type CliFlags = {
   allow: string[];
   deny: string[];
   onceMs: number;
+  /** `Infinity` unless `--max-steps` is passed. */
   maxSteps: number;
 };
 
@@ -36,7 +35,7 @@ export function parseArgv(argv: string[]): CliFlags {
     allow: [],
     deny: [],
     onceMs: -1,
-    maxSteps: DEFAULT_MAX_STEPS,
+    maxSteps: Infinity,
   };
   const rest: string[] = [];
   let help = false;
@@ -144,7 +143,7 @@ Flags:
   --exec              mount execute_command (on by default)
   --no-exec           disable execute_command
   --yes, -y           skip approval for write_file / execute_command (asked by default; rejected if stdin is not a TTY)
-  --max-steps <n>     LLM round limit per turn (default: ${DEFAULT_MAX_STEPS})
+  --max-steps <n>     LLM round limit per turn (default: no limit; Ctrl+C stops a turn)
   --system-file <p>   replace the default "workspace coding agent" role with this file's text
   --session <id|n>    tah chat: continue this session instead of the latest
   --mcp <cmd>         mount stdio MCP tools from a child process (off by default)

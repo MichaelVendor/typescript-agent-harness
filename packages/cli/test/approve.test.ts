@@ -8,7 +8,14 @@ import { test } from "node:test";
 import type { Runtime } from "@typescript-agent-harness/core";
 import { TOOLS } from "@typescript-agent-harness/tools";
 import { parseArgv } from "../dist/args.js";
-import { createAsk, formatPrompt, lineReader, parseAnswer } from "../dist/approve.js";
+import {
+  createAsk,
+  formatContinuePrompt,
+  formatPrompt,
+  lineReader,
+  parseAnswer,
+  wantsContinue,
+} from "../dist/approve.js";
 import { bootRuntime } from "../dist/runtime.js";
 
 test("parseArgv: --yes / -y", () => {
@@ -74,6 +81,20 @@ test("formatPrompt shows a card with the command or write preview and the answer
   const colored = formatPrompt({ name: "write_file", arguments: { path: "a.ts", content: "x" } }, true);
   assert.match(colored, /\x1b\[33m╭─/);
   assert.equal(colored.replace(/\x1b\[\d+m/g, ""), formatPrompt({ name: "write_file", arguments: { path: "a.ts", content: "x" } }, false));
+});
+
+test("continue prompt: Enter or y continues; n, other text, or EOF stops", () => {
+  assert.equal(
+    formatContinuePrompt(32, false),
+    "\nStep limit reached (32 rounds this turn).  Enter continue  ·  n stop  › ",
+  );
+  assert.equal(formatContinuePrompt(32, true).replace(/\x1b\[\d+m/g, ""), formatContinuePrompt(32, false));
+  assert.equal(wantsContinue(""), true);
+  assert.equal(wantsContinue(" Y "), true);
+  assert.equal(wantsContinue("yes"), true);
+  assert.equal(wantsContinue("n"), false);
+  assert.equal(wantsContinue("stop"), false);
+  assert.equal(wantsContinue(undefined), false);
 });
 
 test("bootRuntime asks before write_file; --yes skips the question", async () => {

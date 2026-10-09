@@ -48,7 +48,8 @@ async function main(): Promise<void> {
     openSessionByRef,
     runPrompt,
   } = await import("./runtime.js");
-  const { createAsk, lineReader } = await import("./approve.js");
+  const { createAsk, formatContinuePrompt, lineReader, wantsContinue } = await import("./approve.js");
+  const { useColor } = await import("./markdown.js");
   const readline = await import("node:readline");
   const tty = Boolean(process.stdin.isTTY);
 
@@ -152,8 +153,18 @@ async function main(): Promise<void> {
         }
         running = true;
         try {
-          const result = await session.run(line);
-          endTurn(result, session, flags.quiet, streamed);
+          let from = session.steps.length;
+          let result = await session.run(line);
+          endTurn(result, session, flags.quiet, streamed, from);
+          while (result.finishReason === "max_steps" && tty) {
+            process.stdout.write(formatContinuePrompt(flags.maxSteps, useColor()));
+            running = false;
+            if (!wantsContinue(await lines.next())) break;
+            running = true;
+            from = session.steps.length;
+            result = await session.resume();
+            endTurn(result, session, flags.quiet, streamed, from);
+          }
         } catch (err) {
           streamed.flush();
           if (streamed.on) process.stdout.write("\n");

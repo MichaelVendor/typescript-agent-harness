@@ -71,6 +71,20 @@ export function formatPrompt(call: { name: string; arguments: unknown }, color: 
   ].join("\n");
 }
 
+/** Chat asks this when a turn hits the step limit; continuing resumes the same turn. */
+export function formatContinuePrompt(maxSteps: number, color: boolean): string {
+  const paint = (style: (s: string) => string) => (s: string) => (color ? style(s) : s);
+  const [frame, strong, faint] = [paint(yellow), paint(bold), paint(dim)];
+  const keys = [`${strong("Enter")} ${faint("continue")}`, `${strong("n")} ${faint("stop")}`].join(faint("  ·  "));
+  return `\n${strong(`Step limit reached (${maxSteps} rounds this turn).`)}  ${keys}  ${frame("›")} `;
+}
+
+export function wantsContinue(line: string | undefined): boolean {
+  if (line === undefined) return false;
+  const s = line.trim().toLowerCase();
+  return s === "" || s === "y" || s === "yes";
+}
+
 /** Without a TTY reader every gated call is rejected, so piped input is never read as an answer. */
 export function createAsk(reader: LineReader | undefined): ApprovalPluginOptions["ask"] {
   return async (call, signal) => {
