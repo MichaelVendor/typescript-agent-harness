@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.23)
+## 0.23.0 — 2026-10-09
 
 CLI: convention-based projects. In a directory whose `package.json` depends on `@typescript-agent-harness/cli`, `tah run` / `tah chat` load `AGENTS.md` (replaces the default role; `--system-file` still wins), every top-level file in `tools/` (`export default defineTool({...})`; `query-order.ts` → tool `query_order`) and in `plugins/` (`export default definePlugin({...})`, registered after the built-ins as `project:<file>`). TypeScript files load through `jiti`, no build step. With a `tools/` directory the built-in file / command tools and their prompt rules are left out; `--builtin-tools` brings them back. Load errors, bad exports, invalid or duplicate tool names stop startup with the file path. Directories without the dependency behave exactly as before.
 
