@@ -165,8 +165,8 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 ## 测试
 
 - `host.test.ts`（mock 模型）：
-  - 一轮带工具调用：事件顺序 `tool.start` → `tool.end` → `text` … → `turn.end`；
-  - 审批：`answer(yes)` 后工具执行；审批挂起时 `cancel()` 按 `no` 处理且发 `turn.error`；
+  - 一轮带工具调用（mock 模型会先调 `list_files` 再回复）：事件顺序 `tool.start` → `tool.end` → `text` … → `turn.end`；
+  - 审批（同 `approve.test.ts`，直接经 `TOOLS.execute` 触发 `write_file`）：发出 `approval` 事件，`answer(yes)` 后文件写入，`answer(no)` 后不写；审批挂起时 `cancel()` 按 `no` 处理；
   - `reset` / `resume` / `fork` 各发一条 `session`，`history` 最多 3 轮；
   - 一轮进行中再 `send` 抛错；
   - 所有事件经 `JSON.stringify` 往返后不变。
