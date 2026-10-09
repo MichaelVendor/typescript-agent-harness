@@ -14,6 +14,7 @@
     "demo:runtime": "pnpm --filter @typescript-agent-harness/core build && pnpm --filter @typescript-agent-harness/example-basic-runtime start",
     "demo:resume": "pnpm build && pnpm --filter @typescript-agent-harness/example-resume-agent start",
     "demo:multi": "pnpm build && pnpm --filter @typescript-agent-harness/example-multi-agent start",
+    "demo:convention": "pnpm build && pnpm --filter @typescript-agent-harness/example-convention-agent start",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --filter \"./packages/**\" --if-present test",
     "clean": "pnpm -r exec rm -rf dist",

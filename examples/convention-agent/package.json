@@ -1,0 +1,15 @@
+{
+  "name": "@typescript-agent-harness/example-convention-agent",
+  "private": true,
+  "version": "0.23.0",
+  "type": "module",
+  "scripts": {
+    "start": "tah chat",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@typescript-agent-harness/cli": "workspace:*",
+    "typescript": "^5.9.2"
+  }
+}
