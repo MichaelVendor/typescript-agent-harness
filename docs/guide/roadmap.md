@@ -8,10 +8,11 @@
 | 2 | Agent：LLM + Tools + Session + Loop + Streaming | ✅ 完成 |
 | 3 | Persistence：SQLite + Event Log + Checkpoint + Resume | ✅ 完成 |
 | 4 | 生态：MCP + Scheduler + Runnable/Subagent + Permissions | ✅ 完成 |
-| 5 | DX：CLI / TUI / Web / Tracing / Plugin 体验 | ✅ CLI 完成（无 Web/TUI） |
+| 5 | DX：CLI / TUI / Web / Tracing / Plugin 体验 | ✅ CLI + TUI（无 Web） |
 | 6 | 质量地板 + stdio MCP | ✅ |
 | 7 | `llm.stream` + `tah` 增量输出 | ✅ |
-| 8 | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init` | ✅ 当前 |
+| 8 | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init` | ✅ |
+| 9 | TUI（Ink）+ `ChatHost` 会话接口 | ✅ 当前（`v0.24`） |
 
 ## Phase 1 — Runtime ✅
 

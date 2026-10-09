@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.24.0 — (unreleased)
+
+CLI: terminal `tah chat` opens an Ink TUI (inline scrollback, streamed Markdown, tool lines, in-UI approval, slash-command menu, session picker, multiline input with paste). Piped / non-TTY input and `--plain` keep the previous line mode. New `ChatHost` session interface (`packages/cli/src/host.ts`) turns runtime events into plain-JSON `HostEvent`s for the TUI and for a future `tah serve`. Dependencies: `ink@8`, `react@19`, `string-width@8`.
+
 ## 0.23.1 — 2026-10-09
 
 CLI: `tah init` installs dependencies after scaffolding, with the package manager from the lockfile in the directory, else the one that launched it (`pnpm dlx` → pnpm), else npm. Inside another pnpm workspace it runs `pnpm install --ignore-workspace`, since plain `pnpm install` installs the outer workspace and skips the project. `--no-install` skips the step; when it is skipped or fails, the printed next steps include the command to run.

@@ -16,7 +16,7 @@ npx @typescript-agent-harness/cli --mock chat
 | 命令 | 作用 |
 | --- | --- |
 | `tah run <prompt>` | 一次性 Session |
-| `tah chat` | 多轮；**默认续上一次持久化 Session**；stdin 每行一轮，直到 EOF 或 `/exit`；`/reset` 新开 |
+| `tah chat` | 多轮；**默认续上一次持久化 Session**；终端里是 TUI（v0.24），管道或 `--plain` 仍是逐行模式；`/exit` / `/reset` / `/sessions` / `/resume` / `/fork` |
 | `tah sessions` | 列出已保存的 Session（最新在前；不需要 API key，v0.22） |
 | `tah init` | 在当前目录生成约定式项目骨架并装好依赖（v0.23，见下文「约定式项目」） |
 | `tah help` | 用法 |
@@ -44,6 +44,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--once <ms>` | 延迟后跑一轮 `tah run`（默认关；仅 `run`） |
 | `--builtin-tools` | 约定式项目有 `tools/` 时，仍挂上内置的文件 / 命令工具（v0.23） |
 | `--no-install` | `tah init` 只生成文件，不装依赖（v0.23.1） |
+| `--plain` | `tah chat` 强制逐行模式，即使在终端里也不进 TUI（v0.24） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
 
@@ -187,15 +188,31 @@ export default defineTool({
 
 启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）。
 
+## 终端 UI（v0.24）
+
+终端里直接 `tah chat` 进入 Ink TUI（内联滚动区，不切备用屏）：流式 Markdown、工具调用行、界面内审批（y / a / n）、斜杠命令补全、会话选择器、多行输入（Alt+Enter 或行尾 `\` 换行，粘贴整段进输入框）。管道、CI、`--plain` 仍是原来的逐行模式。
+
+| 操作 | 行为 |
+| --- | --- |
+| Enter | 发送 |
+| Alt+Enter / Shift+Enter（支持的终端）/ 行尾 `\` + Enter | 换行 |
+| `/` | 命令菜单；`/resume` 不带参数打开会话列表 |
+| Ctrl+C | 回复中：停本轮；有输入：清空；空闲：退出 |
+| Ctrl+D | 空闲且输入为空时退出 |
+
+设计说明见 [TUI 与会话接口](/design/tui)。
+
 ## Ctrl+C 与失败重试（v0.22）
 
 | 场景 | 行为 |
 | --- | --- |
-| `tah chat` 正在跑一轮（含等审批） | 中断这一轮，回到 `you>`；历史保留，可以接着说 |
-| `tah chat` 空闲在 `you>` | 退出（同 `/exit`） |
+| `tah chat`（TUI）正在跑一轮（含等审批） | 中断这一轮；历史保留 |
+| `tah chat`（TUI）空闲 | 有输入则清空，否则退出（同 `/exit`） |
+| `tah chat --plain` 正在跑一轮 | 中断这一轮，回到 `you>`；历史保留 |
+| `tah chat --plain` 空闲在 `you>` | 退出（同 `/exit`） |
 | `tah run` | 直接退出 |
 | 模型接口网络错误 / 429 / 5xx | 自动重试 3 次（1s、2s、4s），打印 `[llm] … retry N in Xs` |
-| 重试仍失败 | chat 打印 `[tah] turn failed …` 并回到 `you>`，不退出 |
+| 重试仍失败 | chat 打印失败提示并继续可聊，不退出 |
 
 模型在调用工具前说的话（如「我先读一下文件」）会单独成行，和后面的 `[tool]` 日志分开；最终回答若复述了过程，那是模型行为，不是重复打印。
 
