@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/llm",
-  "version": "0.23.0",
+  "version": "0.23.1",
   "description": "LLM capability: mock + OpenAI-compatible providers",
   "type": "module",
   "main": "./dist/index.js",

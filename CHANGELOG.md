@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.1 — 2026-10-09
+
+CLI: `tah init` installs dependencies after scaffolding, with the package manager from the lockfile in the directory, else the one that launched it (`pnpm dlx` → pnpm), else npm. Inside another pnpm workspace it runs `pnpm install --ignore-workspace`, since plain `pnpm install` installs the outer workspace and skips the project. `--no-install` skips the step; when it is skipped or fails, the printed next steps include the command to run.
+
+CLI: a project file importing a package that is not installed (e.g. running `tah chat` before installing) now says `tah: tools/x.ts imports "<package>", which is not installed in <dir> — run: <install command>` instead of a Node require stack.
+
 ## 0.23.0 — 2026-10-09
 
 CLI: convention-based projects. In a directory whose `package.json` depends on `@typescript-agent-harness/cli`, `tah run` / `tah chat` load `AGENTS.md` (replaces the default role; `--system-file` still wins), every top-level file in `tools/` (`export default defineTool({...})`; `query-order.ts` → tool `query_order`) and in `plugins/` (`export default definePlugin({...})`, registered after the built-ins as `project:<file>`). TypeScript files load through `jiti`, no build step. With a `tools/` directory the built-in file / command tools and their prompt rules are left out; `--builtin-tools` brings them back. Load errors, bad exports, invalid or duplicate tool names stop startup with the file path. Directories without the dependency behave exactly as before.
