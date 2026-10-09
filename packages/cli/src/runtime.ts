@@ -44,10 +44,11 @@ export function describeProject(project: Project, systemFile: boolean): string {
   return parts.join(" ");
 }
 
+/** `print: false` leaves stdout alone; the caller subscribes to runtime events itself (the TUI). */
 export async function bootRuntime(
   flags: CliFlags,
-  opts: { ask?: ApprovalPluginOptions["ask"] } = {},
-): Promise<{ runtime: Runtime; streamed: StreamFlag }> {
+  opts: { ask?: ApprovalPluginOptions["ask"]; print?: boolean } = {},
+): Promise<{ runtime: Runtime; streamed: StreamFlag; project: Project | undefined; startup: string }> {
   const ask = flags.yes ? undefined : opts.ask;
   const project = await loadProject(flags.cwd);
   const role = flags.systemFile
@@ -72,13 +73,16 @@ export async function bootRuntime(
   };
   const md = color ? createMarkdownStream(write) : { push: write, flush() {} };
   const streamed: StreamFlag = { on: false, midLine: false, flush: () => md.flush() };
-  runtime.on("agent.assistant-stream", (e) => {
-    const text = (e as { text?: string }).text ?? "";
-    if (!text) return;
-    streamed.on = true;
-    streamed.midLine = color ? false : !text.endsWith("\n");
-    md.push(text);
-  });
+  const print = opts.print ?? true;
+  if (print) {
+    runtime.on("agent.assistant-stream", (e) => {
+      const text = (e as { text?: string }).text ?? "";
+      if (!text) return;
+      streamed.on = true;
+      streamed.midLine = color ? false : !text.endsWith("\n");
+      md.push(text);
+    });
+  }
   const log = (line: string) => {
     md.flush();
     if (streamed.midLine) {
@@ -88,10 +92,9 @@ export async function bootRuntime(
     console.log(color ? dim(line) : line);
   };
 
-  if (!flags.quiet) {
-    log(
-      `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`,
-    );
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`;
+  if (print && !flags.quiet) {
+    log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
     runtime.on("llm.request", (e) => {
       const p = e as { model?: string; messageCount: number };
@@ -197,7 +200,7 @@ export async function bootRuntime(
   for (const plugin of project?.plugins ?? []) runtime.use(plugin);
 
   await runtime.start();
-  return { runtime, streamed };
+  return { runtime, streamed, project, startup };
 }
 
 export async function openChatSession(
@@ -220,7 +223,7 @@ export async function openChatSession(
   return { session, resumed: false };
 }
 
-async function storageOf(runtime: Runtime): Promise<StorageService> {
+export async function storageOf(runtime: Runtime): Promise<StorageService> {
   const { STORAGE } = await import("@typescript-agent-harness/storage");
   const storage = runtime.context().tryGet(STORAGE);
   if (!storage) {
