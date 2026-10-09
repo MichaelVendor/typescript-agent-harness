@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.24.0 — (unreleased)
+## 0.24.0 — 2026-10-09
 
 CLI: terminal `tah chat` opens an Ink TUI (inline scrollback, streamed Markdown, tool lines, in-UI approval, slash-command menu, session picker, multiline input with paste). Piped / non-TTY input and `--plain` keep the previous line mode. New `ChatHost` session interface (`packages/cli/src/host.ts`) turns runtime events into plain-JSON `HostEvent`s for the TUI and for a future `tah serve`. Dependencies: `ink@8`, `react@19`, `string-width@8`.
 
