@@ -20,6 +20,8 @@ export type CliFlags = {
   builtinTools: boolean;
   /** `tah init`: install dependencies after scaffolding. */
   install: boolean;
+  /** `tah chat`: line mode even in a terminal (no TUI). */
+  plain: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -42,6 +44,7 @@ export function parseArgv(argv: string[]): CliFlags {
     maxSteps: Infinity,
     builtinTools: false,
     install: true,
+    plain: false,
   };
   const rest: string[] = [];
   let help = false;
@@ -58,6 +61,7 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--yes" || arg === "-y") flags.yes = true;
     else if (arg === "--builtin-tools") flags.builtinTools = true;
     else if (arg === "--no-install") flags.install = false;
+    else if (arg === "--plain") flags.plain = true;
     else if (arg === "--mcp") {
       const next = argv[i + 1];
       if (!next) throw new Error("--mcp requires a command");
@@ -136,7 +140,8 @@ export function usage(): string {
 
 Usage:
   tah run <prompt>     one-shot session
-  tah chat             continue last session if persisted
+  tah chat             continue last session if persisted; terminal UI in a terminal,
+                       line mode when piped or with --plain
                        /exit /reset /sessions /resume <id|n> /fork [turns]
   tah sessions         list saved sessions (newest first; numbers work with --session)
   tah init             scaffold a project (AGENTS.md, tools/, package.json) and install it
@@ -162,6 +167,7 @@ Flags:
   --once <ms>         delay then run once via scheduler (off by default; tah run only)
   --builtin-tools     project with tools/: also mount the built-in file / command tools
   --no-install        tah init: only write files, skip installing dependencies
+  --plain             tah chat: line mode instead of the terminal UI
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)

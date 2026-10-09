@@ -35,12 +35,17 @@
     "@typescript-agent-harness/scheduler": "workspace:*",
     "@typescript-agent-harness/storage": "workspace:*",
     "@typescript-agent-harness/tools": "workspace:*",
+    "ink": "^8.0.0",
     "jiti": "^2.7.0",
     "marked": "^12.0.2",
-    "marked-terminal": "^7.3.0"
+    "marked-terminal": "^7.3.0",
+    "react": "^19.3.0",
+    "string-width": "^8.3.0"
   },
   "devDependencies": {
     "@types/node": "^22.18.0",
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0",
     "typescript": "^5.9.2"
   },
   "license": "MIT",

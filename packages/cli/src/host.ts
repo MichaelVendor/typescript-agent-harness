@@ -22,7 +22,7 @@ export type HostEvent =
   | { type: "session"; id: string; resumed: boolean; history: HistoryItem[]; hiddenTurns: number }
   | { type: "text"; delta: string }
   | { type: "tool.start"; callId: string; tool: string; summary: string }
-  | { type: "tool.end"; callId: string; tool: string; ok: boolean; result: string }
+  | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "notice"; text: string }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
@@ -160,8 +160,19 @@ export async function createChatHost(flags: CliFlags): Promise<ChatHost> {
   const approvals = approvalQueue(emit);
   const rejectPending = () => approvals.rejectAll();
 
-  const { runtime, project, startup } = await bootRuntime(flags, { ask: approvals.ask, print: false });
+  /** A call rejected at approval never starts, so its summary is kept from the question. */
+  const summaries = new Map<string, string>();
+  const ask: ApprovalPluginOptions["ask"] = (call, signal) => {
+    summaries.set(call.id, toolSummary(call.name, call.arguments));
+    return approvals.ask(call, signal);
+  };
+  const { runtime, project, startup } = await bootRuntime(flags, { ask, print: false });
   const sessions = runtime.get(SESSION);
+  const toolEnd = (callId: string, tool: string, ok: boolean, output: unknown) => {
+    const summary = summaries.get(callId) ?? "";
+    summaries.delete(callId);
+    emit({ type: "tool.end", callId, tool, summary, ok, result: toolResult(tool, ok, output) });
+  };
 
   let streamedText = false;
   let model: string | undefined;
@@ -176,15 +187,17 @@ export async function createChatHost(flags: CliFlags): Promise<ChatHost> {
   });
   runtime.on("tool.started", (e) => {
     const p = e as { callId: string; tool: string; input: unknown };
-    emit({ type: "tool.start", callId: p.callId, tool: p.tool, summary: toolSummary(p.tool, p.input) });
+    const summary = toolSummary(p.tool, p.input);
+    summaries.set(p.callId, summary);
+    emit({ type: "tool.start", callId: p.callId, tool: p.tool, summary });
   });
   runtime.on("tool.finished", (e) => {
     const p = e as { callId: string; tool: string; output: unknown };
-    emit({ type: "tool.end", callId: p.callId, tool: p.tool, ok: true, result: toolResult(p.tool, true, p.output) });
+    toolEnd(p.callId, p.tool, true, p.output);
   });
   runtime.on("tool.failed", (e) => {
     const p = e as { callId: string; tool: string; error: unknown };
-    emit({ type: "tool.end", callId: p.callId, tool: p.tool, ok: false, result: toolResult(p.tool, false, p.error) });
+    toolEnd(p.callId, p.tool, false, p.error);
   });
   if (!flags.quiet) {
     runtime.on("llm.retry", (e) => {

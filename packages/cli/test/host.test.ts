@@ -42,6 +42,7 @@ test("a turn streams tool calls, text, then turn.end — all plain JSON", async 
       summary: ".",
     });
     assert.equal((events[2] as { result: string }).result, "1 entries");
+    assert.equal((events[2] as { summary: string }).summary, ".");
     const end = events.at(-1) as Extract<HostEvent, { type: "turn.end" }>;
     assert.equal(end.finishReason, "stop");
     assert.equal(end.rounds, 2);

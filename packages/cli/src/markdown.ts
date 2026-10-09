@@ -18,7 +18,8 @@ export function renderMarkdown(text: string): string {
   return (marked.parse(text, { async: false }) as string).replace(/^\n+|\n+$/g, "");
 }
 
-export type MarkdownStream = { push(text: string): void; flush(): void };
+/** `pending()`: raw text received but not yet written as a rendered block. */
+export type MarkdownStream = { push(text: string): void; flush(): void; pending(): string };
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 const LIST_ITEM = /^ {0,3}([-*+]|\d+[.)])\s/;
@@ -30,7 +31,10 @@ const LIST_ITEM = /^ {0,3}([-*+]|\d+[.)])\s/;
  * Every write ends with a newline. `flush()` writes the rest and must be called
  * before anything else is printed.
  */
-export function createMarkdownStream(write: (s: string) => void): MarkdownStream {
+export function createMarkdownStream(
+  write: (s: string) => void,
+  render: (markdown: string) => string = renderMarkdown,
+): MarkdownStream {
   let pending = "";
   let block: string[] = [];
   let fence = "";
@@ -39,7 +43,7 @@ export function createMarkdownStream(write: (s: string) => void): MarkdownStream
   const emit = () => {
     const text = block.join("\n");
     block = [];
-    if (text.trim()) write(`${renderMarkdown(text)}\n`);
+    if (text.trim()) write(`${render(text)}\n`);
   };
 
   const addLine = (line: string) => {
@@ -85,6 +89,9 @@ export function createMarkdownStream(write: (s: string) => void): MarkdownStream
       fence = "";
       afterBlank = false;
       emit();
+    },
+    pending() {
+      return [...block, pending].join("\n").replace(/^\n+/, "");
     },
   };
 }
