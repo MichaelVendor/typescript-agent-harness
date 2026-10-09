@@ -18,6 +18,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `tah run <prompt>` | 一次性 Session |
 | `tah chat` | 多轮；**默认续上一次持久化 Session**；stdin 每行一轮，直到 EOF 或 `/exit`；`/reset` 新开 |
 | `tah sessions` | 列出已保存的 Session（最新在前；不需要 API key，v0.22） |
+| `tah init` | 在当前目录生成约定式项目骨架（v0.23，见下文「约定式项目」） |
 | `tah help` | 用法 |
 | `tah version` | 打印 CLI 版本（也可 `--version` / `-v`） |
 
@@ -41,6 +42,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--allow <tool>` | 白名单（可重复；不写则不限制） |
 | `--deny <tool>` | 黑名单（可重复；优先于 `--allow`） |
 | `--once <ms>` | 延迟后跑一轮 `tah run`（默认关；仅 `run`） |
+| `--builtin-tools` | 约定式项目有 `tools/` 时，仍挂上内置的文件 / 命令工具（v0.23） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
 
@@ -125,6 +127,63 @@ tah --system-file reviewer.md chat
 - 只替换角色那一句；工具使用规则、exec 提示仍会追加在后面
 - 续上一次 Session 时同样生效（存下来的旧 system 会被换掉）
 - 每次启动都要带上；不带就回到默认 coding 角色
+
+## 约定式项目（v0.23）
+
+不写启动代码，按约定放文件就能做出自己的 Agent：
+
+```sh
+mkdir my-agent && cd my-agent
+npx @typescript-agent-harness/cli init
+npm install
+npx tah --mock chat
+```
+
+```text
+my-agent/
+├── AGENTS.md              # 人设和规则，替换默认的 coding agent 角色
+├── tools/                 # 一个文件 = 一个工具
+│   └── query-order.ts     # → 工具 query_order
+├── plugins/               # 一个文件 = 一个插件（可选）
+│   └── audit-log.ts       # → 插件 project:audit-log
+├── lib/                   # 共用代码，不自动加载
+└── package.json           # 依赖 @typescript-agent-harness/cli
+```
+
+工具文件：
+
+```ts
+// tools/query-order.ts
+import { defineTool } from "@typescript-agent-harness/cli";
+
+export default defineTool({
+  description: "按订单号查询订单状态",
+  inputSchema: {
+    type: "object",
+    properties: { orderId: { type: "string" } },
+    required: ["orderId"],
+  },
+  async execute(input: { orderId: string }, ctx) {
+    return { id: input.orderId, status: "shipped" };
+  },
+});
+```
+
+插件文件：`export default definePlugin({ setup(ctx) { … } })`，可以 `ctx.on(...)` 监听事件、`ctx.get(TOOLS).register(...)` 按条件加工具。
+
+规则：
+
+- **何时生效**：只有 `--cwd`（默认当前目录）的 `package.json` 在 `dependencies` 或 `devDependencies` 里有 `@typescript-agent-harness/cli` 时才算项目。普通代码仓库里的 `tools/`、`plugins/`、`AGENTS.md` 不会被加载。
+- **人设**：`AGENTS.md` 替换默认角色；`--system-file` 优先于 `AGENTS.md`。
+- **内置工具**：有 `tools/` 目录时，`list_files` / `read_file` / `grep` / `write_file` / `execute_command` 和对应的提示词规则都不挂；加 `--builtin-tools` 恢复。只有 `AGENTS.md` 没有 `tools/` 时，内置工具照常挂上。
+- **工具名**：文件名去掉扩展名、`-` 换成 `_`；必须是小写字母开头的 `a-z0-9_`。`defineTool({ name })` 可以覆盖。
+- **扫描**：只扫 `tools/`、`plugins/` 第一层的 `.ts` / `.mts` / `.js` / `.mjs`；跳过 `_` 开头、`*.test.*`、`*.spec.*`、`.d.ts` 和子目录。按文件名排序加载，插件间有先后依赖时用 `01-` 前缀。
+- **注册顺序**：项目插件在所有内置插件之后注册，setup 时 LLM、Tools、Session 都已可用。
+- **TypeScript**：用 [jiti](https://github.com/unjs/jiti) 加载，不用编译；可以 `import "../lib/x.ts"`。
+- **出错**：文件加载失败、导出不对、名字不合法、重名，都在启动时报错并给出文件路径，退出码 1。
+- **审批**：自定义工具执行前不询问。
+
+启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）。
 
 ## Ctrl+C 与失败重试（v0.22）
 

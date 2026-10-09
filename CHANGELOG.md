@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (0.23)
+
+CLI: convention-based projects. In a directory whose `package.json` depends on `@typescript-agent-harness/cli`, `tah run` / `tah chat` load `AGENTS.md` (replaces the default role; `--system-file` still wins), every top-level file in `tools/` (`export default defineTool({...})`; `query-order.ts` → tool `query_order`) and in `plugins/` (`export default definePlugin({...})`, registered after the built-ins as `project:<file>`). TypeScript files load through `jiti`, no build step. With a `tools/` directory the built-in file / command tools and their prompt rules are left out; `--builtin-tools` brings them back. Load errors, bad exports, invalid or duplicate tool names stop startup with the file path. Directories without the dependency behave exactly as before.
+
+CLI: `tah init` scaffolds `package.json`, `AGENTS.md`, `tools/current-time.ts`, `tsconfig.json`, `.env.example` and `.gitignore`, skipping files that already exist.
+
+CLI: the package now has a library entry — `defineTool`, `definePlugin` and the `Tool` / `ToolContext` / `Plugin` / `Context` types; `main` points at it instead of the CLI script. New dependency: `jiti@2`.
+
 ## 0.22.7 — 2026-10-09
 
 CLI: no more `ExperimentalWarning: SQLite is an experimental feature…` on startup; other Node warnings still print.
