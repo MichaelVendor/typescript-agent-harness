@@ -16,6 +16,8 @@ export type CliFlags = {
   onceMs: number;
   /** `Infinity` unless `--max-steps` is passed. */
   maxSteps: number;
+  /** Keep the built-in coding tools in a project that has its own `tools/`. */
+  builtinTools: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -36,6 +38,7 @@ export function parseArgv(argv: string[]): CliFlags {
     deny: [],
     onceMs: -1,
     maxSteps: Infinity,
+    builtinTools: false,
   };
   const rest: string[] = [];
   let help = false;
@@ -50,6 +53,7 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--exec") flags.exec = true;
     else if (arg === "--no-exec") flags.exec = false;
     else if (arg === "--yes" || arg === "-y") flags.yes = true;
+    else if (arg === "--builtin-tools") flags.builtinTools = true;
     else if (arg === "--mcp") {
       const next = argv[i + 1];
       if (!next) throw new Error("--mcp requires a command");
@@ -131,6 +135,7 @@ Usage:
   tah chat             continue last session if persisted
                        /exit /reset /sessions /resume <id|n> /fork [turns]
   tah sessions         list saved sessions (newest first; numbers work with --session)
+  tah init             scaffold a project: AGENTS.md, tools/, package.json
   tah help
   tah version          print the CLI version (also --version, -v)
 
@@ -151,5 +156,12 @@ Flags:
   --allow <tool>      allowlist (repeatable; omit = all tools allowed)
   --deny <tool>       denylist (repeatable; wins over --allow)
   --once <ms>         delay then run once via scheduler (off by default; tah run only)
+  --builtin-tools     project with tools/: also mount the built-in file / command tools
+
+Project (cwd whose package.json depends on @typescript-agent-harness/cli):
+  AGENTS.md           replaces the default role (--system-file still wins)
+  tools/<name>.ts     export default defineTool({...}); file query-order.ts → tool query_order
+  plugins/<name>.ts   export default definePlugin({...}); registered after the built-ins
+  Only top-level files load; skipped: _*.ts, *.test.*, *.spec.*, *.d.ts, subdirectories.
 `;
 }

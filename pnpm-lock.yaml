@@ -57,6 +57,18 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
 
+  examples/convention-agent:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      '@typescript-agent-harness/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
   examples/multi-agent:
     dependencies:
       '@typescript-agent-harness/agent':
@@ -167,6 +179,9 @@ importers:
       '@typescript-agent-harness/tools':
         specifier: workspace:*
         version: link:../tools
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
       marked:
         specifier: ^12.0.2
         version: 12.0.2
@@ -1149,6 +1164,10 @@ packages:
   is-fullwidth-code-point@3.0.0:
     resolution: {integrity: sha512-zymm5+u+sCsSWyD9qNaejV3DFvhCKclKdizYaJUuHA83RLjb7nSuGnddCHGv0hk+KY7BMAlsWeK4Ueg6EV6XQg==}
     engines: {node: '>=8'}
+
+  jiti@2.7.0:
+    resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
+    hasBin: true
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
@@ -2181,6 +2200,8 @@ snapshots:
   html-void-elements@3.0.0: {}
 
   is-fullwidth-code-point@3.0.0: {}
+
+  jiti@2.7.0: {}
 
   magic-string@0.30.21:
     dependencies:

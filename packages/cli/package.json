@@ -6,7 +6,14 @@
   "bin": {
     "tah": "./dist/cli.js"
   },
-  "main": "./dist/cli.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -28,6 +35,7 @@
     "@typescript-agent-harness/scheduler": "workspace:*",
     "@typescript-agent-harness/storage": "workspace:*",
     "@typescript-agent-harness/tools": "workspace:*",
+    "jiti": "^2.7.0",
     "marked": "^12.0.2",
     "marked-terminal": "^7.3.0"
   },

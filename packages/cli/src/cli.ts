@@ -24,6 +24,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (flags.command === "init") {
+    const { initProject } = await import("./init.js");
+    console.log(initProject(flags.cwd).join("\n"));
+    return;
+  }
+
   if (flags.command === "sessions") {
     const { listSavedSessions } = await import("./runtime.js");
     console.log(await listSavedSessions(flags.cwd));
@@ -206,7 +212,8 @@ async function main(): Promise<void> {
   process.exitCode = 1;
 }
 
-main().catch((err) => {
-  console.error(err);
+main().catch(async (err) => {
+  const { ProjectError } = await import("./project.js");
+  console.error(err instanceof ProjectError ? err.message : err);
   process.exitCode = 1;
 });

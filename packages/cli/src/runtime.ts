@@ -16,11 +16,13 @@ import {
   toolsPlugin,
   writeFileTool,
   executeCommandTool,
+  type Tool,
 } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
 import { createMarkdownStream, dim, renderMarkdown, useColor } from "./markdown.js";
+import { loadProject, ProjectError, type Project } from "./project.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { formatSessions, resolveSessionRef, toRows } from "./sessions.js";
 
@@ -33,14 +35,26 @@ export type StreamFlag = { on: boolean; midLine: boolean; flush: () => void };
 /** ~25k tokens of English/code (CJK costs more); leaves room for tool schemas and the reply on 64k-context models. */
 export const DEFAULT_CONTEXT_CHARS = 100_000;
 
+export function describeProject(project: Project, systemFile: boolean): string {
+  const parts = ["[tah] project:"];
+  if (project.instructions !== undefined) {
+    parts.push(systemFile ? "AGENTS.md (overridden by --system-file)" : "AGENTS.md");
+  }
+  parts.push(`tools+${project.tools.length}`, `plugins+${project.plugins.length}`);
+  return parts.join(" ");
+}
+
 export async function bootRuntime(
   flags: CliFlags,
   opts: { ask?: ApprovalPluginOptions["ask"] } = {},
 ): Promise<{ runtime: Runtime; streamed: StreamFlag }> {
   const ask = flags.yes ? undefined : opts.ask;
+  const project = await loadProject(flags.cwd);
   const role = flags.systemFile
     ? readFileSync(path.resolve(flags.systemFile), "utf8")
-    : undefined;
+    : project?.instructions;
+  const builtin = !project?.hasToolsDir || flags.builtinTools;
+  const exec = builtin && flags.exec;
   const hasKey = Boolean(
     process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY,
   );
@@ -76,8 +90,9 @@ export async function bootRuntime(
 
   if (!flags.quiet) {
     log(
-      `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${flags.exec ? " exec=on" : " exec=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`,
+      `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`,
     );
+    if (project) log(describeProject(project, Boolean(flags.systemFile)));
     runtime.on("llm.request", (e) => {
       const p = e as { model?: string; messageCount: number };
       log(`[llm] ${p.model ?? "?"} messages=${p.messageCount}`);
@@ -112,15 +127,23 @@ export async function bootRuntime(
     );
   }
 
-  const tools = [
-    listFilesTool(flags.cwd),
-    readFileTool(flags.cwd),
-    grepTool(flags.cwd),
-    writeFileTool(flags.cwd),
-    ...(flags.exec ? [executeCommandTool(flags.cwd)] : []),
-  ];
+  const tools: Tool[] = builtin
+    ? [
+        listFilesTool(flags.cwd),
+        readFileTool(flags.cwd),
+        grepTool(flags.cwd),
+        writeFileTool(flags.cwd),
+        ...(exec ? [executeCommandTool(flags.cwd)] : []),
+      ]
+    : [];
+  for (const { file, tool } of project?.tools ?? []) {
+    if (tools.some((t) => t.name === tool.name)) {
+      throw new ProjectError(`tah: tools/${file}: tool "${tool.name}" is built in; rename the file or set name`);
+    }
+  }
+  tools.push(...(project?.tools.map((t) => t.tool) ?? []));
 
-  if (flags.exec || flags.allow.length > 0 || flags.deny.length > 0) {
+  if (exec || flags.allow.length > 0 || flags.deny.length > 0) {
     const perms: PermissionsPluginOptions = {};
     if (flags.allow.length > 0) perms.allow = flags.allow;
     if (flags.deny.length > 0) perms.deny = flags.deny;
@@ -158,8 +181,9 @@ export async function bootRuntime(
       maxSteps: flags.maxSteps,
       contextChars: DEFAULT_CONTEXT_CHARS,
       systemPrompt: buildSystemPrompt({
-        exec: flags.exec,
+        exec,
         mcp: Boolean(flags.mcpCommand),
+        builtinTools: builtin,
         ...(role !== undefined ? { role } : {}),
       }),
     }),
@@ -169,6 +193,8 @@ export async function bootRuntime(
     const { schedulerPlugin } = await import("@typescript-agent-harness/scheduler");
     runtime.use(schedulerPlugin());
   }
+
+  for (const plugin of project?.plugins ?? []) runtime.use(plugin);
 
   await runtime.start();
   return { runtime, streamed };
