@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 import { SESSION } from "@typescript-agent-harness/agent";
 import { TOOLS } from "@typescript-agent-harness/tools";
 import { parseArgv } from "../dist/args.js";
-import { initProject } from "../dist/init.js";
+import { initProject, nextSteps } from "../dist/init.js";
+import { enclosingPnpmWorkspace, installCommand } from "../dist/install.js";
 import { buildSystemPrompt } from "../dist/prompt.js";
 import { loadProject, ProjectError } from "../dist/project.js";
 import { bootRuntime } from "../dist/runtime.js";
@@ -170,6 +171,45 @@ test("project errors name the file", async () => {
     "--builtin-tools",
   ]);
   await rejects({ "plugins/p.mjs": "export default {}" }, /plugins\/p\.mjs must export default definePlugin/);
+});
+
+test("a tool importing an uninstalled package says which install command to run", async () => {
+  await rejects(
+    { "tools/t.ts": `import { defineTool } from "@typescript-agent-harness/cli";\nexport default defineTool({});\n` },
+    /tools\/t\.ts imports "@typescript-agent-harness\/cli", which is not installed in .* — run: p?npm install$/,
+  );
+  await rejects({ "tools/t.ts": `import "./missing.ts";\nexport default {};\n` }, /failed to load tools\/t\.ts/);
+});
+
+test("installCommand: lockfile, launcher, and pnpm inside another workspace", () => {
+  const saved = process.env.npm_config_user_agent;
+  try {
+    delete process.env.npm_config_user_agent;
+    assert.deepEqual(installCommand(makeDir({}, false)), { command: "npm", args: ["install"] });
+    assert.equal(installCommand(makeDir({ "yarn.lock": "" }, false)).command, "yarn");
+    assert.deepEqual(installCommand(makeDir({ "pnpm-lock.yaml": "" }, false)), {
+      command: "pnpm",
+      args: ["install"],
+    });
+
+    process.env.npm_config_user_agent = "pnpm/10.33.0 npm/? node/v22.22.0 darwin arm64";
+    const outer = makeDir({ "pnpm-workspace.yaml": "packages:\n  - a\n", "inner/README.md": "" }, false);
+    const inner = path.join(outer, "inner");
+    assert.equal(enclosingPnpmWorkspace(inner), outer);
+    assert.deepEqual(installCommand(inner), { command: "pnpm", args: ["install", "--ignore-workspace"] });
+    assert.equal(enclosingPnpmWorkspace(outer), undefined);
+    assert.deepEqual(installCommand(outer).args, ["install"]);
+  } finally {
+    if (saved === undefined) delete process.env.npm_config_user_agent;
+    else process.env.npm_config_user_agent = saved;
+  }
+});
+
+test("--no-install and next steps", () => {
+  assert.equal(parseArgv(["init"]).install, true);
+  assert.equal(parseArgv(["--no-install", "init"]).install, false);
+  assert.match(nextSteps("pnpm install --ignore-workspace").join("\n"), /^ {2}pnpm install --ignore-workspace$/m);
+  assert.doesNotMatch(nextSteps().join("\n"), /install/);
 });
 
 test("tah init scaffolds a project and never overwrites", () => {

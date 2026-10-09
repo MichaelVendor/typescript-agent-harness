@@ -133,7 +133,7 @@ npx tah --help
 
 ```sh
 pnpm demo:convention
-mkdir my-agent && cd my-agent && npx @typescript-agent-harness/cli init && npm install && npx tah --mock chat
+mkdir my-agent && cd my-agent && npx @typescript-agent-harness/cli init && npx tah --mock chat
 ```
 
 ## 非目标（刻意不做）

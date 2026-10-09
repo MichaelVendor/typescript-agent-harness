@@ -51,8 +51,7 @@ tah run --mock "列出当前目录并说明这个项目"
 
 ```sh
 mkdir my-agent && cd my-agent
-npx @typescript-agent-harness/cli init
-npm install
+npx @typescript-agent-harness/cli init   # 生成文件并装依赖
 npx tah --mock chat
 ```
 

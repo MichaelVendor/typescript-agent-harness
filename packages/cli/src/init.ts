@@ -80,12 +80,16 @@ export function initProject(cwd: string): string[] {
       `[tah] package.json does not depend on ${CLI_PACKAGE}; tools/ and AGENTS.md load only after: npm i -D ${CLI_PACKAGE}`,
     );
   }
-  lines.push(
+  return lines;
+}
+
+/** `install`: the command still to run, when `tah init` did not install (or failed to). */
+export function nextSteps(install?: string): string[] {
+  return [
     "",
     "Next:",
-    "  npm install",
+    ...(install ? [`  ${install}`] : []),
     "  cp .env.example .env    # fill in DEEPSEEK_API_KEY, or skip and use --mock",
     "  npx tah chat",
-  );
-  return lines;
+  ];
 }

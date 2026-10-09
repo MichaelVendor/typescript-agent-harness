@@ -51,8 +51,7 @@ No startup code: `AGENTS.md` is the role, every file in `tools/` is a tool.
 
 ```sh
 mkdir my-agent && cd my-agent
-npx @typescript-agent-harness/cli init
-npm install
+npx @typescript-agent-harness/cli init   # scaffolds and installs
 npx tah --mock chat
 ```
 

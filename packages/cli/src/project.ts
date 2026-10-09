@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Plugin } from "@typescript-agent-harness/core";
 import type { Tool } from "@typescript-agent-harness/tools";
 import { createJiti } from "jiti";
+import { formatCommand, installCommand } from "./install.js";
 
 export const CLI_PACKAGE = "@typescript-agent-harness/cli";
 
@@ -59,9 +60,14 @@ async function loadDefault(cwd: string, rel: string): Promise<unknown> {
   try {
     return await jiti.import(path.join(cwd, rel), { default: true });
   } catch (err) {
-    throw new ProjectError(
-      `tah: failed to load ${rel}: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    const missing = /Cannot find (?:module|package) '([^'./][^']*)'/.exec(message)?.[1];
+    if (missing) {
+      throw new ProjectError(
+        `tah: ${rel} imports "${missing}", which is not installed in ${cwd} — run: ${formatCommand(installCommand(cwd))}`,
+      );
+    }
+    throw new ProjectError(`tah: failed to load ${rel}: ${message}`);
   }
 }
 

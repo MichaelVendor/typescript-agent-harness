@@ -45,10 +45,9 @@ my-agent/
 ```sh
 mkdir my-agent && cd my-agent
 npx @typescript-agent-harness/cli init
-npm install
 ```
 
-`tah init` 生成 `package.json`（依赖 CLI）、`AGENTS.md`、`tools/current-time.ts`、`tsconfig.json`、`.env.example`、`.gitignore`，已存在的文件跳过不覆盖。本地安装 CLI 既是项目模式的开关，也提供 `defineTool` / `definePlugin` 和类型；运行用 `npx tah chat`。全局装的 `tah` 在同一目录下也会读取同样的约定文件。
+`tah init` 生成 `package.json`（依赖 CLI）、`AGENTS.md`、`tools/current-time.ts`、`tsconfig.json`、`.env.example`、`.gitignore`，已存在的文件跳过不覆盖；随后自动装依赖（v0.23.1，`--no-install` 跳过；在别的 pnpm 工作区里用 `pnpm install --ignore-workspace`）。本地安装 CLI 既是项目模式的开关，也提供 `defineTool` / `definePlugin` 和类型；运行用 `npx tah chat`。全局装的 `tah` 在同一目录下也会读取同样的约定文件。
 
 ### 2. 写工具
 

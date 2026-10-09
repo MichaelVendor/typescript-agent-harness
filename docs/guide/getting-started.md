@@ -35,8 +35,7 @@ v0.21 起默认带 `execute_command`、SQLite 持久化、`maxSteps=32`；`tah c
 
 ```sh
 mkdir my-agent && cd my-agent
-npx @typescript-agent-harness/cli init
-npm install
+npx @typescript-agent-harness/cli init   # 生成文件并装依赖
 npx tah --mock chat
 ```
 

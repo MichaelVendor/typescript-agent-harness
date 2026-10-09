@@ -25,8 +25,31 @@ async function main(): Promise<void> {
   }
 
   if (flags.command === "init") {
-    const { initProject } = await import("./init.js");
+    const { initProject, nextSteps } = await import("./init.js");
+    const { formatCommand, installCommand } = await import("./install.js");
+    const { isProject } = await import("./project.js");
     console.log(initProject(flags.cwd).join("\n"));
+    if (!isProject(flags.cwd)) return;
+    const cmd = installCommand(flags.cwd);
+    if (!flags.install) {
+      console.log(nextSteps(formatCommand(cmd)).join("\n"));
+      return;
+    }
+    const { spawnSync } = await import("node:child_process");
+    console.log(`\n[tah] ${formatCommand(cmd)}`);
+    const result = spawnSync(cmd.command, cmd.args, {
+      cwd: flags.cwd,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+    });
+    if (result.status !== 0) {
+      if (result.error) console.error(`[tah] ${result.error.message}`);
+      console.error(`[tah] install failed — fix the error above, then run: ${formatCommand(cmd)}`);
+      console.log(nextSteps(formatCommand(cmd)).join("\n"));
+      process.exitCode = 1;
+      return;
+    }
+    console.log(nextSteps().join("\n"));
     return;
   }
 

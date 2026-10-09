@@ -18,7 +18,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `tah run <prompt>` | 一次性 Session |
 | `tah chat` | 多轮；**默认续上一次持久化 Session**；stdin 每行一轮，直到 EOF 或 `/exit`；`/reset` 新开 |
 | `tah sessions` | 列出已保存的 Session（最新在前；不需要 API key，v0.22） |
-| `tah init` | 在当前目录生成约定式项目骨架（v0.23，见下文「约定式项目」） |
+| `tah init` | 在当前目录生成约定式项目骨架并装好依赖（v0.23，见下文「约定式项目」） |
 | `tah help` | 用法 |
 | `tah version` | 打印 CLI 版本（也可 `--version` / `-v`） |
 
@@ -43,6 +43,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--deny <tool>` | 黑名单（可重复；优先于 `--allow`） |
 | `--once <ms>` | 延迟后跑一轮 `tah run`（默认关；仅 `run`） |
 | `--builtin-tools` | 约定式项目有 `tools/` 时，仍挂上内置的文件 / 命令工具（v0.23） |
+| `--no-install` | `tah init` 只生成文件，不装依赖（v0.23.1） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
 
@@ -134,10 +135,11 @@ tah --system-file reviewer.md chat
 
 ```sh
 mkdir my-agent && cd my-agent
-npx @typescript-agent-harness/cli init
-npm install
+npx @typescript-agent-harness/cli init   # 生成文件并装依赖
 npx tah --mock chat
 ```
+
+`tah init` 生成文件后自动装依赖（v0.23.1）：目录里有 `pnpm-lock.yaml` / `yarn.lock` / `package-lock.json` 就用对应的包管理器，否则用启动它的那个（`pnpm dlx` → pnpm），默认 npm。项目放在别的 pnpm 工作区（上层有 `pnpm-workspace.yaml`）里时，用 `pnpm install --ignore-workspace`，否则 pnpm 会去装外层工作区、跳过这个项目。装失败或加了 `--no-install`，会打印要自己跑的命令。
 
 ```text
 my-agent/

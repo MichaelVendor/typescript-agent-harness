@@ -18,6 +18,8 @@ export type CliFlags = {
   maxSteps: number;
   /** Keep the built-in coding tools in a project that has its own `tools/`. */
   builtinTools: boolean;
+  /** `tah init`: install dependencies after scaffolding. */
+  install: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -39,6 +41,7 @@ export function parseArgv(argv: string[]): CliFlags {
     onceMs: -1,
     maxSteps: Infinity,
     builtinTools: false,
+    install: true,
   };
   const rest: string[] = [];
   let help = false;
@@ -54,6 +57,7 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--no-exec") flags.exec = false;
     else if (arg === "--yes" || arg === "-y") flags.yes = true;
     else if (arg === "--builtin-tools") flags.builtinTools = true;
+    else if (arg === "--no-install") flags.install = false;
     else if (arg === "--mcp") {
       const next = argv[i + 1];
       if (!next) throw new Error("--mcp requires a command");
@@ -135,7 +139,7 @@ Usage:
   tah chat             continue last session if persisted
                        /exit /reset /sessions /resume <id|n> /fork [turns]
   tah sessions         list saved sessions (newest first; numbers work with --session)
-  tah init             scaffold a project: AGENTS.md, tools/, package.json
+  tah init             scaffold a project (AGENTS.md, tools/, package.json) and install it
   tah help
   tah version          print the CLI version (also --version, -v)
 
@@ -157,6 +161,7 @@ Flags:
   --deny <tool>       denylist (repeatable; wins over --allow)
   --once <ms>         delay then run once via scheduler (off by default; tah run only)
   --builtin-tools     project with tools/: also mount the built-in file / command tools
+  --no-install        tah init: only write files, skip installing dependencies
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)
