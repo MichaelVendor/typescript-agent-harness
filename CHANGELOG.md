@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.6 — 2026-10-09
+
+CLI: no step limit per turn by default (was 32), matching Claude Code / Cursor — a turn runs until the model stops; Ctrl+C interrupts. With `--max-steps <n>`, a chat turn that hits the limit asks `Step limit reached … Enter continue · n stop`; Enter resumes the same turn with a fresh budget. The status line's `steps` now counts this turn's LLM rounds (it was the session total), and the max_steps hint points at continuing or `--max-steps` instead of the SDK-facing text.
+
+Agent: default `maxSteps` raised from 8 to 20 (in line with the Vercel AI SDK); pass `Infinity` for no limit.
+
 ## 0.22.5 — 2026-10-08
 
 Agent: a reopened persisted session uses the current `maxSteps` instead of the value stored when it was created (old sessions were stuck at 8 even with `--max-steps`).

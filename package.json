@@ -1,7 +1,7 @@
 {
   "name": "typescript-agent-harness",
   "private": true,
-  "version": "0.22.5",
+  "version": "0.22.6",
   "description": "TypeScript Agent Runtime — everything is a capability",
   "packageManager": "pnpm@10.33.0",
   "bin": {
