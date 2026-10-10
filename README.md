@@ -25,9 +25,9 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  (all plugins)
 ```
 
-## v0.23 (current)
+## v0.26 (current)
 
-Runtime through CLI. Start with npm:
+Runtime through CLI: `tah chat` is a terminal UI, `tah serve` a local web workbench. Start with npm:
 
 ```sh
 npx @typescript-agent-harness/cli --help
@@ -60,10 +60,11 @@ my-agent/
 ├── AGENTS.md              # role and rules (replaces the default coding role)
 ├── tools/query-order.ts   # export default defineTool({...}) → tool query_order
 ├── plugins/audit-log.ts   # export default definePlugin({...}) (optional)
+├── lib/                   # shared code, imported by tools (optional)
 └── package.json           # depends on @typescript-agent-harness/cli
 ```
 
-Rules: [CLI · 约定式项目](./docs/guide/cli.md). Full example: [`examples/convention-agent`](examples/convention-agent) (`pnpm demo:convention`).
+`tah chat` and `tah serve` reload these files on save and keep the conversation. Rules: [CLI · 约定式项目](./docs/guide/cli.md). Full example: [`examples/convention-agent`](examples/convention-agent) (`pnpm demo:convention`).
 
 Capabilities are plugins:
 
@@ -124,7 +125,8 @@ packages/
   permissions/  allow / deny
   mcp/          MCP backend → Tool (in-process ping + stdio)
   scheduler/    once / every
-  cli/          tah run / tah chat / tah init + project loader
+  cli/          tah run / tah chat (TUI) / tah serve / tah init + project loader
+  web/          tah serve page (React + Vite, private; shipped inside cli)
 examples/
   basic-runtime/     Phase 1 smoke
   basic-agent/       Phase 2 tool-use loop
@@ -141,10 +143,13 @@ examples/
 | **2** | LLM + Tools + Agent Loop + Session |
 | **3** | SQLite persistence, checkpoint / resume |
 | **4** | MCP, scheduler, subagent-as-tool, permissions |
-| **5** | CLI `tah run` / `tah chat` (no Web/TUI) |
+| **5** | CLI `tah run` / `tah chat` |
 | **6** | Tests + CI + stdio MCP |
 | **7** | Streaming `llm.stream` + incremental `tah` output |
-| **8** | Convention projects: `AGENTS.md` + `tools/` + `plugins/` + `tah init` (current) |
+| **8** | Convention projects: `AGENTS.md` + `tools/` + `plugins/` + `tah init` |
+| **9** | Terminal UI (Ink) for `tah chat` |
+| **10** | `tah serve`: local web workbench |
+| **11** | Hot reload for convention projects (current) |
 
 ## Documentation
 

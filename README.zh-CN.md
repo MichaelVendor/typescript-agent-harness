@@ -25,9 +25,9 @@ Agent  Plugin  EventBus
    LLM / Tools / Storage  （全部是插件）
 ```
 
-## v0.23（当前）
+## v0.26（当前）
 
-从 Runtime 到 CLI。先用 npm：
+从 Runtime 到 CLI：`tah chat` 是终端 UI，`tah serve` 是本机网页工作台。先用 npm：
 
 ```sh
 npx @typescript-agent-harness/cli --help
@@ -60,10 +60,11 @@ my-agent/
 ├── AGENTS.md              # 人设和规则（替换默认的 coding 角色）
 ├── tools/query-order.ts   # export default defineTool({...}) → 工具 query_order
 ├── plugins/audit-log.ts   # export default definePlugin({...})（可选）
+├── lib/                   # 工具共用的代码（可选）
 └── package.json           # 依赖 @typescript-agent-harness/cli
 ```
 
-规则见 [CLI · 约定式项目](./docs/guide/cli.md)；完整示例 [`examples/convention-agent`](examples/convention-agent)（`pnpm demo:convention`）。
+`tah chat` 和 `tah serve` 运行时改这些文件，保存即生效，对话不断。规则见 [CLI · 约定式项目](./docs/guide/cli.md)；完整示例 [`examples/convention-agent`](examples/convention-agent)（`pnpm demo:convention`）。
 
 能力仍然是插件：
 
@@ -124,7 +125,8 @@ packages/
   permissions/  allow / deny
   mcp/          MCP backend → Tool（ping + stdio）
   scheduler/    once / every
-  cli/          tah run / tah chat / tah init + 约定式项目加载
+  cli/          tah run / tah chat（TUI）/ tah serve / tah init + 约定式项目加载
+  web/          tah serve 的网页（React + Vite，私有包，随 cli 发布）
 examples/
   basic-runtime/     Phase 1 冒烟
   basic-agent/       Phase 2 tool-use
@@ -141,10 +143,13 @@ examples/
 | **2** | LLM + Tools + Agent Loop + Session |
 | **3** | SQLite 持久化、checkpoint / resume |
 | **4** | MCP、scheduler、子 agent、权限 |
-| **5** | CLI `tah run` / `tah chat`（无 Web/TUI） |
+| **5** | CLI `tah run` / `tah chat` |
 | **6** | 测试 + CI + stdio MCP |
 | **7** | `llm.stream` 流式 + `tah` 增量输出 |
-| **8** | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init`（当前） |
+| **8** | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init` |
+| **9** | `tah chat` 终端 UI（Ink） |
+| **10** | `tah serve` 本机网页工作台 |
+| **11** | 约定式项目热更新（当前） |
 
 ## 文档
 
