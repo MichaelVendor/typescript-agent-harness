@@ -48,6 +48,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--plain` | `tah chat` 强制逐行模式，即使在终端里也不进 TUI（v0.24） |
 | `--port <n>` | `tah serve` 的端口（默认 7420；被占用时报错，不自动换，v0.25） |
 | `--no-open` | `tah serve` 不自动打开浏览器（v0.25） |
+| `--no-watch` | 约定式项目里不热更新（终端 `tah chat` / `tah serve`，v0.26） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
 
@@ -152,7 +153,7 @@ my-agent/
 │   └── query-order.ts     # → 工具 query_order
 ├── plugins/               # 一个文件 = 一个插件（可选）
 │   └── audit-log.ts       # → 插件 project:audit-log
-├── lib/                   # 共用代码，不自动加载
+├── lib/                   # 共用代码，不自动加载（改了会热更新）
 └── package.json           # 依赖 @typescript-agent-harness/cli
 ```
 
@@ -190,6 +191,22 @@ export default defineTool({
 - **审批**：自定义工具执行前不询问。
 
 启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）。
+
+### 热更新（v0.26）
+
+终端里的 `tah chat` 和 `tah serve` 会监听 `AGENTS.md`、`tools/`、`plugins/`、`lib/`（含子目录）。保存后自动重新加载，当前会话和历史都保留，新的人设和工具从下一轮起生效：
+
+```text
+[tah] reloaded: AGENTS.md tools+1 plugins+1
+```
+
+- **一轮进行中**（包括等待审批）改了文件：等这一轮结束再重载，不会中途换工具。重载期间发的消息会等重载完成再发。
+- **新文件有错**（语法错误、导出不对、重名、插件 `setup` 抛错）：继续用旧版本，提示 `[tah] reload failed — still using the previous version: …`，改对后保存即可。
+- 重载会重建整个 Runtime：插件的 `dispose` 会被调用，MCP 子进程会重启；「总是允许」的审批选择保留。
+- `--no-persist` 时会话只在内存里，重建会丢，所以只提示 `… changed — restart to apply (persist is off)`，不重载。
+- 其他文件（`package.json`、`.env`、`--system-file` 指定的文件、`lib/` 以外的目录）改了要重启。`tah run`、管道 / `--plain` 逐行模式没有热更新。`--no-watch` 关闭。
+
+设计说明见 [约定式项目热更新](/design/reload)。
 
 ## 终端 UI（v0.24）
 

@@ -13,7 +13,8 @@
 | 7 | `llm.stream` + `tah` 增量输出 | ✅ |
 | 8 | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init` | ✅ |
 | 9 | TUI（Ink）+ `ChatHost` 会话接口 | ✅ `v0.24` |
-| 10 | `tah serve` + 本机网页工作台（HTTP + SSE） | ✅ 当前（`v0.25`） |
+| 10 | `tah serve` + 本机网页工作台（HTTP + SSE） | ✅ `v0.25` |
+| 11 | 约定式项目热更新（`AGENTS.md` / `tools/` / `plugins/` / `lib/`） | ✅ 当前（`v0.26`） |
 
 ## Phase 1 — Runtime ✅
 

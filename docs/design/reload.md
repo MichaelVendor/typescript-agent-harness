@@ -1,6 +1,6 @@
 # 设计说明：约定式项目热更新（v0.26）
 
-状态：📐 已评审，未实现
+状态：✅ 已实现（`v0.26` 分支）
 
 ## 背景
 
@@ -13,7 +13,9 @@
 
 tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的工具撤销不了。照搬单插件替换要给 `core` 加整套机制。本设计改为**整体重建 Runtime**——相当于以 Runtime 为粒度做「释放再挂上」，只改 CLI 层；借鉴 dsh 的「加载失败保留旧版本」。
 
-遵循的原则（见 [设计哲学](../guide/philosophy.md)）：界面和开发体验属于 Application 层，`core` / `agent` / `tools` 不改；不做用不到的东西。
+遵循的原则（见 [设计哲学](../guide/philosophy.md)）：界面和开发体验属于 Application 层，`core` / `agent` / `tools` 不为热更新加接口；不做用不到的东西。
+
+实现中顺带修了 `core` 的一个缺陷：`Runtime.start()` 中途有插件 `setup` 抛错时，之前已 `setup` 的插件不会 `dispose`（数据库连接、MCP 子进程泄漏）。以前启动失败进程就退出，看不出来；重载失败后进程继续运行，就会每次泄漏一份。现在失败时按相反顺序 `dispose` 已启动的插件并清空服务。这是修 bug，不是新接口。
 
 ## 目标
 
@@ -24,13 +26,13 @@ tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的
 
 - 不做单个插件 / 单个工具粒度的替换，不改 `core`。
 - 不学 dsh 把 `AGENTS.md` 变化作为消息注入：重载时直接换 system prompt，代价是改一次后下一次请求的提示词缓存失效一次。
-- 不监听 `--system-file`、`package.json`、`.env` 和项目目录以外的文件，改了要重启。
+- 不监听 `--system-file`、`package.json`、`.env`，以及上面四处以外的目录，改了要重启。
 - `tah run`、管道 / `--plain` 逐行模式不加热更新。
 
 ## 行为
 
 - **范围**：`ChatHost`（TUI 与 `tah serve` 共用）。只在约定式项目（`package.json` 依赖 CLI）里生效，默认开启，`--no-watch` 关闭。
-- **监听**：`AGENTS.md`；`tools/`、`plugins/` 下的所有文件，含子目录里被 import 的辅助文件。目录启动时不存在，之后新建的也能发现。
+- **监听**：`AGENTS.md`；`tools/`、`plugins/`、`lib/` 下的所有文件，含子目录。`lib/` 是约定的共用代码目录（`examples/convention-agent` 的工具 `import "../lib/orders.ts"`），本身不加载，改了同样重载。目录启动时不存在，之后新建的也能发现。
 - **时机**：变化防抖 200ms。正在跑一轮（含等待审批）时只记下，这一轮结束后再重载。重载中又有变化，跑完再重载一次。
 - **成功**：换上新 Runtime，按 id 重新打开当前会话（`Session` 恢复时会换成当前 system prompt，所以新的 `AGENTS.md` 从下一轮生效）。提示 `[tah] reloaded: AGENTS.md tools+2 plugins+1`（格式同启动时的 project 行）。
 - **失败**：继续用旧版本，提示 `[tah] reload failed — still using the previous version: <原因>`；下次保存再试。
@@ -53,7 +55,8 @@ tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的
 | 文件 | 改动 |
 | --- | --- |
 | `packages/cli/src/project.ts` | jiti 关掉模块缓存（`moduleCache: false`），每次加载读到磁盘最新内容，含辅助文件 |
-| `packages/cli/src/watch.ts`（新） | `watchProject(cwd, onChange)`：非递归监听项目根目录（`AGENTS.md`、`tools/` / `plugins/` 的增删），递归监听这两个目录；目录新建后补上监听。不递归监听整个项目，避免扫到 `node_modules`。返回关闭函数 |
+| `packages/cli/src/watch.ts`（新） | `watchProject(cwd, onChange)`：非递归监听项目根目录（`AGENTS.md`，`tools/` / `plugins/` / `lib/` 的增删），递归监听这三个目录；目录新建后补上监听。不递归监听整个项目，避免扫到 `node_modules`。返回关闭函数 |
+| `packages/core/src/runtime.ts` | `start()` 失败时 `dispose` 已启动的插件（见背景） |
 | `packages/cli/src/runtime.ts` | `bootRuntime` 新增可选 `project`，传入已加载的项目 |
 | `packages/cli/src/host.ts` | 事件订阅抽成 `attach(runtime)`；重载流程；「总是允许」记录；`close()` 关掉监听 |
 | `packages/cli/src/args.ts` | `watch`（默认 `true`）、`--no-watch`、用法说明 |
@@ -74,7 +77,7 @@ tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的
 
 ## 测试
 
-- `packages/cli/test/watch.test.ts`：改 `AGENTS.md`、`tools/` 里的文件、子目录里的辅助文件都触发；`tools/` 启动后才新建也触发；改 `node_modules`、`.tah` 不触发。
+- `packages/cli/test/watch.test.ts`：改 `AGENTS.md`、`tools/` 里的文件、子目录里的辅助文件、`lib/` 都触发；`tools/` 启动后才新建也触发；改 `node_modules`、`.tah` 不触发。
 - `packages/cli/test/host.test.ts`（`--mock`，临时项目，真实 `ChatHost`）：
   - 改工具文件后，下一轮工具结果是新代码的返回值；
   - 改 `AGENTS.md` 后，会话的 system 消息是新内容，会话 id 和历史不变；
@@ -92,5 +95,6 @@ tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的
 | 失败处理 | 保留旧版本，借鉴 dsh |
 | `AGENTS.md` | 重建时换 system prompt，不做 dsh 的差异注入 |
 | 范围 | `ChatHost`（TUI + `tah serve`），默认开，`--no-watch` 关 |
+| 监听目录 | `AGENTS.md`、`tools/`、`plugins/`、`lib/`（实现时补上 `lib/`，因为官方示例的共用代码在那里） |
 | `--no-persist` | 只提示重启 |
 | 分支 | 从 `main`（v0.25.0）开 `v0.26` |
