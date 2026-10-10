@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.0 — 2026-10-10
+
+CLI: terminal `tah chat` and `tah serve` reload a convention project when `AGENTS.md` or a file under `tools/`, `plugins/` or `lib/` changes. The runtime is rebuilt and the current session reopened by id, so history is kept and a new `AGENTS.md` applies from the next turn; a change during a turn waits for the turn to end, and commands sent during a reload wait for it. If the new files fail to load or a plugin's setup throws, the previous version keeps running and a `[tah] reload failed — …` notice says why; saving again retries. "Always allow" answers survive a reload. With `--no-persist` it only says to restart; `--no-watch` turns it off. Project files now load with jiti's module cache off, so edited helpers are picked up too.
+
+CLI: `notice` events gain an optional `error` flag; reload failures set it and show as errors in the TUI and in red on the web page.
+
+Core: a `Runtime.start` that fails now disposes the plugins already set up, in reverse order, so open files and child processes are not leaked.
+
+Web: the session sidebar now refreshes after every turn, including one that starts and ends within a single frame.
+
 ## 0.25.0 — 2026-10-10
 
 CLI: `tah serve` runs a local web workbench for the agent in the current directory and opens the browser: streamed Markdown, tool lines, approval cards (allow once / always / reject), step-limit continue, a session sidebar (switch / new / fork), stop, and a status bar — parity with the TUI. One current session; every open tab shows it and stays in sync, and a reloaded or reconnected tab rebuilds from the server. It listens on `127.0.0.1` only (default port 7420, `--port <n>`, `--no-open`); the printed link carries a one-time token that the page exchanges for an HttpOnly cookie, and `Host` / `Origin` are checked on every request. The other `tah chat` flags apply as before.

@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/mcp",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "MCP tools adapted onto the Tool registry",
   "type": "module",
   "main": "./dist/index.js",
