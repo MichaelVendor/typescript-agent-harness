@@ -1,0 +1,53 @@
+name: Docs assistant
+
+# Answers each new issue from the docs with a tah agent (.github/docs-assistant).
+# Needs the repository secret DEEPSEEK_API_KEY.
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: docs-assistant-${{ github.event.issue.number }}
+
+jobs:
+  answer:
+    if: github.event.issue.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: .github/docs-assistant
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: .github/docs-assistant/package-lock.json
+
+      - run: npm ci
+
+      # Issue text comes in through env only: interpolating it into the script would let it run commands.
+      - name: Ask the agent
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          prompt=$(printf '# %s\n\n%s' "$ISSUE_TITLE" "$ISSUE_BODY")
+          npx tah run --quiet --no-persist --max-steps 12 "$prompt" > reply.md
+          test -s reply.md
+
+      - name: Comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          printf '\n\n---\n<sub>🤖 tah 文档助手根据文档自动回复，可能有误；维护者会跟进。</sub>\n' >> reply.md
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file reply.md

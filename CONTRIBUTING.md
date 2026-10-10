@@ -54,6 +54,14 @@ Local: `pnpm build && pnpm publish:packages` (npm login required). Examples are 
 
 Do not use `sudo npm`. This machine's default registry is a mirror; publishing must hit `https://registry.npmjs.org/`. npm now requires a **granular access token with bypass 2FA** (or interactive 2FA) to publish — a web `npm login` session is not enough.
 
+## Docs assistant
+
+[`.github/workflows/docs-assistant.yml`](./.github/workflows/docs-assistant.yml) answers every new issue with a comment, written by a tah convention project in [`.github/docs-assistant/`](./.github/docs-assistant/) from the docs in the checkout (`docs/`, README, CHANGELOG, CONTRIBUTING). It installs the published CLI, so it only sees CLI changes after a release.
+
+- Add the repo secret `DEEPSEEK_API_KEY`. Without it the job fails and nothing is posted.
+- Try it locally: `cd .github/docs-assistant && npm install && npx tah chat` (key in `.github/docs-assistant/.env`), or `npx tah run --quiet --no-persist "<question>"` for exactly what the workflow posts.
+- The agent has only read-only doc tools; issue text reaches it through environment variables, never through the shell script.
+
 ## Pull requests
 
 CI: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) (build, typecheck, tests, mock CLI).
