@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
 import { parseArgv } from "../dist/args.js";
 import {
   approvalQueue,
   createChatHost,
   historyOf,
+  rememberAlways,
   toolResult,
   toolSummary,
   type HostEvent,
@@ -162,6 +164,197 @@ test("snapshot returns the current session without emitting; historyTurns sets i
   } finally {
     await host.close();
   }
+});
+
+const MARKER = JSON.stringify({ type: "module", devDependencies: { "@typescript-agent-harness/cli": "*" } });
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const gates = globalThis as { tahToolGate?: Promise<void>; tahDisposeGate?: Promise<void>; tahDisposing?: boolean };
+
+/** The mock model calls `list_files`, so this project tool shows which version ran: "<n> entries". */
+const listTool = (n: number) => `export default {
+  description: "list",
+  inputSchema: { type: "object", properties: { directory: { type: "string" } } },
+  async execute() {
+    await globalThis.tahToolGate;
+    return { entries: Array.from({ length: ${n} }, (_, i) => ({ name: "f" + i, type: "file" })) };
+  },
+};
+`;
+
+function makeProject(files: Record<string, string> = {}): string {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-reload-"));
+  const all = { "package.json": MARKER, "AGENTS.md": "You are v1.", "tools/list-files.ts": listTool(1), ...files };
+  for (const [rel, content] of Object.entries(all)) {
+    mkdirSync(path.dirname(path.join(cwd, rel)), { recursive: true });
+    writeFileSync(path.join(cwd, rel), content);
+  }
+  return cwd;
+}
+
+/** File watchers take a moment to start (FSEvents on macOS); edits right after open would be missed. */
+async function openWatching(cwd: string, argv: string[]) {
+  const opened = await openHost(cwd, argv);
+  await sleep(300);
+  return opened;
+}
+
+async function waitFor(events: HostEvent[], match: (e: HostEvent) => boolean, from = 0): Promise<HostEvent> {
+  for (let waited = 0; waited < 5000; waited += 25) {
+    const hit = events.slice(from).find(match);
+    if (hit) return hit;
+    await sleep(25);
+  }
+  throw new Error(`timed out waiting for an event; got ${JSON.stringify(events.slice(from))}`);
+}
+
+const notice = (re: RegExp) => (e: HostEvent) => e.type === "notice" && re.test(e.text);
+const lastResult = (events: HostEvent[]) =>
+  (events.filter((e) => e.type === "tool.end").at(-1) as { result: string } | undefined)?.result;
+
+function systemPrompt(cwd: string, id: string): string {
+  const db = new DatabaseSync(path.join(cwd, ".tah", "cli.db"));
+  const row = db.prepare("SELECT messages_json FROM sessions WHERE id = ?").get(id) as { messages_json: string };
+  db.close();
+  return JSON.parse(row.messages_json)[0].content;
+}
+
+test("editing a tool or AGENTS.md reloads between turns and keeps the session", async () => {
+  const cwd = makeProject();
+  const { host, events } = await openWatching(cwd, ["--quiet"]);
+  try {
+    await host.send("a");
+    assert.equal(lastResult(events), "1 entries");
+    const id = host.sessionId;
+
+    const from = events.length;
+    writeFileSync(path.join(cwd, "tools/list-files.ts"), listTool(2));
+    writeFileSync(path.join(cwd, "AGENTS.md"), "You are v2.");
+    await waitFor(events, notice(/^\[tah\] reloaded: AGENTS\.md tools\+1 plugins\+0$/), from);
+    assert.equal(host.sessionId, id);
+    assert.equal(events.slice(from).filter((e) => e.type === "session").length, 0);
+
+    await host.send("b");
+    assert.match(systemPrompt(cwd, id), /You are v2\./);
+    assert.deepEqual(
+      host.snapshot().history.filter((h) => h.role === "user").map((h) => (h as { text: string }).text),
+      ["a", "b"],
+    );
+
+    await host.reset();
+    await host.send("c");
+    assert.equal(lastResult(events), "2 entries");
+  } finally {
+    await host.close();
+  }
+});
+
+test("a broken tool keeps the previous version until it is fixed", async () => {
+  const cwd = makeProject();
+  const { host, events } = await openWatching(cwd, ["--quiet"]);
+  try {
+    let from = events.length;
+    writeFileSync(path.join(cwd, "tools/list-files.ts"), "export default {");
+    await waitFor(events, notice(/^\[tah\] reload failed — still using the previous version: .*tools\/list-files\.ts/), from);
+    await host.send("a");
+    assert.equal(lastResult(events), "1 entries");
+
+    from = events.length;
+    writeFileSync(path.join(cwd, "tools/list-files.ts"), listTool(3));
+    await waitFor(events, notice(/^\[tah\] reloaded:/), from);
+    await host.reset();
+    await host.send("b");
+    assert.equal(lastResult(events), "3 entries");
+  } finally {
+    await host.close();
+  }
+});
+
+test("a plugin whose setup throws rolls back to the previous version", async () => {
+  const cwd = makeProject();
+  const { host, events } = await openWatching(cwd, ["--quiet"]);
+  try {
+    const from = events.length;
+    mkdirSync(path.join(cwd, "plugins"));
+    writeFileSync(path.join(cwd, "plugins/bad.ts"), `export default { setup() { throw new Error("bad setup"); } };`);
+    await waitFor(events, notice(/^\[tah\] reload failed — still using the previous version: bad setup/), from);
+    await host.send("a");
+    assert.equal(lastResult(events), "1 entries");
+  } finally {
+    await host.close();
+  }
+});
+
+test("a change during a turn waits for the turn; a message during a reload waits for the reload", async () => {
+  const cwd = makeProject({
+    "plugins/slow.ts": `export default { setup() {}, async dispose() { globalThis.tahDisposing = true; await globalThis.tahDisposeGate; } };`,
+  });
+  const { host, events } = await openWatching(cwd, ["--quiet"]);
+  let releaseTool = () => {};
+  let releaseDispose = () => {};
+  try {
+    gates.tahToolGate = new Promise((r) => (releaseTool = r));
+    const turn = host.send("a");
+    await waitFor(events, (e) => e.type === "tool.start");
+    writeFileSync(path.join(cwd, "AGENTS.md"), "You are v2.");
+    await sleep(500);
+    assert.ok(!events.some(notice(/reload/)));
+    releaseTool();
+    await turn;
+    await waitFor(events, notice(/^\[tah\] reloaded/));
+
+    const from = events.length;
+    gates.tahDisposeGate = new Promise((r) => (releaseDispose = r));
+    gates.tahDisposing = false;
+    writeFileSync(path.join(cwd, "AGENTS.md"), "You are v3.");
+    for (let i = 0; i < 200 && !gates.tahDisposing; i++) await sleep(25);
+    assert.ok(gates.tahDisposing);
+    const sent = host.send("b");
+    await sleep(100);
+    releaseDispose();
+    await sent;
+    const kindsAfter = events.slice(from).map((e) => (e.type === "notice" ? e.text.split(":")[0] : e.type));
+    assert.ok(kindsAfter.indexOf("[tah] reloaded") < kindsAfter.indexOf("user"));
+  } finally {
+    releaseTool();
+    releaseDispose();
+    await host.close();
+    delete gates.tahToolGate;
+    delete gates.tahDisposeGate;
+  }
+});
+
+test("with persist off a change only says to restart; --no-watch does nothing", async () => {
+  const cwd = makeProject();
+  const off = await openWatching(cwd, ["--quiet", "--no-persist"]);
+  try {
+    writeFileSync(path.join(cwd, "AGENTS.md"), "You are v2.");
+    await waitFor(off.events, notice(/^\[tah\] AGENTS\.md changed — restart to apply \(persist is off\)$/));
+  } finally {
+    await off.host.close();
+  }
+
+  const quiet = await openWatching(cwd, ["--quiet", "--no-watch"]);
+  try {
+    writeFileSync(path.join(cwd, "AGENTS.md"), "You are v3.");
+    await sleep(500);
+    assert.deepEqual(quiet.events.filter((e) => e.type === "notice"), []);
+  } finally {
+    await quiet.host.close();
+  }
+});
+
+test("rememberAlways answers yes for a tool once it was always allowed", async () => {
+  const asked: string[] = [];
+  const ask = rememberAlways(async (call) => {
+    asked.push(call.name);
+    return call.name === "write_file" ? "always" : "no";
+  });
+  const call = (name: string) => ({ id: name, name, arguments: {} });
+  assert.equal(await ask(call("write_file")), "always");
+  assert.equal(await ask(call("write_file")), "yes");
+  assert.equal(await ask(call("execute_command")), "no");
+  assert.equal(await ask(call("execute_command")), "no");
+  assert.deepEqual(asked, ["write_file", "execute_command", "execute_command"]);
 });
 
 test("tool summaries and results", () => {

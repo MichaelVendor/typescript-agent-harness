@@ -205,6 +205,34 @@ test("installCommand: lockfile, launcher, and pnpm inside another workspace", ()
   }
 });
 
+test("loading again picks up edited tools and the helpers they import", async () => {
+  const tool = (from: string) =>
+    `import { greeting } from "./lib/greet.ts";\nexport default { description: "${from}", inputSchema: { type: "object" }, async execute() { return greeting; } };\n`;
+  const cwd = makeDir({ "tools/hello.ts": tool("v1"), "tools/lib/greet.ts": `export const greeting = "hi";\n` });
+  const run = async () => {
+    const t = (await loadProject(cwd))?.tools[0]?.tool;
+    return [t?.description, await t?.execute({}, {} as never)];
+  };
+  assert.deepEqual(await run(), ["v1", "hi"]);
+  writeFileSync(path.join(cwd, "tools/hello.ts"), tool("v2"));
+  writeFileSync(path.join(cwd, "tools/lib/greet.ts"), `export const greeting = "hello";\n`);
+  assert.deepEqual(await run(), ["v2", "hello"]);
+});
+
+test("bootRuntime uses a project passed in instead of reading the directory", async () => {
+  const cwd = makeDir({ "AGENTS.md": "You are a pirate." });
+  const project = { instructions: "You are a parrot.", tools: [], plugins: [], hasToolsDir: false };
+  const { runtime } = await bootRuntime(flags(cwd), { project });
+  const session = await runtime.get(SESSION).create();
+  assert.match(session.messages[0]?.content ?? "", /parrot/);
+  await runtime.stop();
+});
+
+test("--no-watch", () => {
+  assert.equal(parseArgv(["chat"]).watch, true);
+  assert.equal(parseArgv(["--no-watch", "chat"]).watch, false);
+});
+
 test("--no-install and next steps", () => {
   assert.equal(parseArgv(["init"]).install, true);
   assert.equal(parseArgv(["--no-install", "init"]).install, false);

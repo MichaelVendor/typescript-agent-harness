@@ -1,7 +1,9 @@
-import { SESSION, type RunResult, type Session } from "@typescript-agent-harness/agent";
+import { SESSION, type RunResult, type Session, type SessionService } from "@typescript-agent-harness/agent";
+import type { Runtime } from "@typescript-agent-harness/core";
 import type { ChatMessage } from "@typescript-agent-harness/llm";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import type { CliFlags } from "./args.js";
+import { loadProject, type Project } from "./project.js";
 import {
   bootRuntime,
   describeProject,
@@ -11,6 +13,7 @@ import {
   turnRounds,
 } from "./runtime.js";
 import { toRows, type SessionRow } from "./sessions.js";
+import { watchProject } from "./watch.js";
 
 export type HistoryItem =
   | { role: "user"; text: string }
@@ -168,6 +171,19 @@ export function approvalQueue(emit: (event: HostEvent) => void): {
   };
 }
 
+/** "always" outlives a reload: the approval plugin's own memory goes away with its runtime. */
+export function rememberAlways(ask: ApprovalPluginOptions["ask"]): ApprovalPluginOptions["ask"] {
+  const always = new Set<string>();
+  return async (call, signal) => {
+    if (always.has(call.name)) return "yes";
+    const answer = await ask(call, signal);
+    if (answer === "always") always.add(call.name);
+    return answer;
+  };
+}
+
+const reason = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/^tah: /, "");
+
 /** `historyTurns`: how many recent turns `session` events carry (default 3, for a terminal). */
 export async function createChatHost(
   flags: CliFlags,
@@ -183,12 +199,10 @@ export async function createChatHost(
 
   /** A call rejected at approval never starts, so its summary is kept from the question. */
   const summaries = new Map<string, string>();
-  const ask: ApprovalPluginOptions["ask"] = (call, signal) => {
+  const ask = rememberAlways((call, signal) => {
     summaries.set(call.id, toolSummary(call.name, call.arguments));
     return approvals.ask(call, signal);
-  };
-  const { runtime, project, startup } = await bootRuntime(flags, { ask, print: false });
-  const sessions = runtime.get(SESSION);
+  });
   const toolEnd = (callId: string, tool: string, ok: boolean, output: unknown) => {
     const summary = summaries.get(callId) ?? "";
     summaries.delete(callId);
@@ -197,47 +211,120 @@ export async function createChatHost(
 
   let streamedText = false;
   let model: string | undefined;
-  runtime.on("agent.assistant-stream", (e) => {
-    const delta = (e as { text?: string }).text ?? "";
-    if (!delta) return;
-    streamedText = true;
-    emit({ type: "text", delta });
-  });
-  runtime.on("llm.request", (e) => {
-    model = (e as { model?: string }).model ?? model;
-  });
-  runtime.on("tool.started", (e) => {
-    const p = e as { callId: string; tool: string; input: unknown };
-    const summary = toolSummary(p.tool, p.input);
-    summaries.set(p.callId, summary);
-    emit({ type: "tool.start", callId: p.callId, tool: p.tool, summary });
-  });
-  runtime.on("tool.finished", (e) => {
-    const p = e as { callId: string; tool: string; output: unknown };
-    toolEnd(p.callId, p.tool, true, p.output);
-  });
-  runtime.on("tool.failed", (e) => {
-    const p = e as { callId: string; tool: string; error: unknown };
-    toolEnd(p.callId, p.tool, false, p.error);
-  });
-  if (!flags.quiet) {
-    runtime.on("llm.retry", (e) => {
-      const p = e as { attempt: number; delayMs: number; reason: string };
-      emit({ type: "notice", text: `[llm] ${p.reason} — retry ${p.attempt} in ${(p.delayMs / 1000).toFixed(1)}s` });
+  const attach = (runtime: Runtime) => {
+    runtime.on("agent.assistant-stream", (e) => {
+      const delta = (e as { text?: string }).text ?? "";
+      if (!delta) return;
+      streamedText = true;
+      emit({ type: "text", delta });
     });
-    runtime.on("agent.context.trimmed", (e) => {
-      const p = e as { droppedTurns: number; elidedToolResults: number; chars: number };
-      emit({
-        type: "notice",
-        text: `[ctx] trimmed: ${p.droppedTurns} old turn(s) dropped, ${p.elidedToolResults} tool output(s) omitted, ${p.chars} chars sent (full history kept; /reset for a fresh session)`,
+    runtime.on("llm.request", (e) => {
+      model = (e as { model?: string }).model ?? model;
+    });
+    runtime.on("tool.started", (e) => {
+      const p = e as { callId: string; tool: string; input: unknown };
+      const summary = toolSummary(p.tool, p.input);
+      summaries.set(p.callId, summary);
+      emit({ type: "tool.start", callId: p.callId, tool: p.tool, summary });
+    });
+    runtime.on("tool.finished", (e) => {
+      const p = e as { callId: string; tool: string; output: unknown };
+      toolEnd(p.callId, p.tool, true, p.output);
+    });
+    runtime.on("tool.failed", (e) => {
+      const p = e as { callId: string; tool: string; error: unknown };
+      toolEnd(p.callId, p.tool, false, p.error);
+    });
+    if (!flags.quiet) {
+      runtime.on("llm.retry", (e) => {
+        const p = e as { attempt: number; delayMs: number; reason: string };
+        emit({ type: "notice", text: `[llm] ${p.reason} — retry ${p.attempt} in ${(p.delayMs / 1000).toFixed(1)}s` });
       });
-    });
-  }
+      runtime.on("agent.context.trimmed", (e) => {
+        const p = e as { droppedTurns: number; elidedToolResults: number; chars: number };
+        emit({
+          type: "notice",
+          text: `[ctx] trimmed: ${p.droppedTurns} old turn(s) dropped, ${p.elidedToolResults} tool output(s) omitted, ${p.chars} chars sent (full history kept; /reset for a fresh session)`,
+        });
+      });
+    }
+  };
+
+  let runtime: Runtime;
+  let sessions: SessionService;
+  let project: Project | undefined;
+  const boot = async (opts: { project?: Project | undefined } = {}) => {
+    const booted = await bootRuntime(flags, { ask, print: false, ...opts });
+    runtime = booted.runtime;
+    sessions = runtime.get(SESSION);
+    project = booted.project;
+    attach(runtime);
+    return booted.startup;
+  };
+  const startup = await boot();
 
   let session: Session;
   let busy = false;
   const idle = () => {
     if (busy) throw new Error("a turn is running — wait for it or press Ctrl+C");
+  };
+
+  /** Load the files first, so most mistakes leave the running runtime untouched; then swap. */
+  async function reload(): Promise<void> {
+    let next: Project | undefined;
+    try {
+      next = await loadProject(flags.cwd);
+    } catch (err) {
+      emit({ type: "notice", text: `[tah] reload failed — still using the previous version: ${reason(err)}` });
+      return;
+    }
+    const previous = project;
+    const id = session.id;
+    await runtime.stop();
+    let failure: unknown;
+    try {
+      await boot({ project: next });
+    } catch (err) {
+      failure = err;
+      await boot({ project: previous });
+    }
+    session = await openSessionByRef(runtime, id);
+    emit({
+      type: "notice",
+      text:
+        failure === undefined
+          ? describeProject(project!, Boolean(flags.systemFile)).replace("[tah] project:", "[tah] reloaded:")
+          : `[tah] reload failed — still using the previous version: ${reason(failure)}`,
+    });
+  }
+
+  const changed = new Set<string>();
+  let reloading: Promise<void> | undefined;
+  const reloadWhenIdle = () => {
+    if (busy || reloading || changed.size === 0) return;
+    changed.clear();
+    reloading = reload()
+      .catch((err) => emit({ type: "notice", text: `[tah] reload failed — restart tah: ${reason(err)}` }))
+      .finally(() => {
+        reloading = undefined;
+        reloadWhenIdle();
+      });
+  };
+  /** Commands wait out a reload instead of failing as busy. */
+  const settled = async () => {
+    while (reloading) await reloading;
+  };
+  let stopWatching = () => {};
+  const watch = () => {
+    if (!flags.watch || !project) return;
+    stopWatching = watchProject(flags.cwd, (files) => {
+      if (!flags.persist) {
+        emit({ type: "notice", text: `[tah] ${files.join(", ")} changed — restart to apply (persist is off)` });
+        return;
+      }
+      for (const file of files) changed.add(file);
+      reloadWhenIdle();
+    });
   };
   const sessionEvent = (resumed: boolean): SessionEvent => ({
     type: "session",
@@ -276,7 +363,9 @@ export async function createChatHost(
     }
     busy = false;
     emit(event);
+    reloadWhenIdle();
   }
+  const ready = <T>(command: () => Promise<T>): Promise<T> => (reloading ? settled().then(command) : command());
 
   const host: ChatHost = {
     get sessionId() {
@@ -295,34 +384,38 @@ export async function createChatHost(
       const opened = await openChatSession(runtime, flags);
       session = opened.session;
       showSession(opened.resumed);
+      watch();
     },
     snapshot: () => sessionEvent(true),
-    send: (text) => turn(() => session.run(text), text),
-    continueTurn: () => turn(() => session.resume()),
+    send: (text) => ready(() => turn(() => session.run(text), text)),
+    continueTurn: () => ready(() => turn(() => session.resume())),
     cancel() {
       rejectPending();
       if (busy) void session.cancel();
     },
     answer: approvals.answer,
-    async reset() {
-      idle();
-      session = await sessions.create();
-      showSession(false);
-    },
-    async resume(ref) {
-      idle();
-      session = await openSessionByRef(runtime, ref);
-      showSession(true);
-    },
-    async fork(turns) {
-      idle();
-      session = await sessions.fork(session.id, turns === undefined ? {} : { turns });
-      showSession(true);
-    },
-    async listSessions() {
-      return toRows(await (await storageOf(runtime)).listSessions());
-    },
+    reset: () =>
+      ready(async () => {
+        idle();
+        session = await sessions.create();
+        showSession(false);
+      }),
+    resume: (ref) =>
+      ready(async () => {
+        idle();
+        session = await openSessionByRef(runtime, ref);
+        showSession(true);
+      }),
+    fork: (turns) =>
+      ready(async () => {
+        idle();
+        session = await sessions.fork(session.id, turns === undefined ? {} : { turns });
+        showSession(true);
+      }),
+    listSessions: () => ready(async () => toRows(await (await storageOf(runtime)).listSessions())),
     async close() {
+      stopWatching();
+      await settled();
       rejectPending();
       await runtime.stop();
     },

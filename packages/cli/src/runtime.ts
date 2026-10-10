@@ -44,13 +44,16 @@ export function describeProject(project: Project, systemFile: boolean): string {
   return parts.join(" ");
 }
 
-/** `print: false` leaves stdout alone; the caller subscribes to runtime events itself (the TUI). */
+/**
+ * `print: false` leaves stdout alone; the caller subscribes to runtime events itself (the TUI).
+ * `project` skips reading the project files (a reload has already loaded them).
+ */
 export async function bootRuntime(
   flags: CliFlags,
-  opts: { ask?: ApprovalPluginOptions["ask"]; print?: boolean } = {},
+  opts: { ask?: ApprovalPluginOptions["ask"]; print?: boolean; project?: Project | undefined } = {},
 ): Promise<{ runtime: Runtime; streamed: StreamFlag; project: Project | undefined; startup: string }> {
   const ask = flags.yes ? undefined : opts.ask;
-  const project = await loadProject(flags.cwd);
+  const project = "project" in opts ? opts.project : await loadProject(flags.cwd);
   const role = flags.systemFile
     ? readFileSync(path.resolve(flags.systemFile), "utf8")
     : project?.instructions;

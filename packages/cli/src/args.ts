@@ -26,6 +26,8 @@ export type CliFlags = {
   port: number;
   /** `tah serve`: open the browser on start. */
   open: boolean;
+  /** Terminal `tah chat` / `tah serve` in a project: reload AGENTS.md, tools/, plugins/ and lib/ on change. */
+  watch: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -51,6 +53,7 @@ export function parseArgv(argv: string[]): CliFlags {
     plain: false,
     port: 7420,
     open: true,
+    watch: true,
   };
   const rest: string[] = [];
   let help = false;
@@ -69,6 +72,7 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--no-install") flags.install = false;
     else if (arg === "--plain") flags.plain = true;
     else if (arg === "--no-open") flags.open = false;
+    else if (arg === "--no-watch") flags.watch = false;
     else if (arg === "--port") {
       const next = argv[i + 1];
       const n = Number(next);
@@ -186,11 +190,13 @@ Flags:
   --plain             tah chat: line mode instead of the terminal UI
   --port <n>          tah serve: port on 127.0.0.1 (default 7420; 0 = any free port)
   --no-open           tah serve: do not open the browser
+  --no-watch          terminal tah chat / tah serve: do not reload project files on change
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)
   tools/<name>.ts     export default defineTool({...}); file query-order.ts → tool query_order
   plugins/<name>.ts   export default definePlugin({...}); registered after the built-ins
   Only top-level files load; skipped: _*.ts, *.test.*, *.spec.*, *.d.ts, subdirectories.
+  Terminal tah chat / tah serve reload these (and lib/) on change and keep the session (persist on).
 `;
 }

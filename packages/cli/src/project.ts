@@ -56,7 +56,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 async function loadDefault(cwd: string, rel: string): Promise<unknown> {
-  const jiti = createJiti(path.join(cwd, "package.json"));
+  const jiti = createJiti(path.join(cwd, "package.json"), { moduleCache: false });
   try {
     return await jiti.import(path.join(cwd, rel), { default: true });
   } catch (err) {
