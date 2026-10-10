@@ -38,7 +38,7 @@ tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的
 - **失败**：继续用旧版本，提示 `[tah] reload failed — still using the previous version: <原因>`；下次保存再试。
 - **「总是允许」**：`ChatHost` 自己记住答过「总是允许」的工具，重建后照样跳过审批（审批插件的记录随 Runtime 丢失）。
 - **`--no-persist`**：会话只在 Runtime 内存里，重建会丢，所以不重载，只提示 `[tah] <文件> changed — restart to apply (persist is off)`。
-- 不加新的 `HostEvent`，提示都用现有的 `notice`；网页和 TUI 不用改。
+- 不加新的 `HostEvent`，提示都用现有的 `notice`。`notice` 加可选的 `error: true`，失败提示带上它，网页显示为红色、TUI 按错误样式显示。
 
 ## 重载流程
 
@@ -58,7 +58,8 @@ tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的
 | `packages/cli/src/watch.ts`（新） | `watchProject(cwd, onChange)`：非递归监听项目根目录（`AGENTS.md`，`tools/` / `plugins/` / `lib/` 的增删），递归监听这三个目录；目录新建后补上监听。不递归监听整个项目，避免扫到 `node_modules`。返回关闭函数 |
 | `packages/core/src/runtime.ts` | `start()` 失败时 `dispose` 已启动的插件（见背景） |
 | `packages/cli/src/runtime.ts` | `bootRuntime` 新增可选 `project`，传入已加载的项目 |
-| `packages/cli/src/host.ts` | 事件订阅抽成 `attach(runtime)`；重载流程；「总是允许」记录；`close()` 关掉监听 |
+| `packages/cli/src/host.ts` | 事件订阅抽成 `attach(runtime)`；重载流程；「总是允许」记录；`close()` 关掉监听；`notice` 加可选 `error` |
+| `packages/cli/src/tui/transcript.ts`、`packages/web/src/state.ts` | 带 `error` 的 `notice` 按错误样式显示 |
 | `packages/cli/src/args.ts` | `watch`（默认 `true`）、`--no-watch`、用法说明 |
 | `docs/guide/cli.md`、`roadmap.md`、`CHANGELOG.md` | 用法说明 |
 
