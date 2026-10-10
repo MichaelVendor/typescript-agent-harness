@@ -25,11 +25,17 @@ tah run --mock "列出当前目录并说明这个项目"
 
 不加 `--mock` 时需要 `DEEPSEEK_API_KEY`（`<cwd>/.env`），否则退出码 1。有 key 时走 DeepSeek。`--mock` 的「说明项目」是套话，测语义不要加 `--mock`。
 
-v0.21 起默认带 `execute_command`、SQLite 持久化、`maxSteps=32`；`tah chat` 会续上一次会话。关掉：`--no-exec` / `--no-persist`。v0.22 起写文件、跑命令前会先问你 `[y/n/a]`；`--yes` 跳过。长会话自动裁剪上下文；`--system-file` 换角色。v0.22.6 起每轮默认不限步数（Ctrl+C 停，`--max-steps` 设上限）。
+默认带 `execute_command` 和 SQLite 持久化，`tah chat` 会续上一次会话；关掉用 `--no-exec` / `--no-persist`。写文件、跑命令前会先问你（允许一次 / 总是允许 / 拒绝），`--yes` 跳过。每轮默认不限步数（Ctrl+C 停，`--max-steps` 设上限）；长会话自动裁剪上下文；`--system-file` 换角色。
+
+在终端里 `tah chat` 是交互界面（TUI）；想在浏览器里用，跑 `tah serve`（只监听本机）：
+
+```sh
+tah serve --mock    # 打开 http://127.0.0.1:7420/?token=…
+```
 
 详见 [CLI](/guide/cli)。踩坑对照：[版本踩坑与改动](/guide/lessons)。
 
-## 做自己的 Agent（v0.23）
+## 做自己的 Agent
 
 不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具。
 
@@ -52,7 +58,9 @@ export default defineTool({
 });
 ```
 
-规则（何时生效、内置工具、插件、报错）见 [CLI · 约定式项目](/guide/cli)；完整示例 `pnpm demo:convention`。
+`tah chat` / `tah serve` 运行中改 `AGENTS.md`、`tools/`、`plugins/`、`lib/`，保存后自动重新加载，对话不断（v0.26）。
+
+规则（何时生效、内置工具、插件、热更新、报错）见 [CLI · 约定式项目](/guide/cli)；完整示例 `pnpm demo:convention`。
 
 ## 从源码开发
 

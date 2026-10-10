@@ -33,9 +33,13 @@ features:
 | 2 | LLM + Tools + Session + Loop | ✅ 已完成 |
 | 3 | SQLite / Checkpoint / Resume | ✅ 已完成 |
 | 4 | MCP / Scheduler / Permissions | ✅ 已完成 |
-| 5 | CLI（无 TUI / Web） | ✅ 已完成 |
+| 5 | CLI | ✅ 已完成 |
 | 6 | 测试 / CI / stdio MCP | ✅ 已完成 |
 | 7 | stream → tah | ✅ 已完成 |
+| 8 | 约定式项目（`AGENTS.md` + `tools/` + `tah init`） | ✅ 已完成 |
+| 9 | 终端 UI（`tah chat`） | ✅ 已完成 |
+| 10 | 本机网页工作台（`tah serve`） | ✅ 已完成 |
+| 11 | 约定式项目热更新 | ✅ 已完成（v0.26） |
 
 入口：
 

@@ -1,6 +1,6 @@
 # API 参考：`@typescript-agent-harness/core`
 
-状态：✅ 与源码同步（Phase 1）  
+状态：✅ 与源码同步（v0.26）  
 入口源码：[`packages/core/src/index.ts`](https://github.com/MichaelVendor/typescript-agent-harness/blob/main/packages/core/src/index.ts)
 
 ## 安装
@@ -26,7 +26,7 @@ new Runtime(options?: { id?: string })
 | --- | --- | --- |
 | `id` | `string` | Runtime 标识 |
 | `use(plugin)` | `this` | 注册插件；仅 `idle`；重名抛错 |
-| `start()` | `Promise<void>` | 顺序 setup；已 `running` 则 noop |
+| `start()` | `Promise<void>` | 顺序 setup；已 `running` 则 noop；某个 setup 抛错时逆序 dispose 已启动的插件、回到 `idle` 后抛出 |
 | `stop()` | `Promise<void>` | 逆序 dispose；发完 `runtime.stopped` 后清空 bus |
 | `on(type, handler)` | `Unsubscribe` | 订阅事件 |
 | `get(key)` | `T` | 仅 `running` 时可取服务 |
@@ -61,8 +61,12 @@ interface Context {
   provide<T>(key: ServiceKey<T>, value: T): void;
   emit<TName extends string>(type: TName, payload: EventPayload<TName>): Promise<void>;
   on<TName extends string>(type: TName, handler: EventHandler<EventPayload<TName>>): Unsubscribe;
+  intercept<TPayload = unknown, TResult = unknown>(name: string, handler: Interceptor<TPayload, TResult>): Unsubscribe;
+  waterfall<TPayload, TResult>(name: string, payload: TPayload, final: (payload: TPayload) => Promise<TResult>): Promise<TResult>;
 }
 ```
+
+`intercept` / `waterfall` 是拦截点（v0.22），用法见 [Runtime · Waterfall](../guide/runtime.md#waterfall-v0-22)。
 
 实现类：`RuntimeContext`（一般无需直接构造）。
 
@@ -94,6 +98,10 @@ class EventBus {
 ```ts
 type EventHandler<TPayload = unknown> = (payload: TPayload) => void | Promise<void>;
 type Unsubscribe = () => void;
+type Interceptor<TPayload = unknown, TResult = unknown> = (
+  payload: TPayload,
+  next: (payload: TPayload) => Promise<TResult>,
+) => Promise<TResult>;
 
 interface RuntimeEventMap {
   "runtime.starting": { runtimeId: string };
@@ -126,6 +134,7 @@ export { EventBus } from "./event-bus.js";
 export type {
   EventHandler,
   EventPayload,
+  Interceptor,
   KnownEventName,
   RuntimeEvent,
   RuntimeEventMap,

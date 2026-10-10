@@ -115,6 +115,6 @@ interface Runnable<I, O> {
 2. Agent 能力  
 3. Persistence  
 4. 生态（MCP / Scheduler / Permissions）  
-5. 开发者体验（CLI ✅；TUI / Web 未做）
+5. 开发者体验（CLI ✅；终端 TUI ✅；本机网页 ✅）
 
 CLI 是 Application 层。Runtime 不内嵌 UI。

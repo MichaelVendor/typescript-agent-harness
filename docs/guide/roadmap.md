@@ -90,7 +90,7 @@ pnpm tah -- run --mock "列出当前目录"
 pnpm tah -- chat
 ```
 
-未做：TUI、Web、插件脚手架、marketplace。
+TUI 和网页后来在 Phase 9、10 做了；marketplace 不做。
 
 ## Phase 6 — Tests, CI, stdio MCP ✅
 
@@ -139,6 +139,54 @@ pnpm demo:convention
 mkdir my-agent && cd my-agent && npx @typescript-agent-harness/cli init && npx tah --mock chat
 ```
 
+## Phase 9 — 终端 UI ✅（v0.24）
+
+设计见 [TUI 与会话接口](/design/tui)。
+
+交付物：
+
+- 终端里 `tah chat` 进 Ink TUI：流式 Markdown、工具调用行、界面内审批、斜杠命令菜单、会话选择器、多行输入
+- `ChatHost`（`packages/cli/src/host.ts`）：把 Runtime 事件转成纯 JSON 的 `HostEvent`，TUI 和网页共用
+- 管道 / `--plain` 保留逐行模式
+
+验收：
+
+```sh
+pnpm tah -- --mock chat
+```
+
+## Phase 10 — 本机网页工作台 ✅（v0.25）
+
+设计见 [tah serve 与网页工作台](/design/serve)。
+
+交付物：
+
+- `tah serve`：只监听 `127.0.0.1`，HTTP + SSE 暴露 `ChatHost`；一次性令牌换 HttpOnly cookie，校验 `Host` / `Origin`
+- `packages/web`（React + Vite，私有包）：功能与 TUI 对齐，产物随 CLI 发布
+- 多个标签页同步同一个会话，断线重连后从服务端补齐
+
+验收：
+
+```sh
+pnpm tah -- serve --mock
+```
+
+## Phase 11 — 约定式项目热更新 ✅（v0.26）
+
+设计见 [约定式项目热更新](/design/reload)。
+
+交付物：
+
+- 终端 `tah chat` / `tah serve` 监听 `AGENTS.md`、`tools/`、`plugins/`、`lib/`；改动后重建 Runtime 并按 id 重开当前会话
+- 一轮进行中改的等这一轮结束；加载失败继续用旧版本并提示原因
+- `--no-watch` 关闭；`--no-persist` 只提示重启
+
+验收：
+
+```sh
+pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的文件
+```
+
 ## 非目标（刻意不做）
 
 - Phase 1–3 不做 Electron / 完整 Web IDE  
@@ -149,6 +197,6 @@ mkdir my-agent && cd my-agent && npx @typescript-agent-harness/cli init && npx t
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发 `v0.23`）  
+- `main`：已发布代码；每个发布打 tag（当前 `v0.26`）  
 - `v0.N`：下一个小版本的开发分支，合入 `main` 后打 `v0.N.0`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  

@@ -1,8 +1,8 @@
 # CLI
 
-状态：✅ Phase 5（`packages/cli`）· v0.21 默认偏向本机 coding · v0.22 写文件/跑命令前先问
+状态：✅ `packages/cli`（v0.26）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）
 
-LLM 增量文本会写到 stdout（`agent.assistant-stream`），不必等整段 `generate` 结束。
+模型回复边生成边显示（`agent.assistant-stream`），不必等整段 `generate` 结束。
 
 ## 命令
 
@@ -80,7 +80,7 @@ pnpm tah -- --mock run "用 node 打印 1+1"
 
 ## 审批（v0.22）
 
-`write_file` 和 `execute_command` 每次执行前会弹一张卡片（写文件时预览前 8 行内容），输入字母后回车：
+`write_file` 和 `execute_command` 每次执行前会弹一张卡片（写文件时预览前 8 行内容）。终端 TUI 里直接按 `y` / `a` / `n`（回车、Esc 也是拒绝），网页里点卡片上的按钮；`--plain` 逐行模式下输入字母后回车：
 
 ```text
 ╭─ Run command
@@ -92,7 +92,7 @@ pnpm tah -- --mock run "用 node 打印 1+1"
 | 回答 | 效果 |
 | --- | --- |
 | `y` | 只放行这一次 |
-| `a` | 本次进程内该工具不再问 |
+| `a` | 本次进程内该工具不再问（热更新后仍有效） |
 | 其他 / 回车 | 拒绝；模型收到 `rejected by user`，应改问你怎么办 |
 
 - `--yes` / `-y`：全部放行，不问
@@ -187,7 +187,7 @@ export default defineTool({
 - **扫描**：只扫 `tools/`、`plugins/` 第一层的 `.ts` / `.mts` / `.js` / `.mjs`；跳过 `_` 开头、`*.test.*`、`*.spec.*`、`.d.ts` 和子目录。按文件名排序加载，插件间有先后依赖时用 `01-` 前缀。
 - **注册顺序**：项目插件在所有内置插件之后注册，setup 时 LLM、Tools、Session 都已可用。
 - **TypeScript**：用 [jiti](https://github.com/unjs/jiti) 加载，不用编译；可以 `import "../lib/x.ts"`。
-- **出错**：文件加载失败、导出不对、名字不合法、重名，都在启动时报错并给出文件路径，退出码 1。
+- **出错**：文件加载失败、导出不对、名字不合法、重名，都在启动时报错并给出文件路径，退出码 1。运行中改出错不会退出，见下文「热更新」。
 - **审批**：自定义工具执行前不询问。
 
 启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）。

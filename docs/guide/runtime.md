@@ -42,6 +42,7 @@ await runtime.stop();
 
 - `use()` **只能**在 `idle` 调用  
 - `start()` 按注册顺序调用 `plugin.setup(ctx)`  
+- 某个 `setup` 抛错时，已 setup 的插件按逆序 `dispose`，状态回到 `idle`，再抛出原错误（v0.26）  
 - `stop()` 按**逆序**调用 `plugin.dispose?.()`  
 - `runtime.stopped` 发出后清空 EventBus，便于观察者听到最终事件  
 

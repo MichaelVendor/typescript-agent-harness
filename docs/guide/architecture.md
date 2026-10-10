@@ -1,6 +1,6 @@
 # 整体架构
 
-状态：✅ v0.8 包结构已落地 · CLI 是 DX，不是 Web 产品
+状态：✅ 包结构已落地（v0.26）· CLI / TUI / 本机网页都是 Application 层，Runtime 不含 UI
 
 ## 分层
 
@@ -45,17 +45,19 @@ typescript-agent-harness/
 │   ├── core/          ✅  Runtime / Plugin / Context / Service / EventBus
 │   ├── agent/         ✅  Session / Loop / resume
 │   ├── llm/           ✅  mock + OpenAI-compatible
-│   ├── tools/         ✅  registry + list/read/write
+│   ├── tools/         ✅  registry + list/read/write/grep + execute_command
 │   ├── storage/       ✅  SQLite / Memory + checkpoint
 │   ├── mcp/           ✅  MCP backend → Tool（ping + stdio）
 │   ├── scheduler/     ✅  once / every
-│   ├── permissions/   ✅  allow / deny
-│   └── cli/           ✅  tah run / tah chat
+│   ├── permissions/   ✅  allow / deny + 人工审批
+│   ├── cli/           ✅  tah run / chat（TUI）/ serve / init + 约定式项目
+│   └── web/           ✅  tah serve 的网页（私有包，随 cli 发布）
 └── examples/
-    ├── basic-runtime/ ✅  Phase 1 冒烟
-    ├── basic-agent/   ✅  Phase 2
-    ├── resume-agent/  ✅  Phase 3
-    └── multi-agent/   ✅  Phase 4
+    ├── basic-runtime/    ✅  Phase 1 冒烟
+    ├── basic-agent/      ✅  Phase 2
+    ├── resume-agent/     ✅  Phase 3
+    ├── multi-agent/      ✅  Phase 4
+    └── convention-agent/ ✅  Phase 8 约定式项目
 ```
 
 ## 核心对象关系
@@ -121,6 +123,7 @@ sequenceDiagram
 | Cordis 插件元框架 | 自研轻量 Plugin + Context（Phase 1） |
 | Everything is a plugin | Everything is a capability（以 Plugin 挂载） |
 | SessionEvent 日志 | Session + Event Log + Checkpoint（Phase 3） |
-| 完整 Web / Desktop | 未做；Phase 5 只交付 CLI |
+| 完整 Web / Desktop | 终端 TUI + 本机网页工作台（`tah serve`）；不做桌面端 |
+| `cordis-plugin-hmr` 按插件热替换 | 约定式项目文件改动后整个 Runtime 重建，不做插件级热替换（v0.26） |
 
 我们借鉴的是**架构思想**，不是 1:1 复刻 Cordis / dsh 产品面。
