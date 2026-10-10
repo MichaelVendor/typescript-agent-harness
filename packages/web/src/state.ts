@@ -1,7 +1,7 @@
-import type { HistoryItem, HostEvent } from "@typescript-agent-harness/cli";
+import type { AttachmentMeta, HistoryItem, HostEvent } from "@typescript-agent-harness/cli";
 
 export type Entry =
-  | { id: number; kind: "user"; text: string }
+  | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
   | { id: number; kind: "assistant"; text: string }
   | { id: number; kind: "tool"; callId: string; tool: string; summary: string; status: "running" | "ok" | "failed"; result: string }
   | { id: number; kind: "notice"; text: string; error: boolean };
@@ -55,6 +55,13 @@ function fromHistory(h: HistoryItem): NewEntry {
   if (h.role === "tool") {
     return { kind: "tool", callId: h.callId, tool: h.tool, summary: h.summary, status: h.ok ? "ok" : "failed", result: h.result };
   }
+  if (h.role === "user") {
+    return {
+      kind: "user",
+      text: h.text,
+      ...(h.attachments?.length ? { attachments: h.attachments } : {}),
+    };
+  }
   return { kind: h.role, text: h.text };
 }
 
@@ -82,7 +89,11 @@ export function applyEvent(state: State, action: Action): State {
       );
     }
     case "user":
-      return push(running(state), { kind: "user", text: action.text });
+      return push(running(state), {
+        kind: "user",
+        text: action.text,
+        ...(action.attachments?.length ? { attachments: action.attachments } : {}),
+      });
     case "text": {
       const next = running(state);
       const last = next.entries.at(-1);

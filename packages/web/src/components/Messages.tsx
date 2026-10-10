@@ -16,10 +16,29 @@ const Reply = memo(function Reply({ text }: { text: string }) {
   );
 });
 
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 const Row = memo(function Row({ entry }: { entry: Entry }) {
   switch (entry.kind) {
     case "user":
-      return <div className="user">{entry.text}</div>;
+      return (
+        <div className="user">
+          {entry.attachments?.length ? (
+            <div className="user-attach">
+              {entry.attachments.map((a) => (
+                <span key={a.id} className={`user-attach-chip ${a.kind}`}>
+                  {a.kind === "image" ? "img" : "file"} · {a.name} · {formatSize(a.bytes)}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {entry.text ? <div>{entry.text}</div> : null}
+        </div>
+      );
     case "assistant":
       return <Reply text={entry.text} />;
     case "tool":

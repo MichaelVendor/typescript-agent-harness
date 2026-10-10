@@ -1,4 +1,11 @@
-import type { HostEvent, ServeError, ServeInfo, ServeRequest, SessionRow } from "@typescript-agent-harness/cli";
+import type {
+  AttachmentMeta,
+  HostEvent,
+  ServeError,
+  ServeInfo,
+  ServeRequest,
+  SessionRow,
+} from "@typescript-agent-harness/cli";
 
 export class ApiError extends Error {
   constructor(
@@ -29,6 +36,22 @@ export const api = {
   info: async () => (await (await call("GET", "/api/info")).json()) as ServeInfo,
   sessions: async () => (await (await call("GET", "/api/sessions")).json()) as SessionRow[],
   send: (body: ServeRequest["send"]) => post("/api/send", body),
+  async upload(file: File): Promise<AttachmentMeta> {
+    const res = await fetch("/api/attachments", {
+      method: "POST",
+      headers: {
+        "content-type": "application/octet-stream",
+        "x-tah-filename": encodeURIComponent(file.name),
+        "x-tah-mime": file.type || "application/octet-stream",
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      const error = ((await res.json().catch(() => undefined)) as ServeError | undefined)?.error;
+      throw new ApiError(res.status, error ?? `${res.status} ${res.statusText}`);
+    }
+    return (await res.json()) as AttachmentMeta;
+  },
   continueTurn: () => post("/api/continue"),
   cancel: () => post("/api/cancel"),
   answer: (body: ServeRequest["answer"]) => post("/api/answer", body),

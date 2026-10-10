@@ -123,7 +123,7 @@ export function App() {
         <Composer
           busy={state.busy}
           disabled={connection !== "open" || state.stepLimit}
-          onSend={(text) => run(api.send({ text }))}
+          onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}
           onStop={() => run(api.cancel())}
         />
         <StatusBar model={state.model} sessionId={state.sessionId} rounds={state.rounds} approve={info?.approve ?? true} />
