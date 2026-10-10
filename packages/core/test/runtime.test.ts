@@ -90,3 +90,21 @@ test("get before start throws", () => {
   const runtime = new Runtime({ id: "t3" });
   assert.throws(() => runtime.get(KEY), /not running/);
 });
+
+test("a failed start disposes the plugins already set up, in reverse", async () => {
+  const seen: string[] = [];
+  const plugin = (name: string, fail = false): Plugin => ({
+    name,
+    setup() {
+      if (fail) throw new Error(`${name} failed`);
+      seen.push(`setup ${name}`);
+    },
+    dispose() {
+      seen.push(`dispose ${name}`);
+    },
+  });
+  const runtime = new Runtime({ id: "t-fail" });
+  runtime.use(plugin("a")).use(plugin("b")).use(plugin("c", true)).use(plugin("d"));
+  await assert.rejects(runtime.start(), /c failed/);
+  assert.deepEqual(seen, ["setup a", "setup b", "dispose b", "dispose a"]);
+});

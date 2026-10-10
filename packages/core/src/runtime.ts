@@ -93,12 +93,21 @@ export class Runtime {
     this.state = "starting";
     await this.bus.emit("runtime.starting", { runtimeId: this.id });
 
+    const setUp: Plugin[] = [];
     try {
       for (const plugin of this.plugins) {
         await plugin.setup(this.ctx);
+        setUp.push(plugin);
         await this.bus.emit("plugin.setup", { name: plugin.name });
       }
     } catch (err) {
+      // Release what already started (open files, child processes); the setup error is the one to report.
+      for (const plugin of setUp.reverse()) {
+        try {
+          await plugin.dispose?.();
+        } catch {}
+      }
+      this.ctx.clearServices();
       this.state = "idle";
       throw err;
     }
