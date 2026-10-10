@@ -208,6 +208,6 @@ pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前 `v0.26`）  
-- `v0.N`：下一个小版本的开发分支，合入 `main` 后打 `v0.N.0`  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.27`）  
+- `v0.N`：当前小版本的开发分支，合入 `main` 后打 `v0.N.x`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  
