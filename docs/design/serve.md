@@ -1,6 +1,6 @@
 # 设计说明：`tah serve` 与网页工作台（v0.25）
 
-状态：📐 已评审，未实现
+状态：✅ 已实现（`v0.25` 分支）
 
 ## 背景
 
@@ -117,7 +117,7 @@ hub 维护：
 
 - 只绑定 `127.0.0.1`，不提供其他监听地址。
 - 每次启动用 `crypto.randomBytes(32)` 生成令牌（base64url），比较用 `timingSafeEqual`。
-- 终端打印 `http://127.0.0.1:<port>/?token=<token>`。网页读到 `?token=` 后调 `POST /api/auth`，服务端设置 cookie `tah_token=<token>; HttpOnly; SameSite=Strict; Path=/`；网页用 `history.replaceState` 去掉地址栏里的令牌。换 cookie 走 API 而不是静态页，所以 Vite 开发服务器代理时也能用。
+- 终端打印 `http://127.0.0.1:<port>/?token=<token>`。网页读到 `?token=` 后调 `POST /api/auth`，服务端设置 cookie `tah_token_<port>=<token>; HttpOnly; SameSite=Strict; Path=/`（cookie 不区分端口，名字带上端口，两个项目同时 `tah serve` 才不会互相顶掉登录）；网页用 `history.replaceState` 去掉地址栏里的令牌。换 cookie 走 API 而不是静态页，所以 Vite 开发服务器代理时也能用。
 - 所有请求校验 `Host` 头为 `127.0.0.1:<port>` 或 `localhost:<port>`（防 DNS 重绑定）。
 - 所有 POST 校验 `Origin` 为同一地址，且 `Content-Type: application/json`（防跨站请求伪造）。
 

@@ -17,6 +17,7 @@ npx @typescript-agent-harness/cli --mock chat
 | --- | --- |
 | `tah run <prompt>` | 一次性 Session |
 | `tah chat` | 多轮；**默认续上一次持久化 Session**；终端里是 TUI（v0.24），管道或 `--plain` 仍是逐行模式；`/exit` / `/reset` / `/sessions` / `/resume` / `/fork` |
+| `tah serve` | 在本机起网页工作台，浏览器里操作当前目录的 Agent（v0.25，见下文「网页工作台」） |
 | `tah sessions` | 列出已保存的 Session（最新在前；不需要 API key，v0.22） |
 | `tah init` | 在当前目录生成约定式项目骨架并装好依赖（v0.23，见下文「约定式项目」） |
 | `tah help` | 用法 |
@@ -45,6 +46,8 @@ npx @typescript-agent-harness/cli --mock chat
 | `--builtin-tools` | 约定式项目有 `tools/` 时，仍挂上内置的文件 / 命令工具（v0.23） |
 | `--no-install` | `tah init` 只生成文件，不装依赖（v0.23.1） |
 | `--plain` | `tah chat` 强制逐行模式，即使在终端里也不进 TUI（v0.24） |
+| `--port <n>` | `tah serve` 的端口（默认 7420；被占用时报错，不自动换，v0.25） |
+| `--no-open` | `tah serve` 不自动打开浏览器（v0.25） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
 
@@ -201,6 +204,27 @@ export default defineTool({
 | Ctrl+D | 空闲且输入为空时退出 |
 
 设计说明见 [TUI 与会话接口](/design/tui)。
+
+## 网页工作台（v0.25）
+
+```sh
+tah serve                 # 打开 http://127.0.0.1:7420/?token=…
+tah serve --yes --port 8000 --no-open
+```
+
+`tah serve` 在本机起服务并打开浏览器，网页里操作的就是当前目录的 Agent：流式 Markdown、工具调用行、审批卡片（允许一次 / 总是允许 / 拒绝）、步数上限的「继续」、会话侧栏（切换 / 新建 / 分叉）、停止当前轮。和 TUI 一样同一时间只有一个当前会话；开多个标签页看到的是同一个会话，操作实时同步，刷新或断线重连后从服务端补齐。`tah chat` 的其他参数（`--yes`、`--max-steps`、`--no-persist`、`--session`、`--mock` …）照常可用。
+
+它是本机工作台，不是对外服务：
+
+- 只监听 `127.0.0.1`。要远程用，走 SSH 端口转发（`ssh -L 7420:127.0.0.1:7420 …`）。
+- 每次启动生成一次性令牌，只有终端打印的链接能登录；网页拿令牌换成 HttpOnly cookie 后从地址栏去掉令牌。
+- 校验 `Host` / `Origin` 头，挡住其他网页伪造请求。
+
+Ctrl+C 停止服务并打印续聊命令（`tah chat --session …`），再按一次强制退出。
+
+改网页时：先 `tah serve --no-open`，再在 `packages/web` 里 `pnpm dev`，Vite 把 `/api` 代理到 `127.0.0.1:7420`；打开 Vite 的地址并带上终端里的 `?token=…`。
+
+设计说明见 [tah serve 与网页工作台](/design/serve)。
 
 ## Ctrl+C 与失败重试（v0.22）
 
