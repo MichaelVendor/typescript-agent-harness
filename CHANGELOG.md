@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.3 — 2026-10-10
+
+LLM: with only `OPENAI_API_KEY` set, the OpenAI-compatible provider now uses `https://api.openai.com/v1`; it used to fail at startup with a stack trace unless `OPENAI_BASE_URL` was set too.
+
+CLI: a blank `KEY=` line in `.env` now counts as unset, so the empty `DEEPSEEK_API_KEY=` from `.env.example` no longer hides `OPENAI_API_KEY` (tah reported "no key"). `tah init`'s `.env.example` also lists the `OPENAI_*` variables for other providers.
+
+Docs: the tutorial shows `.env` examples and the OpenAI-compatible base URLs of the common providers.
+
 ## 0.26.2 — 2026-10-10
 
 CLI: `tah run --quiet` prints only the final reply, once the run ends, with no blank-line padding. Text the model wrote before its tool calls (“Let me check the docs…”) used to stream into stdout ahead of the answer.
