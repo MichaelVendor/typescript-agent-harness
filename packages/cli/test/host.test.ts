@@ -34,15 +34,16 @@ test("a turn streams tool calls, text, then turn.end — all plain JSON", async 
   const { host, events } = await openHost(cwd, ["--quiet"]);
   try {
     await host.send("看看目录");
-    assert.deepEqual(kinds(events), ["session", "tool.start", "tool.end", "text", "turn.end"]);
-    assert.deepEqual(events[1], {
+    assert.deepEqual(kinds(events), ["session", "user", "tool.start", "tool.end", "text", "turn.end"]);
+    assert.deepEqual(events[1], { type: "user", text: "看看目录" });
+    assert.deepEqual(events[2], {
       type: "tool.start",
-      callId: (events[1] as { callId: string }).callId,
+      callId: (events[2] as { callId: string }).callId,
       tool: "list_files",
       summary: ".",
     });
-    assert.equal((events[2] as { result: string }).result, "1 entries");
-    assert.equal((events[2] as { summary: string }).summary, ".");
+    assert.equal((events[3] as { result: string }).result, "1 entries");
+    assert.equal((events[3] as { summary: string }).summary, ".");
     const end = events.at(-1) as Extract<HostEvent, { type: "turn.end" }>;
     assert.equal(end.finishReason, "stop");
     assert.equal(end.rounds, 2);
@@ -122,17 +123,45 @@ test("approvals wait for an answer; abort and rejectAll answer no", async () => 
   assert.deepEqual(asked, { type: "approval", id: asked.id, tool: "write_file", input: call.arguments });
   queue.answer(asked.id, "yes");
   assert.equal(await yes, "yes");
+  assert.deepEqual(events.at(-1), { type: "approval.end", id: asked.id, answer: "yes" });
 
   const controller = new AbortController();
   const aborted = queue.ask(call, controller.signal);
   controller.abort();
   assert.equal(await aborted, "no");
 
+  assert.equal(events.at(-1)?.type, "approval.end");
+
   const dropped = queue.ask(call);
+  const droppedId = (events.at(-1) as { id: string }).id;
   queue.rejectAll();
   assert.equal(await dropped, "no");
-  queue.answer((events.at(-1) as { id: string }).id, "yes");
+  assert.deepEqual(events.at(-1), { type: "approval.end", id: droppedId, answer: "no" });
+  queue.answer(droppedId, "yes");
   assert.equal(await dropped, "no");
+  assert.equal(events.filter((e) => e.type === "approval.end").length, 3);
+});
+
+test("snapshot returns the current session without emitting; historyTurns sets its length", async () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-host-"));
+  const host = await createChatHost(flags(cwd, ["--quiet"]), { historyTurns: Infinity });
+  const events: HostEvent[] = [];
+  host.on((e) => events.push(e));
+  await host.open();
+  try {
+    for (const text of ["t1", "t2", "t3", "t4"]) await host.send(text);
+    const before = events.length;
+    const snap = host.snapshot();
+    assert.equal(events.length, before);
+    assert.equal(snap.id, host.sessionId);
+    assert.equal(snap.hiddenTurns, 0);
+    assert.deepEqual(
+      snap.history.filter((h) => h.role === "user").map((h) => (h as { text: string }).text),
+      ["t1", "t2", "t3", "t4"],
+    );
+  } finally {
+    await host.close();
+  }
 });
 
 test("tool summaries and results", () => {

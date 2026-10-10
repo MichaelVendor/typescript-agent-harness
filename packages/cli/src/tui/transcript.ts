@@ -87,11 +87,6 @@ export class Transcript {
     this.set({ live: "" });
   }
 
-  user(text: string): void {
-    this.push({ kind: "user", text });
-    this.set({ busy: true, stepLimit: false });
-  }
-
   note(text: string, kind: "notice" | "error" = "notice"): void {
     this.push({ kind, text });
   }
@@ -104,15 +99,16 @@ export class Transcript {
     this.set({ stepLimit: false });
   }
 
-  clearApproval(): void {
-    this.set({ approval: undefined });
-  }
-
   apply(event: HostEvent): void {
     switch (event.type) {
       case "session":
         this.settle();
         this.showSession(event.id, event.resumed, event.history, event.hiddenTurns);
+        return;
+      case "user":
+        this.settle();
+        this.push({ kind: "user", text: event.text });
+        this.set({ busy: true, stepLimit: false });
         return;
       case "text":
         this.md.push(event.delta);
@@ -131,6 +127,9 @@ export class Transcript {
       case "approval":
         this.settle();
         this.set({ approval: { id: event.id, tool: event.tool, input: event.input } });
+        return;
+      case "approval.end":
+        if (this.snapshot.approval?.id === event.id) this.set({ approval: undefined });
         return;
       case "notice":
         this.settle();

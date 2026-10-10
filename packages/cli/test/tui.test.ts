@@ -31,7 +31,7 @@ test("a long reply streamed in back-to-back microtasks renders without hitting R
     const transcript = new Transcript(renderMarkdown);
     const app = render(createElement(App, { host, transcript, maxSteps: Infinity, color: false } as never));
     transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
-    transcript.user("你好");
+    transcript.apply({ type: "user", text: "你好" });
     const reply =
       Array.from({ length: 40 }, (_, i) => `- **第 ${i} 条**：\`tools/\` 下一个文件 = 一个工具。\n`).join("") + "\n结束。\n";
     for (const delta of reply.match(/[\s\S]{1,6}/g) ?? []) {
@@ -73,7 +73,7 @@ test("the terminal cursor sits in the input box after a reply and follows typing
   const cursorAt = (column: number) => new RegExp(`\\x1b\\[3A\\x1b\\[${column}G\\x1b\\[\\?25h(\\x1b\\[\\?2026l)?$`);
   try {
     transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
-    transcript.user("你好");
+    transcript.apply({ type: "user", text: "你好" });
     for (const delta of "你好！\n\n1. **一**\n2. **二**\n\n结束。\n".match(/[\s\S]{1,3}/g) ?? []) {
       await new Promise((r) => setTimeout(r, 5));
       transcript.apply({ type: "text", delta });

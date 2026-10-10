@@ -17,13 +17,23 @@ export type HistoryItem =
   | { role: "assistant"; text: string }
   | { role: "tool"; callId: string; tool: string; summary: string; ok: boolean; result: string };
 
+export type SessionEvent = {
+  type: "session";
+  id: string;
+  resumed: boolean;
+  history: HistoryItem[];
+  hiddenTurns: number;
+};
+
 /** Every event is plain JSON, so `tah serve` can stream them unchanged. */
 export type HostEvent =
-  | { type: "session"; id: string; resumed: boolean; history: HistoryItem[]; hiddenTurns: number }
+  | SessionEvent
+  | { type: "user"; text: string }
   | { type: "text"; delta: string }
   | { type: "tool.start"; callId: string; tool: string; summary: string }
   | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string }
   | { type: "approval"; id: string; tool: string; input: unknown }
+  | { type: "approval.end"; id: string; answer: ApprovalAnswer }
   | { type: "notice"; text: string }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
   | { type: "turn.error"; cancelled: boolean; message: string };
@@ -34,6 +44,8 @@ export type ChatHost = {
   on(listener: (event: HostEvent) => void): () => void;
   /** Emits the startup notices and the first `session` event; call after subscribing. */
   open(): Promise<void>;
+  /** The current session as a `session` event, without emitting it. */
+  snapshot(): SessionEvent;
   send(text: string): Promise<void>;
   /** After `turn.end` with `finishReason: "max_steps"`: run the same turn with a fresh step budget. */
   continueTurn(): Promise<void>;
@@ -122,7 +134,10 @@ export function historyOf(
   return { history, hiddenTurns };
 }
 
-/** Each `ask` becomes an `approval` event that waits for `answer`; an aborted turn answers "no". */
+/**
+ * Each `ask` becomes an `approval` event that waits for `answer`; an aborted turn answers "no".
+ * Every settled question emits `approval.end`, so all front ends drop the card.
+ */
 export function approvalQueue(emit: (event: HostEvent) => void): {
   ask: ApprovalPluginOptions["ask"];
   answer(id: string, answer: ApprovalAnswer): void;
@@ -138,6 +153,7 @@ export function approvalQueue(emit: (event: HostEvent) => void): {
         const settle = (answer: ApprovalAnswer) => {
           if (!pending.delete(id)) return;
           resolve(answer);
+          emit({ type: "approval.end", id, answer });
         };
         pending.set(id, settle);
         signal?.addEventListener("abort", () => settle("no"), { once: true });
@@ -152,7 +168,12 @@ export function approvalQueue(emit: (event: HostEvent) => void): {
   };
 }
 
-export async function createChatHost(flags: CliFlags): Promise<ChatHost> {
+/** `historyTurns`: how many recent turns `session` events carry (default 3, for a terminal). */
+export async function createChatHost(
+  flags: CliFlags,
+  opts: { historyTurns?: number } = {},
+): Promise<ChatHost> {
+  const historyTurns = opts.historyTurns ?? HISTORY_TURNS;
   const listeners = new Set<(event: HostEvent) => void>();
   const emit = (event: HostEvent) => {
     for (const listener of listeners) listener(event);
@@ -218,13 +239,18 @@ export async function createChatHost(flags: CliFlags): Promise<ChatHost> {
   const idle = () => {
     if (busy) throw new Error("a turn is running — wait for it or press Ctrl+C");
   };
-  const showSession = (resumed: boolean) => {
-    emit({ type: "session", id: session.id, resumed, ...historyOf(session.messages) });
-  };
+  const sessionEvent = (resumed: boolean): SessionEvent => ({
+    type: "session",
+    id: session.id,
+    resumed,
+    ...historyOf(session.messages, historyTurns),
+  });
+  const showSession = (resumed: boolean) => emit(sessionEvent(resumed));
 
-  async function turn(run: () => Promise<RunResult>): Promise<void> {
+  async function turn(run: () => Promise<RunResult>, text?: string): Promise<void> {
     idle();
     busy = true;
+    if (text !== undefined) emit({ type: "user", text });
     streamedText = false;
     const from = session.steps.length;
     let event: HostEvent;
@@ -270,7 +296,8 @@ export async function createChatHost(flags: CliFlags): Promise<ChatHost> {
       session = opened.session;
       showSession(opened.resumed);
     },
-    send: (text) => turn(() => session.run(text)),
+    snapshot: () => sessionEvent(true),
+    send: (text) => turn(() => session.run(text), text),
     continueTurn: () => turn(() => session.resume()),
     cancel() {
       rejectPending();

@@ -178,14 +178,10 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
     update(() => emptyEditor());
     const cmd = parseCommand(text);
     if (cmd) return runCommand(cmd);
-    transcript.user(text);
     host.send(text).catch(fail);
   };
 
-  const answer = (id: string, a: "yes" | "always" | "no") => {
-    host.answer(id, a);
-    transcript.clearApproval();
-  };
+  const answer = (id: string, a: "yes" | "always" | "no") => host.answer(id, a);
 
   usePaste((text) => update((e) => insert(e, text)), { isActive: !snap.approval && !picker && !exiting });
 
