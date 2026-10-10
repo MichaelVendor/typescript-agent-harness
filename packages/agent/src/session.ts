@@ -1,5 +1,5 @@
 import type { Context } from "@typescript-agent-harness/core";
-import type { ChatMessage } from "@typescript-agent-harness/llm";
+import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { pendingToolCalls } from "./loop.js";
 import type { AgentLoop } from "./types.js";
@@ -101,7 +101,11 @@ export class MemorySession implements Session {
     return this._events;
   }
 
-  async run(input: string): Promise<RunResult> {
+  /**
+   * `string` is the usual text turn. Pass `{ text, content }` when the model should see
+   * multimodal parts (or a composed prompt) while events still show `text`.
+   */
+  async run(input: string | { text: string; content?: string | ContentPart[] }): Promise<RunResult> {
     if (this._state === "running") {
       throw new Error(`session ${this.id} is already running`);
     }
@@ -114,8 +118,10 @@ export class MemorySession implements Session {
         content: JSON.stringify({ error: "not run: the previous turn was interrupted" }),
       });
     }
-    this._messages.push({ role: "user", content: input });
-    this.record("user.message", { content: input });
+    const text = typeof input === "string" ? input : input.text;
+    const content = typeof input === "string" ? input : (input.content ?? input.text);
+    this._messages.push({ role: "user", content });
+    this.record("user.message", { content: text });
     await this.persist();
     return this.drive();
   }

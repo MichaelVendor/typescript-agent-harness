@@ -12,7 +12,9 @@ type ToolMessage = Extract<ChatMessage, { role: "tool" }>;
 const ELIDED = "[tool output omitted to fit the context window";
 
 function size(m: ChatMessage): number {
-  let n = m.content?.length ?? 0;
+  let n = 0;
+  if (typeof m.content === "string") n = m.content.length;
+  else if (Array.isArray(m.content)) n = JSON.stringify(m.content).length;
   if (m.role === "assistant" && m.toolCalls) n += JSON.stringify(m.toolCalls).length;
   return n;
 }

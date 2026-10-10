@@ -1,5 +1,5 @@
 import type { LLMRequest, LLMResponse, ToolCall } from "@typescript-agent-harness/llm";
-import type { ChatMessage } from "@typescript-agent-harness/llm";
+import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
 
 export type SessionState =
   | "idle"
@@ -52,7 +52,7 @@ export interface Session {
   readonly steps: AgentStep[];
   readonly events: SessionEvent[];
 
-  run(input: string): Promise<RunResult>;
+  run(input: string | { text: string; content?: string | ContentPart[] }): Promise<RunResult>;
   resume(): Promise<RunResult>;
   cancel(): Promise<void>;
 }
