@@ -50,10 +50,15 @@ function sameToken(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
+/** Cookies ignore ports, so the name carries it — two `tah serve` on one machine keep separate sign-ins. */
+function cookieName(req: IncomingMessage): string {
+  return `${COOKIE}_${req.socket.localPort}`;
+}
+
 function cookieToken(req: IncomingMessage): string {
   for (const part of (req.headers.cookie ?? "").split(";")) {
     const [name, ...value] = part.trim().split("=");
-    if (name === COOKIE) return value.join("=");
+    if (name === cookieName(req)) return value.join("=");
   }
   return "";
 }
@@ -127,7 +132,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
 
     if (key === "POST /api/auth") {
       if (!sameToken(str(await readBody(req), "token"), opts.token)) throw new HttpError(401, "wrong token");
-      res.setHeader("set-cookie", `${COOKIE}=${opts.token}; HttpOnly; SameSite=Strict; Path=/`);
+      res.setHeader("set-cookie", `${cookieName(req)}=${opts.token}; HttpOnly; SameSite=Strict; Path=/`);
       return json(res, 204);
     }
     if (!authed) throw new HttpError(401, "not signed in — open the link tah serve printed");

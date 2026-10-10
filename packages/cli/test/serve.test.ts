@@ -140,6 +140,7 @@ async function fakeServer(webDir = path.join(tmpdir(), "tah-no-web")) {
   return {
     ...fake,
     base,
+    cookie: `tah_token_${new URL(base).port}=${TOKEN}`,
     async close() {
       closeAll();
       server.closeAllConnections();
@@ -162,6 +163,9 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
     assert.equal(signed.status, 204);
     const cookie = String(signed.headers["set-cookie"]).split(";")[0] ?? "";
     assert.match(String(signed.headers["set-cookie"]), /HttpOnly; SameSite=Strict/);
+    const port = new URL(base).port;
+    assert.equal(cookie, `tah_token_${port}=${token}`);
+    assert.equal((await client(base, `tah_token_1=${token}`).get("/api/info")).status, 401);
 
     const api = client(base, cookie);
     assert.deepEqual(JSON.parse((await api.get("/api/info")).body), {
@@ -215,7 +219,7 @@ test("Host, Origin and content-type are checked before anything else", async () 
 
 test("a tab opened mid-turn gets the turn so far; approvals settle on every tab; busy is 409", async () => {
   const s = await fakeServer();
-  const cookie = `tah_token=${TOKEN}`;
+  const { cookie } = s;
   const api = client(s.base, cookie);
   try {
     const first = stream(s.base, cookie);
@@ -272,7 +276,7 @@ test("static files stay inside the web directory; a missing build answers 503", 
     assert.equal((await raw(s.base, "GET", "/assets/app.js")).headers["content-type"], "text/javascript; charset=utf-8");
     assert.equal((await raw(s.base, "GET", "/..%2fsecret.js")).status, 404);
     assert.equal((await raw(s.base, "GET", "/nope.js")).status, 404);
-    assert.equal((await raw(s.base, "GET", "/api/nope", { headers: { cookie: `tah_token=${TOKEN}` } })).status, 404);
+    assert.equal((await raw(s.base, "GET", "/api/nope", { headers: { cookie: s.cookie } })).status, 404);
     assert.equal((await raw(missing.base, "GET", "/")).status, 503);
   } finally {
     await s.close();
