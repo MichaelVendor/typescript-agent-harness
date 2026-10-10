@@ -1,6 +1,6 @@
 name: Docs assistant
 
-# Answers each new issue, and each issue comment starting with /ask, from the docs
+# Answers each new issue, and each /ask comment from the issue author or a collaborator, from the docs
 # with a tah agent (.github/docs-assistant). Needs the repository secret DEEPSEEK_API_KEY.
 
 on:
@@ -21,7 +21,9 @@ jobs:
     if: >-
       (github.event_name == 'issues' && github.event.issue.user.type != 'Bot') ||
       (github.event_name == 'issue_comment' && !github.event.issue.pull_request &&
-       github.event.comment.user.type != 'Bot' && startsWith(github.event.comment.body, '/ask'))
+       github.event.comment.user.type != 'Bot' && startsWith(github.event.comment.body, '/ask') &&
+       (github.event.comment.user.login == github.event.issue.user.login ||
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -71,5 +73,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          printf '\n\n---\n<sub>🤖 tah 文档助手根据文档自动回复，可能有误；维护者会跟进。在评论里写 <code>/ask 你的问题</code> 可以继续追问。</sub>\n' >> reply.md
+          printf '\n\n---\n<sub>🤖 tah 文档助手根据文档自动回复，可能有误；维护者会跟进。issue 作者在评论里写 <code>/ask 你的问题</code> 可以继续追问。</sub>\n' >> reply.md
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file reply.md

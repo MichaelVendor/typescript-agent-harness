@@ -56,7 +56,7 @@ Do not use `sudo npm`. This machine's default registry is a mirror; publishing m
 
 ## Docs assistant
 
-[`.github/workflows/docs-assistant.yml`](./.github/workflows/docs-assistant.yml) answers every new issue, and every issue comment starting with `/ask` (with the earlier comments as context), with a comment written by a tah convention project in [`.github/docs-assistant/`](./.github/docs-assistant/) from the docs in the checkout (`docs/`, README, CHANGELOG, CONTRIBUTING). It installs the published CLI, so it only sees CLI changes after a release.
+[`.github/workflows/docs-assistant.yml`](./.github/workflows/docs-assistant.yml) answers every new issue, and every issue comment starting with `/ask` from the issue author or a collaborator (with the earlier comments as context), with a comment written by a tah convention project in [`.github/docs-assistant/`](./.github/docs-assistant/) from the docs in the checkout (`docs/`, README, CHANGELOG, CONTRIBUTING). It installs the published CLI, so it only sees CLI changes after a release.
 
 - Add the repo secret `DEEPSEEK_API_KEY`. Without it the job fails and nothing is posted.
 - Try it locally: `cd .github/docs-assistant && npm install && npx tah chat` (key in `.github/docs-assistant/.env`), or `npx tah run --quiet --no-persist "<question>"` for exactly what the workflow posts.
