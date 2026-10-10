@@ -8,7 +8,7 @@
     "tah": "./packages/cli/dist/cli.js"
   },
   "scripts": {
-    "build": "pnpm -r --filter @typescript-agent-harness/core --filter @typescript-agent-harness/llm --filter @typescript-agent-harness/permissions --filter @typescript-agent-harness/tools --filter @typescript-agent-harness/storage --filter @typescript-agent-harness/mcp --filter @typescript-agent-harness/scheduler --filter @typescript-agent-harness/agent --filter @typescript-agent-harness/cli build",
+    "build": "pnpm -r --filter @typescript-agent-harness/core --filter @typescript-agent-harness/llm --filter @typescript-agent-harness/permissions --filter @typescript-agent-harness/tools --filter @typescript-agent-harness/storage --filter @typescript-agent-harness/mcp --filter @typescript-agent-harness/scheduler --filter @typescript-agent-harness/agent --filter @typescript-agent-harness/cli --filter @typescript-agent-harness/web build",
     "tah": "node ./packages/cli/dist/cli.js",
     "dev": "pnpm build && pnpm --filter @typescript-agent-harness/example-basic-agent start",
     "demo:runtime": "pnpm --filter @typescript-agent-harness/core build && pnpm --filter @typescript-agent-harness/example-basic-runtime start",

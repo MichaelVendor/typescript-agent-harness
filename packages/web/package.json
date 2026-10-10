@@ -1,0 +1,28 @@
+{
+  "name": "@typescript-agent-harness/web",
+  "version": "0.24.2",
+  "private": true,
+  "description": "tah serve web UI; built into packages/cli/dist/web",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@typescript-agent-harness/cli": "workspace:*",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^5.9.2",
+    "vite": "^8.3.4"
+  }
+}
