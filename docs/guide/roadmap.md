@@ -14,7 +14,8 @@
 | 8 | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init` | ✅ |
 | 9 | TUI（Ink）+ `ChatHost` 会话接口 | ✅ `v0.24` |
 | 10 | `tah serve` + 本机网页工作台（HTTP + SSE） | ✅ `v0.25` |
-| 11 | 约定式项目热更新（`AGENTS.md` / `tools/` / `plugins/` / `lib/`） | ✅ 当前（`v0.26`） |
+| 11 | 约定式项目热更新（`AGENTS.md` / `tools/` / `plugins/` / `lib/`） | ✅ `v0.26` |
+| 12 | 附件（`tah serve`：上传、路径投影、可选 vision） | ✅ `v0.27` |
 
 ## Phase 1 — Runtime ✅
 
@@ -186,6 +187,16 @@ pnpm tah -- serve --mock
 ```sh
 pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的文件
 ```
+
+## Phase 12 — 附件（`tah serve`）✅（v0.27）
+
+设计见 [附件](/design/attachments)。
+
+交付物：
+
+- `tah serve` 可上传文件 / 图片到 `<cwd>/.tah/attachments/`（内容寻址）；会话只存引用
+- 默认把只读路径写进 user 文本，模型用工具按需读；`--vision` / `TAH_VISION=1` 时图片进多模态请求
+- 网页草稿附件栏与历史卡片；TUI / `tah run` 不做
 
 ## 非目标（刻意不做）
 

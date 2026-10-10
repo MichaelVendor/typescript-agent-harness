@@ -43,7 +43,7 @@ type LLMStreamPart =
   | { type: "done"; response: LLMResponse };
 ```
 
-消息类型贴近 OpenAI 兼容协议（当前 `user` / `system` 内容为 string，无多模态 part）：
+消息类型贴近 OpenAI 兼容协议。`user` 的 `content` 可以是 string，也可以是 `ContentPart[]`（`text` / `image_url`，v0.27，供 `tah serve --vision`）：
 
 ```ts
 type ChatMessage =

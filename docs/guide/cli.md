@@ -49,6 +49,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--port <n>` | `tah serve` 的端口（默认 7420；被占用时报错，不自动换，v0.25） |
 | `--no-open` | `tah serve` 不自动打开浏览器（v0.25） |
 | `--no-watch` | 约定式项目里不热更新（终端 `tah chat` / `tah serve`，v0.26） |
+| `--vision` | `tah serve`：图片附件以多模态 parts 发给模型（也可用 `TAH_VISION=1`，v0.27） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。只有 `OPENAI_API_KEY` 时连 OpenAI 官方（`https://api.openai.com/v1`，模型 `gpt-4o-mini`，v0.26.3）；其他厂商走 OpenAI 兼容接口，还要设 `OPENAI_BASE_URL` 和 `OPENAI_MODEL`（`DEEPSEEK_MODEL` 可换 DeepSeek 的模型）。`.env` 里值为空的行（如 `DEEPSEEK_API_KEY=`）等于没写（v0.26.3）。各家地址见 [教程 · 接上真模型](/guide/tutorial-docs-agent#_5-接上真模型-边改边试)。
 
@@ -236,6 +237,7 @@ tah serve --yes --port 8000 --no-open
 - 只监听 `127.0.0.1`。要远程用，走 SSH 端口转发（`ssh -L 7420:127.0.0.1:7420 …`）。
 - 每次启动生成一次性令牌，只有终端打印的链接能登录；网页拿令牌换成 HttpOnly cookie 后从地址栏去掉令牌。
 - 校验 `Host` / `Origin` 头，挡住其他网页伪造请求。
+- 可附加文件与图片（选择 / 拖拽 / 粘贴）：存到 `<cwd>/.tah/attachments/`，默认把只读路径写进 user 文本供工具读取；`--vision` 时图片进多模态请求。见 [附件设计](/design/attachments)。
 
 Ctrl+C 停止服务并打印续聊命令（`tah chat --session …`），再按一次强制退出。
 
