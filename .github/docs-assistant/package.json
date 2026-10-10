@@ -4,6 +4,6 @@
   "type": "module",
   "devDependencies": {
     "@types/node": "22",
-    "@typescript-agent-harness/cli": "^0.26.0"
+    "@typescript-agent-harness/cli": "^0.26.2"
   }
 }
