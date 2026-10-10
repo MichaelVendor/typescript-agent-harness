@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.27.0 — 2026-10-10
+
+CLI / Web: `tah serve` accepts file and image attachments (pick, drag, or paste). Bytes are stored content-addressed under `<cwd>/.tah/attachments/`; the session keeps only metadata. By default the user message includes read-only host paths so tools can inspect them (including when the model is text-only). Pass `--vision` or set `TAH_VISION=1` to project images into OpenAI-compatible multimodal parts. Limits: images PNG/JPEG/WebP/GIF ≤ 20 MiB (≤ 20 per message), other files ≤ 32 MiB, ≤ 40 attachments per message.
+
+LLM: `user` messages may use `ContentPart[]` (`text` / `image_url`).
+
 ## 0.26.3 — 2026-10-10
 
 LLM: with only `OPENAI_API_KEY` set, the OpenAI-compatible provider now uses `https://api.openai.com/v1`; it used to fail at startup with a stack trace unless `OPENAI_BASE_URL` was set too.
