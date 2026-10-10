@@ -36,6 +36,14 @@ const TSCONFIG = `{
 }
 `;
 
+const ENV_EXAMPLE = `DEEPSEEK_API_KEY=
+
+# Any other OpenAI-compatible provider: leave DEEPSEEK_API_KEY empty and set these.
+# OPENAI_API_KEY=
+# OPENAI_BASE_URL=https://api.openai.com/v1
+# OPENAI_MODEL=gpt-4o-mini
+`;
+
 const GITIGNORE = `node_modules
 .env
 .tah
@@ -61,7 +69,7 @@ export function initProject(cwd: string): string[] {
     ["AGENTS.md", AGENTS_MD],
     ["tools/current-time.ts", EXAMPLE_TOOL],
     ["tsconfig.json", TSCONFIG],
-    [".env.example", "DEEPSEEK_API_KEY=\n"],
+    [".env.example", ENV_EXAMPLE],
     [".gitignore", GITIGNORE],
   ];
   const lines: string[] = [];

@@ -21,7 +21,8 @@ export function loadDotEnv(file: string): void {
     ) {
       value = value.slice(1, -1);
     }
-    if (process.env[key] === undefined) process.env[key] = value;
+    // `KEY=` means unset, so the blank DEEPSEEK_API_KEY= in .env.example does not shadow OPENAI_API_KEY.
+    if (value !== "" && process.env[key] === undefined) process.env[key] = value;
   }
 }
 
