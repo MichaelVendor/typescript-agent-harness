@@ -50,7 +50,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--no-open` | `tah serve` 不自动打开浏览器（v0.25） |
 | `--no-watch` | 约定式项目里不热更新（终端 `tah chat` / `tah serve`，v0.26） |
 
-不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。
+不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。DeepSeek 以外的厂商走 OpenAI 兼容接口，还要设 `OPENAI_BASE_URL` 和 `OPENAI_MODEL`（`DEEPSEEK_MODEL` 可换 DeepSeek 的模型）；各家地址见 [教程 · 接上真模型](/guide/tutorial-docs-agent#_5-接上真模型-边改边试)。
 
 默认一轮跑到模型自己停下为止，中途 Ctrl+C 打断。传了 `--max-steps` 后，走到上限会打印 `finishReason=max_steps`（状态行的 `steps` 是本轮 LLM 次数）；`tah chat` 在终端里会接着问「继续？」，回车就用新的一份额度继续同一轮，`n` 停下。`tah run` 或管道输入时不问，可之后在会话里说「继续」。
 

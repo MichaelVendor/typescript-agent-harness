@@ -9,7 +9,7 @@
 - 怎么从假模型换到真模型、怎么调试
 - 怎么部署成 GitHub Action
 
-需要 Node.js ≥ 22，第 5 步起需要一个 DeepSeek API key。
+需要 Node.js ≥ 22，第 5 步起需要一个模型 API key。DeepSeek、OpenAI、通义千问、Kimi、智谱等都可以，见第 5 步。
 
 ## 1. 生成项目
 
@@ -152,11 +152,49 @@ export default defineTool({
 ## 5. 接上真模型，边改边试
 
 ```sh
-cp .env.example .env    # 填 DEEPSEEK_API_KEY=sk-...
+cp .env.example .env
 npx tah chat
 ```
 
-- `.env` 从项目目录读取；它已经在 `.gitignore` 里，不会被提交。
+`.env` 放在项目目录，一行一个变量。用 DeepSeek 只需要 key：
+
+```sh
+# .env
+DEEPSEEK_API_KEY=sk-...
+# 可选，默认 deepseek-chat
+# DEEPSEEK_MODEL=deepseek-chat
+```
+
+其他厂商都走 OpenAI 兼容接口，三个变量都要填：
+
+```sh
+# .env
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+OPENAI_MODEL=<模型名>
+```
+
+| 厂商 | `OPENAI_BASE_URL` |
+| --- | --- |
+| OpenAI | `https://api.openai.com/v1` |
+| 阿里云百炼（通义千问） | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| 月之暗面（Kimi） | `https://api.moonshot.cn/v1` |
+| 智谱（GLM） | `https://open.bigmodel.cn/api/paas/v4` |
+| 火山方舟（豆包） | `https://ark.cn-beijing.volces.com/api/v3` |
+| 硅基流动 | `https://api.siliconflow.cn/v1` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` |
+| OpenRouter（可调用 Claude、Gemini 等） | `https://openrouter.ai/api/v1` |
+| Ollama（本机模型） | `http://localhost:11434/v1`，key 随便填一个非空值，如 `ollama` |
+
+- **`OPENAI_BASE_URL` 必须填**，用 OpenAI 官方也一样。只填 key 会在启动时报错。
+- **`OPENAI_MODEL` 填厂商控制台里的模型名。** 不填时默认是 `gpt-4o-mini`，只有 OpenAI 认识这个名字。模型名更新得很快，所以表里不列具体型号。
+- **模型必须支持工具调用**（function calling），否则 Agent 用不了 `tools/` 里的工具。
+- **只保留一组变量。** 同时有 `DEEPSEEK_API_KEY` 时，会优先用 DeepSeek 那一组。
+- 表里的地址都是各家公开的 OpenAI 兼容接口，tah 只实测过 DeepSeek。接其他家时如果报错，先确认地址和模型名都没写错。
+
+其他注意事项：
+
+- `.env` 已经在 `.gitignore` 里，不会被提交。终端里 `export` 过的同名变量优先于 `.env`。
 - `--mock` 只能验证程序能启动、工具能加载上，回答内容是套话。要测回答质量，必须用真模型。
 - 终端界面里能看到每一次工具调用，用来确认模型调了哪个工具、传了什么参数。
 - `tah chat` 运行中改 `AGENTS.md`、`tools/`、`lib/`，保存后就生效，不用重启，对话也不会断（v0.26，见 [热更新](/guide/cli#热更新-v0-26)）。改了 `.env` 要重启。
@@ -220,7 +258,7 @@ jobs:
         run: gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file reply.md
 ```
 
-- **在仓库里加 secret `DEEPSEEK_API_KEY`**：Settings → Secrets and variables → Actions。
+- **在仓库里加 secret `DEEPSEEK_API_KEY`**：Settings → Secrets and variables → Actions。用其他厂商的话，把这一步 `env:` 里的变量换成上一步的 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL`，key 放进 secret。
 - **issue 内容只通过 `env` 传给脚本。** 不要把 `github.event.issue.body` 这类表达式直接写进 `run:` 脚本，否则 issue 里的文字会被当成 shell 命令执行。
 - **权限给最小。** 只需要读代码、写 issue 评论；GitHub token 只放在发评论那一步。
 - **`--max-steps` 和 `timeout-minutes`** 用来防止一次回答无限循环下去。
