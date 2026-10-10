@@ -173,7 +173,7 @@ Flags:
   --mock              local fake LLM (required if no DEEPSEEK_API_KEY / OPENAI_API_KEY)
   --persist           SQLite at <cwd>/.tah/cli.db (on by default)
   --no-persist        disable SQLite; chat will not resume across exits
-  --quiet             only print assistant text
+  --quiet             only print assistant text; tah run prints just the final reply, at the end
   --exec              mount execute_command (on by default)
   --no-exec           disable execute_command
   --yes, -y           skip approval for write_file / execute_command (asked by default; rejected if stdin is not a TTY)

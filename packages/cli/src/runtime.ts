@@ -354,7 +354,8 @@ export function printAssistant(
   const color = useColor();
   // The max_steps text is written for SDK callers; the status line carries the CLI hint.
   if (result.finishReason !== "max_steps") {
-    console.log(`\n${color ? renderMarkdown(result.text) : result.text}\n`);
+    const text = color ? renderMarkdown(result.text) : result.text;
+    console.log(quiet ? text : `\n${text}\n`);
   }
   if (!quiet) {
     const status = formatStatusLine(session.state, turnRounds(session, from), result.finishReason);

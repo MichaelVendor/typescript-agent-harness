@@ -105,8 +105,10 @@ async function main(): Promise<void> {
         })
       : undefined;
     try {
+      // --quiet is for scripts: no streaming, so text the model says before its tool calls stays out.
       const { runtime, streamed } = await bootRuntime(flags, {
         ask: createAsk(rl && lineReader(rl)),
+        print: !flags.quiet,
       });
       try {
         await runPrompt(runtime, flags, streamed);

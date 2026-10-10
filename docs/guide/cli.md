@@ -31,7 +31,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--mock` | 本地假模型；没有 API key 时必须加，否则退出码 1 |
 | `--persist` | SQLite：`<cwd>/.tah/cli.db`（**默认开**） |
 | `--no-persist` | 关掉 SQLite；chat 不会跨 `/exit` 续聊 |
-| `--quiet` | 只打印模型回复 |
+| `--quiet` | 只打印模型回复；`tah run` 只在结束时输出最后一条回复，调工具前说的话不输出，适合脚本（v0.26.2） |
 | `--exec` | 挂上 `execute_command`（**默认开**） |
 | `--no-exec` | 关掉 `execute_command` |
 | `--yes` / `-y` | 跳过 `write_file` / `execute_command` 的审批 |
