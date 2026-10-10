@@ -319,10 +319,18 @@ main {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 12px;
+  /* One 24px line plus padding and border. */
+  min-height: 42px;
   outline: none;
 }
 .composer textarea:focus {
   border-color: var(--accent);
+}
+/* As tall as a one-line textarea (min-height above), also under page zoom. */
+.composer button {
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 8px;
 }
 
 .status {

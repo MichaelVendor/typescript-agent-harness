@@ -8,7 +8,12 @@ export function Composer(props: { busy: boolean; disabled: boolean; onSend(text:
     const el = ref.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
+    // One line keeps the CSS min-height, which the Send button matches. Both heights are rounded
+    // to whole pixels, so under page zoom one line can read 1px over.
+    if (el.scrollHeight - el.clientHeight <= 1) return;
+    const style = getComputedStyle(el);
+    const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    el.style.height = `${Math.min(el.scrollHeight + border, 240)}px`;
   }, [text]);
 
   const send = () => {
