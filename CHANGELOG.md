@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.24.2 — 2026-10-10
+
+CLI: the TUI's terminal cursor now sits in the input box. It used to lag one render behind, ending up below the status bar after a reply and one keystroke behind while typing.
+
 ## 0.24.1 — 2026-10-10
 
 CLI: fix a TUI crash ("Maximum update depth exceeded") while streaming long replies. The transcript now notifies the UI at most once per event-loop tick instead of on every text delta.

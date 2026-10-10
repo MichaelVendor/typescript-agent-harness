@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/tools",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "description": "Tool registry and local filesystem tools",
   "type": "module",
   "main": "./dist/index.js",
