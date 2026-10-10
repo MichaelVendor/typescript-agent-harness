@@ -48,6 +48,16 @@ test("a long reply streamed in back-to-back microtasks renders without hitting R
   }
 });
 
+test("a notice flagged as an error shows as an error", () => {
+  const transcript = new Transcript(renderMarkdown);
+  transcript.apply({ type: "notice", text: "[tah] reloaded" });
+  transcript.apply({ type: "notice", text: "[tah] reload failed", error: true });
+  assert.deepEqual(
+    transcript.snapshot.items.map((i) => i.kind),
+    ["notice", "error"],
+  );
+});
+
 test("the terminal cursor sits in the input box after a reply and follows typing", async () => {
   let out = "";
   const stdout = Object.assign(

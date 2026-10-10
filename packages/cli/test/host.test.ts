@@ -254,13 +254,19 @@ test("a broken tool keeps the previous version until it is fixed", async () => {
   try {
     let from = events.length;
     writeFileSync(path.join(cwd, "tools/list-files.ts"), "export default {");
-    await waitFor(events, notice(/^\[tah\] reload failed — still using the previous version: .*tools\/list-files\.ts/), from);
+    const failed = await waitFor(
+      events,
+      notice(/^\[tah\] reload failed — still using the previous version: .*tools\/list-files\.ts/),
+      from,
+    );
+    assert.equal((failed as { error?: boolean }).error, true);
     await host.send("a");
     assert.equal(lastResult(events), "1 entries");
 
     from = events.length;
     writeFileSync(path.join(cwd, "tools/list-files.ts"), listTool(3));
-    await waitFor(events, notice(/^\[tah\] reloaded:/), from);
+    const reloaded = await waitFor(events, notice(/^\[tah\] reloaded:/), from);
+    assert.equal((reloaded as { error?: boolean }).error, undefined);
     await host.reset();
     await host.send("b");
     assert.equal(lastResult(events), "3 entries");

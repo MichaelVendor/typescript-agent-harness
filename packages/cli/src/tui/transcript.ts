@@ -133,7 +133,7 @@ export class Transcript {
         return;
       case "notice":
         this.settle();
-        this.push({ kind: "notice", text: event.text });
+        this.push({ kind: event.error ? "error" : "notice", text: event.text });
         return;
       case "turn.end":
         this.settle();

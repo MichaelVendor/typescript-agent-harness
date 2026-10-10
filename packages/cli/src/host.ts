@@ -37,7 +37,7 @@ export type HostEvent =
   | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "approval.end"; id: string; answer: ApprovalAnswer }
-  | { type: "notice"; text: string }
+  | { type: "notice"; text: string; error?: boolean }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
   | { type: "turn.error"; cancelled: boolean; message: string };
 
@@ -275,7 +275,7 @@ export async function createChatHost(
     try {
       next = await loadProject(flags.cwd);
     } catch (err) {
-      emit({ type: "notice", text: `[tah] reload failed — still using the previous version: ${reason(err)}` });
+      emit({ type: "notice", text: `[tah] reload failed — still using the previous version: ${reason(err)}`, error: true });
       return;
     }
     const previous = project;
@@ -289,13 +289,14 @@ export async function createChatHost(
       await boot({ project: previous });
     }
     session = await openSessionByRef(runtime, id);
-    emit({
-      type: "notice",
-      text:
-        failure === undefined
-          ? describeProject(project!, Boolean(flags.systemFile)).replace("[tah] project:", "[tah] reloaded:")
-          : `[tah] reload failed — still using the previous version: ${reason(failure)}`,
-    });
+    emit(
+      failure === undefined
+        ? {
+            type: "notice",
+            text: describeProject(project!, Boolean(flags.systemFile)).replace("[tah] project:", "[tah] reloaded:"),
+          }
+        : { type: "notice", text: `[tah] reload failed — still using the previous version: ${reason(failure)}`, error: true },
+    );
   }
 
   const changed = new Set<string>();
@@ -304,7 +305,7 @@ export async function createChatHost(
     if (busy || reloading || changed.size === 0) return;
     changed.clear();
     reloading = reload()
-      .catch((err) => emit({ type: "notice", text: `[tah] reload failed — restart tah: ${reason(err)}` }))
+      .catch((err) => emit({ type: "notice", text: `[tah] reload failed — restart tah: ${reason(err)}`, error: true }))
       .finally(() => {
         reloading = undefined;
         reloadWhenIdle();
