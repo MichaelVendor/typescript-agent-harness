@@ -15,6 +15,8 @@ export type State = {
   /** The last turn hit the step limit; the page offers to continue it. */
   stepLimit: boolean;
   busy: boolean;
+  /** Counts finished turns: a turn can start and end within one rendered frame, so `busy` may never show it. */
+  turnsEnded: number;
   rounds: number;
   model: string | undefined;
   nextId: number;
@@ -35,6 +37,7 @@ export const initialState: State = {
   approval: undefined,
   stepLimit: false,
   busy: false,
+  turnsEnded: 0,
   rounds: 0,
   model: undefined,
   nextId: 0,
@@ -113,11 +116,12 @@ export function applyEvent(state: State, action: Action): State {
     case "approval.end":
       return state.approval?.id === action.id ? { ...state, approval: undefined } : state;
     case "notice":
-      return push(state, { kind: "notice", text: action.text, error: false });
+      return push(state, { kind: "notice", text: action.text, error: action.error ?? false });
     case "turn.end":
       return {
         ...state,
         busy: false,
+        turnsEnded: state.turnsEnded + 1,
         approval: undefined,
         rounds: action.rounds,
         stepLimit: action.finishReason === "max_steps",
@@ -125,7 +129,7 @@ export function applyEvent(state: State, action: Action): State {
       };
     case "turn.error":
       return push(
-        { ...state, busy: false, approval: undefined },
+        { ...state, busy: false, approval: undefined, turnsEnded: state.turnsEnded + 1 },
         action.cancelled
           ? { kind: "notice", text: "turn cancelled — history kept", error: false }
           : { kind: "notice", text: `turn failed: ${action.message} — history kept; try again`, error: true },

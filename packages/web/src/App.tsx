@@ -58,7 +58,7 @@ export function App() {
       },
       (err: unknown) => setSessionsError(err instanceof Error ? err.message : String(err)),
     );
-  }, [connection, state.busy, state.sessionId]);
+  }, [connection, state.busy, state.sessionId, state.turnsEnded]);
 
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
