@@ -42,6 +42,7 @@ export class Transcript {
   };
   private listeners = new Set<() => void>();
   private nextId = 0;
+  private notifyPending = false;
   private md: MarkdownStream;
 
   constructor(private render: (markdown: string) => string) {
@@ -59,9 +60,19 @@ export class Transcript {
     }, this.render);
   }
 
+  /**
+   * Listeners hear about changes at most once per macrotask: deltas can arrive in back-to-back
+   * microtasks, and a sync re-render per delta trips React's nested-update limit (Ink's useBoxMetrics
+   * answers each render with another update).
+   */
   private set(patch: Partial<Snapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
-    for (const listener of this.listeners) listener();
+    if (this.notifyPending) return;
+    this.notifyPending = true;
+    setImmediate(() => {
+      this.notifyPending = false;
+      for (const listener of this.listeners) listener();
+    });
   }
 
   private push(item: ItemInput, notify = true): void {
