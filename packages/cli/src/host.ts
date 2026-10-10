@@ -3,6 +3,14 @@ import type { Runtime } from "@typescript-agent-harness/core";
 import type { ChatMessage } from "@typescript-agent-harness/llm";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import type { CliFlags } from "./args.js";
+import { composeAttachmentPrompt, parseUserContent, userContentForVision } from "./attachments/compose.js";
+import {
+  checkMessageLimits,
+  createAttachmentStore,
+  type AttachmentMeta,
+  type AttachmentRef,
+  type AttachmentStore,
+} from "./attachments/store.js";
 import { loadProject, type Project } from "./project.js";
 import {
   bootRuntime,
@@ -16,7 +24,7 @@ import { toRows, type SessionRow } from "./sessions.js";
 import { watchProject } from "./watch.js";
 
 export type HistoryItem =
-  | { role: "user"; text: string }
+  | { role: "user"; text: string; attachments?: AttachmentMeta[] }
   | { role: "assistant"; text: string }
   | { role: "tool"; callId: string; tool: string; summary: string; ok: boolean; result: string };
 
@@ -31,7 +39,7 @@ export type SessionEvent = {
 /** Every event is plain JSON, so `tah serve` can stream them unchanged. */
 export type HostEvent =
   | SessionEvent
-  | { type: "user"; text: string }
+  | { type: "user"; text: string; attachments?: AttachmentMeta[] }
   | { type: "text"; delta: string }
   | { type: "tool.start"; callId: string; tool: string; summary: string }
   | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string }
@@ -49,7 +57,9 @@ export type ChatHost = {
   open(): Promise<void>;
   /** The current session as a `session` event, without emitting it. */
   snapshot(): SessionEvent;
-  send(text: string): Promise<void>;
+  send(text: string, attachmentIds?: string[]): Promise<void>;
+  /** Persist an uploaded file; used by `tah serve`. */
+  saveAttachment(input: { name: string; mime: string; data: Buffer }): AttachmentRef;
   /** After `turn.end` with `finishReason: "max_steps"`: run the same turn with a fresh step budget. */
   continueTurn(): Promise<void>;
   cancel(): void;
@@ -115,7 +125,18 @@ export function historyOf(
 
   const history: HistoryItem[] = [];
   for (const m of messages.slice(from)) {
-    if (m.role === "user") history.push({ role: "user", text: m.content });
+    if (m.role === "user") {
+      const raw =
+        typeof m.content === "string"
+          ? m.content
+          : m.content.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+      const parsed = parseUserContent(raw);
+      history.push({
+        role: "user",
+        text: parsed.text,
+        ...(parsed.attachments.length ? { attachments: parsed.attachments } : {}),
+      });
+    }
     if (m.role !== "assistant") continue;
     if (m.content) history.push({ role: "assistant", text: m.content });
     for (const call of m.toolCalls ?? []) {
@@ -262,6 +283,7 @@ export async function createChatHost(
     return booted.startup;
   };
   const startup = await boot();
+  const attachments: AttachmentStore = createAttachmentStore(flags.cwd);
 
   let session: Session;
   let busy = false;
@@ -335,10 +357,19 @@ export async function createChatHost(
   });
   const showSession = (resumed: boolean) => emit(sessionEvent(resumed));
 
-  async function turn(run: () => Promise<RunResult>, text?: string): Promise<void> {
+  async function turn(
+    run: () => Promise<RunResult>,
+    user?: { text: string; attachments?: AttachmentMeta[] },
+  ): Promise<void> {
     idle();
     busy = true;
-    if (text !== undefined) emit({ type: "user", text });
+    if (user !== undefined) {
+      emit({
+        type: "user",
+        text: user.text,
+        ...(user.attachments?.length ? { attachments: user.attachments } : {}),
+      });
+    }
     streamedText = false;
     const from = session.steps.length;
     let event: HostEvent;
@@ -388,7 +419,38 @@ export async function createChatHost(
       watch();
     },
     snapshot: () => sessionEvent(true),
-    send: (text) => ready(() => turn(() => session.run(text), text)),
+    saveAttachment(input) {
+      return attachments.save(input);
+    },
+    send: (text, attachmentIds = []) =>
+      ready(async () => {
+        const refs = attachmentIds.length ? attachments.getMany(attachmentIds) : [];
+        checkMessageLimits(refs);
+        const display = text.trim();
+        if (!display && refs.length === 0) throw new Error("message is empty");
+        const meta: AttachmentMeta[] = refs.map(({ id, kind, name, mime, bytes, sha256 }) => ({
+          id,
+          kind,
+          name,
+          mime,
+          bytes,
+          sha256,
+        }));
+        const prompt = composeAttachmentPrompt(display, refs);
+        const run = async () => {
+          if (flags.vision && refs.some((r) => r.kind === "image")) {
+            const images = await Promise.all(
+              refs.filter((r) => r.kind === "image").map(async (r) => ({
+                mime: r.mime,
+                data: await attachments.readBytes(r.id),
+              })),
+            );
+            return session.run({ text: display, content: userContentForVision(display, refs, images) });
+          }
+          return session.run(prompt || composeAttachmentPrompt("(attachments only)", refs));
+        };
+        return turn(run, { text: display || "(attachments)", ...(meta.length ? { attachments: meta } : {}) });
+      }),
     continueTurn: () => ready(() => turn(() => session.resume())),
     cancel() {
       rejectPending();

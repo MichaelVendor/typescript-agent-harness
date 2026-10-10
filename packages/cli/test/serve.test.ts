@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { parseArgv } from "../dist/args.js";
+import { createAttachmentStore } from "../dist/attachments/store.js";
 import type { ChatHost, HostEvent, SessionEvent } from "../dist/host.js";
 import { createServeHandler } from "../dist/serve/http.js";
 import { createHub } from "../dist/serve/hub.js";
@@ -88,6 +89,7 @@ function fakeHost() {
   const emit = (e: HostEvent) => {
     for (const l of listeners) l(e);
   };
+  const store = createAttachmentStore(mkdtempSync(path.join(tmpdir(), "tah-serve-att-")));
   let finish = () => {};
   const host: ChatHost = {
     sessionId: "s1",
@@ -100,8 +102,27 @@ function fakeHost() {
       emit(session);
     },
     snapshot: () => session,
-    send(text) {
-      emit({ type: "user", text });
+    saveAttachment(input) {
+      return store.save(input);
+    },
+    send(text, attachmentIds = []) {
+      const refs = attachmentIds.length ? store.getMany(attachmentIds) : [];
+      emit({
+        type: "user",
+        text: text || "(attachments)",
+        ...(refs.length
+          ? {
+              attachments: refs.map(({ id, kind, name, mime, bytes, sha256 }) => ({
+                id,
+                kind,
+                name,
+                mime,
+                bytes,
+                sha256,
+              })),
+            }
+          : {}),
+      });
       return new Promise<void>((resolve) => {
         finish = () => {
           emit({ type: "turn.end", state: "idle", finishReason: "stop", rounds: 1 });
@@ -131,7 +152,7 @@ async function fakeServer(webDir = path.join(tmpdir(), "tah-no-web")) {
     host: fake.host,
     hub,
     token: TOKEN,
-    info: { approve: true, maxSteps: null, version: "0.0.0" },
+    info: { approve: true, maxSteps: null, version: "0.0.0", vision: false },
     webDir,
     persist: true,
   });
@@ -172,6 +193,7 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
       approve: true,
       maxSteps: null,
       version: JSON.parse((await import("node:fs")).readFileSync(new URL("../package.json", import.meta.url), "utf8")).version,
+      vision: false,
     });
 
     const tab = stream(base, cookie);
@@ -255,6 +277,61 @@ test("a tab opened mid-turn gets the turn so far; approvals settle on every tab;
     await first.until("turn.end");
     assert.equal((await api.post("/api/reset")).status, 204);
     for (const t of [first, second, third]) t.close();
+  } finally {
+    await s.close();
+  }
+});
+
+test("upload attachment then send with attachmentIds", async () => {
+  const s = await fakeServer();
+  const { cookie, base } = s;
+  const origin = base.replace(/\/$/, "");
+  try {
+    const denied = await raw(base, "POST", "/api/attachments", {
+      headers: { origin, "content-type": "application/octet-stream", "x-tah-filename": "a.txt", "x-tah-mime": "text/plain" },
+    });
+    assert.equal(denied.status, 401);
+
+    const uploaded = await new Promise<{ status: number; body: string }>((resolve, reject) => {
+      const req = request(
+        new URL("/api/attachments", base),
+        {
+          method: "POST",
+          headers: {
+            cookie,
+            origin,
+            "content-type": "application/octet-stream",
+            "x-tah-filename": encodeURIComponent("note.txt"),
+            "x-tah-mime": "text/plain",
+            "content-length": Buffer.byteLength("hello"),
+          },
+        },
+        (res) => {
+          let text = "";
+          res.setEncoding("utf8");
+          res.on("data", (c) => (text += c));
+          res.on("end", () => resolve({ status: res.statusCode ?? 0, body: text }));
+        },
+      );
+      req.on("error", reject);
+      req.end("hello");
+    });
+    assert.equal(uploaded.status, 201);
+    const meta = JSON.parse(uploaded.body) as { id: string; name: string; kind: string };
+    assert.equal(meta.name, "note.txt");
+    assert.equal(meta.kind, "file");
+
+    const tab = stream(base, cookie);
+    await tab.until("session");
+    const api = client(base, cookie);
+    assert.equal((await api.post("/api/send", { text: "", attachmentIds: [meta.id] })).status, 202);
+    const events = await tab.until("user");
+    const user = events.find((e) => e.type === "user") as Extract<HostEvent, { type: "user" }>;
+    assert.equal(user.attachments?.[0]?.id, meta.id);
+    assert.equal(user.text, "(attachments)");
+    s.finish();
+    await tab.until("turn.end");
+    tab.close();
   } finally {
     await s.close();
   }

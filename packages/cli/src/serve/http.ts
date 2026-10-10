@@ -4,12 +4,14 @@ import { readFile, stat } from "node:fs/promises";
 import type { IncomingMessage, RequestListener, ServerResponse } from "node:http";
 import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
+import { AttachmentError, MAX_FILE_BYTES } from "../attachments/store.js";
 import type { ChatHost } from "../host.js";
 import { BusyError, type Hub } from "./hub.js";
 import type { ServeInfo } from "./protocol.js";
 
 const COOKIE = "tah_token";
 const MAX_BODY = 1_000_000;
+const MAX_UPLOAD = MAX_FILE_BYTES;
 const HEARTBEAT_MS = 15_000;
 const ANSWERS: ApprovalAnswer[] = ["yes", "always", "no"];
 const TYPES: Record<string, string> = {
@@ -23,7 +25,7 @@ const TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 /** The page can approve commands, so nothing it renders may load scripts or send data elsewhere. */
-const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'";
+const CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'";
 
 export type ServeOptions = {
   host: ChatHost;
@@ -71,15 +73,9 @@ function json(res: ServerResponse, status: number, body?: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" }).end(JSON.stringify(body));
 }
 
-async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
-  let size = 0;
-  const chunks: Buffer[] = [];
-  for await (const chunk of req) {
-    size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw new HttpError(413, "request body too large");
-    chunks.push(chunk as Buffer);
-  }
-  const text = Buffer.concat(chunks).toString("utf8");
+async function readBody(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
+  const buf = await readRaw(req, max);
+  const text = buf.toString("utf8");
   if (!text) return {};
   let body: unknown;
   try {
@@ -89,6 +85,17 @@ async function readBody(req: IncomingMessage): Promise<Record<string, unknown>> 
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new HttpError(400, "body must be a JSON object");
   return body as Record<string, unknown>;
+}
+
+async function readRaw(req: IncomingMessage, max: number): Promise<Buffer> {
+  let size = 0;
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length;
+    if (size > max) throw new HttpError(413, "request body too large");
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks);
 }
 
 function str(body: Record<string, unknown>, key: string): string {
@@ -121,9 +128,15 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   };
 
   const api = async (req: IncomingMessage, res: ServerResponse, route: string) => {
+    const isUpload = req.method === "POST" && route === "/api/attachments";
     if (req.method === "POST") {
       if (req.headers.origin !== `http://${req.headers.host}`) throw new HttpError(403, "cross-origin request");
-      if (!(req.headers["content-type"] ?? "").startsWith("application/json")) {
+      const ct = req.headers["content-type"] ?? "";
+      if (isUpload) {
+        if (!ct.startsWith("application/octet-stream")) {
+          throw new HttpError(415, "content-type must be application/octet-stream");
+        }
+      } else if (!ct.startsWith("application/json")) {
         throw new HttpError(415, "content-type must be application/json");
       }
     }
@@ -145,9 +158,34 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "GET /api/sessions":
         if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
         return json(res, 200, await host.listSessions());
+      case "POST /api/attachments": {
+        const nameHeader = req.headers["x-tah-filename"];
+        const mimeHeader = req.headers["x-tah-mime"];
+        const name = typeof nameHeader === "string" ? decodeURIComponent(nameHeader) : "file";
+        const mime = typeof mimeHeader === "string" ? mimeHeader : "application/octet-stream";
+        const data = await readRaw(req, MAX_UPLOAD);
+        if (data.length === 0) throw new HttpError(400, "empty upload");
+        try {
+          const ref = host.saveAttachment({ name, mime, data });
+          const { path: _path, ...meta } = ref;
+          return json(res, 201, meta);
+        } catch (err) {
+          if (err instanceof AttachmentError) throw new HttpError(400, err.message);
+          throw err;
+        }
+      }
       case "POST /api/send": {
-        const text = str(await readBody(req), "text");
-        hub.start(() => host.send(text));
+        const body = await readBody(req);
+        const text = typeof body.text === "string" ? body.text : "";
+        const ids = body.attachmentIds;
+        const attachmentIds = Array.isArray(ids)
+          ? ids.map((id, i) => {
+              if (typeof id !== "string" || !id) throw new HttpError(400, `"attachmentIds[${i}]" must be a string`);
+              return id;
+            })
+          : [];
+        if (!text.trim() && attachmentIds.length === 0) throw new HttpError(400, "text or attachmentIds required");
+        hub.start(() => host.send(text, attachmentIds));
         return json(res, 202);
       }
       case "POST /api/continue":
@@ -225,6 +263,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       if (res.headersSent) return void res.end();
       if (err instanceof HttpError) return json(res, err.status, { error: err.message });
       if (err instanceof BusyError) return json(res, 409, { error: err.message });
+      if (err instanceof AttachmentError) return json(res, 400, { error: err.message });
       json(res, 400, { error: err instanceof Error ? err.message : String(err) });
     });
   };

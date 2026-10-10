@@ -6,6 +6,7 @@ export type { Tool, ToolContext } from "@typescript-agent-harness/tools";
 export type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 export type { HistoryItem, HostEvent, SessionEvent } from "./host.js";
 export type { SessionRow } from "./sessions.js";
+export type { AttachmentMeta } from "./attachments/store.js";
 export type { ServeError, ServeInfo, ServeRequest } from "./serve/protocol.js";
 
 /** A file in `tools/`; `name` defaults to the file name with `-` → `_`. */

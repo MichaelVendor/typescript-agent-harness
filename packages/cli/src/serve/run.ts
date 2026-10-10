@@ -42,7 +42,12 @@ export async function startServe(
     host,
     hub,
     token,
-    info: { approve: host.approve, maxSteps: Number.isFinite(flags.maxSteps) ? flags.maxSteps : null, version: pkg.version },
+    info: {
+      approve: host.approve,
+      maxSteps: Number.isFinite(flags.maxSteps) ? flags.maxSteps : null,
+      version: pkg.version,
+      vision: flags.vision,
+    },
     webDir: fileURLToPath(new URL("../web/", import.meta.url)),
     persist: flags.persist,
   });

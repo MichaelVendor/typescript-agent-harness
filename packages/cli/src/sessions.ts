@@ -1,5 +1,6 @@
-import type { ChatMessage } from "@typescript-agent-harness/llm";
+import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
 import type { PersistedSession, StorageService } from "@typescript-agent-harness/storage";
+import { parseUserContent } from "./attachments/compose.js";
 
 export type SessionRow = {
   id: string;
@@ -9,11 +10,19 @@ export type SessionRow = {
   preview: string;
 };
 
+function userText(content: string | ContentPart[]): string {
+  const raw =
+    typeof content === "string"
+      ? content
+      : content.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+  return parseUserContent(raw).text;
+}
+
 export function toRows(rows: PersistedSession[]): SessionRow[] {
   return rows.map((row) => {
     const messages = JSON.parse(row.messagesJson) as ChatMessage[];
-    const userTexts = messages.flatMap((m) => (m.role === "user" ? [m.content] : []));
-    const first = (userTexts[0] ?? "").replace(/\s+/g, " ").trim();
+    const userTexts = messages.flatMap((m) => (m.role === "user" ? [userText(m.content)] : []));
+    const first = (userTexts[0] ?? "").replace(/\s+/g, " ").trim() || "(attachments)";
     return {
       id: row.id,
       state: row.status,

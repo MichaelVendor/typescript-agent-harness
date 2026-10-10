@@ -28,6 +28,8 @@ export type CliFlags = {
   open: boolean;
   /** Terminal `tah chat` / `tah serve` in a project: reload AGENTS.md, tools/, plugins/ and lib/ on change. */
   watch: boolean;
+  /** `tah serve`: project image attachments into multimodal LLM requests. */
+  vision: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -54,6 +56,7 @@ export function parseArgv(argv: string[]): CliFlags {
     port: 7420,
     open: true,
     watch: true,
+    vision: process.env.TAH_VISION === "1",
   };
   const rest: string[] = [];
   let help = false;
@@ -73,6 +76,7 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--plain") flags.plain = true;
     else if (arg === "--no-open") flags.open = false;
     else if (arg === "--no-watch") flags.watch = false;
+    else if (arg === "--vision") flags.vision = true;
     else if (arg === "--port") {
       const next = argv[i + 1];
       const n = Number(next);
@@ -191,6 +195,7 @@ Flags:
   --port <n>          tah serve: port on 127.0.0.1 (default 7420; 0 = any free port)
   --no-open           tah serve: do not open the browser
   --no-watch          terminal tah chat / tah serve: do not reload project files on change
+  --vision            tah serve: send image attachments as multimodal parts (or TAH_VISION=1)
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)
