@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.26.1 — 2026-10-10
+
+Web: the message box and the Send / Stop button are now the same height on one line (the button sat 6px lower), and a growing message box accounts for its border instead of overflowing by 2px. With several lines the button stays at the bottom.
+
 ## 0.26.0 — 2026-10-10
 
 CLI: terminal `tah chat` and `tah serve` reload a convention project when `AGENTS.md` or a file under `tools/`, `plugins/` or `lib/` changes. The runtime is rebuilt and the current session reopened by id, so history is kept and a new `AGENTS.md` applies from the next turn; a change during a turn waits for the turn to end, and commands sent during a reload wait for it. If the new files fail to load or a plugin's setup throws, the previous version keeps running and a `[tah] reload failed — …` notice says why; saving again retries. "Always allow" answers survive a reload. With `--no-persist` it only says to restart; `--no-watch` turns it off. Project files now load with jiti's module cache off, so edited helpers are picked up too.
