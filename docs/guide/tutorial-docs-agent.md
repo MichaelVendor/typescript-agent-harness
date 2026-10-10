@@ -24,7 +24,7 @@ docs-assistant/
 ├── tools/current-time.ts    # 示例工具 → current_time
 ├── package.json             # 依赖 @typescript-agent-harness/cli
 ├── tsconfig.json
-├── .env.example             # DEEPSEEK_API_KEY=
+├── .env.example             # 模型 key 的模板，见第 5 步
 └── .gitignore               # node_modules、.env、.tah
 ```
 
@@ -165,7 +165,7 @@ DEEPSEEK_API_KEY=sk-...
 # DEEPSEEK_MODEL=deepseek-chat
 ```
 
-其他厂商都走 OpenAI 兼容接口，三个变量都要填：
+其他厂商都走 OpenAI 兼容接口，填这三个变量，`DEEPSEEK_API_KEY` 留空或删掉：
 
 ```sh
 # .env
@@ -186,10 +186,10 @@ OPENAI_MODEL=<模型名>
 | OpenRouter（可调用 Claude、Gemini 等） | `https://openrouter.ai/api/v1` |
 | Ollama（本机模型） | `http://localhost:11434/v1`，key 随便填一个非空值，如 `ollama` |
 
-- **`OPENAI_BASE_URL` 必须填**，用 OpenAI 官方也一样。只填 key 会在启动时报错。
-- **`OPENAI_MODEL` 填厂商控制台里的模型名。** 不填时默认是 `gpt-4o-mini`，只有 OpenAI 认识这个名字。模型名更新得很快，所以表里不列具体型号。
+- **用 OpenAI 官方时只填 `OPENAI_API_KEY` 就行。** 不填 `OPENAI_BASE_URL` 时默认用 `https://api.openai.com/v1`，模型默认 `gpt-4o-mini`（v0.26.3）。
+- **其他厂商要填 `OPENAI_BASE_URL` 和 `OPENAI_MODEL`。** 模型名按厂商控制台里的写；模型名更新得很快，所以表里不列具体型号。
 - **模型必须支持工具调用**（function calling），否则 Agent 用不了 `tools/` 里的工具。
-- **只保留一组变量。** 同时有 `DEEPSEEK_API_KEY` 时，会优先用 DeepSeek 那一组。
+- **只保留一组变量。** `DEEPSEEK_API_KEY` 有值时，会优先用 DeepSeek 那一组；`.env` 里写成 `DEEPSEEK_API_KEY=`（值为空）等于没写（v0.26.3）。
 - 表里的地址都是各家公开的 OpenAI 兼容接口，tah 只实测过 DeepSeek。接其他家时如果报错，先确认地址和模型名都没写错。
 
 其他注意事项：

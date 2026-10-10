@@ -66,7 +66,7 @@ runtime.use(
 );
 ```
 
-也识别 `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL`。
+也识别 `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL`。不传 `baseURL` 时：有 `DEEPSEEK_API_KEY` 用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`（v0.26.3）。
 
 | Provider | 说明 |
 | --- | --- |
