@@ -119,6 +119,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (flags.command === "serve") {
+    const { runServe } = await import("./serve/run.js");
+    await runServe(flags);
+    return;
+  }
+
   if (flags.command === "chat" && tty && process.stdout.isTTY && !flags.plain) {
     const { runTui } = await import("./tui/run.js");
     await runTui(flags);

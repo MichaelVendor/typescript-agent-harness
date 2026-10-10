@@ -22,6 +22,10 @@ export type CliFlags = {
   install: boolean;
   /** `tah chat`: line mode even in a terminal (no TUI). */
   plain: boolean;
+  /** `tah serve`: 0 lets the OS pick. */
+  port: number;
+  /** `tah serve`: open the browser on start. */
+  open: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -45,6 +49,8 @@ export function parseArgv(argv: string[]): CliFlags {
     builtinTools: false,
     install: true,
     plain: false,
+    port: 7420,
+    open: true,
   };
   const rest: string[] = [];
   let help = false;
@@ -62,7 +68,16 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--builtin-tools") flags.builtinTools = true;
     else if (arg === "--no-install") flags.install = false;
     else if (arg === "--plain") flags.plain = true;
-    else if (arg === "--mcp") {
+    else if (arg === "--no-open") flags.open = false;
+    else if (arg === "--port") {
+      const next = argv[i + 1];
+      const n = Number(next);
+      if (!next || !Number.isInteger(n) || n < 0 || n > 65535) {
+        throw new Error("--port requires an integer 0-65535");
+      }
+      flags.port = n;
+      i += 1;
+    } else if (arg === "--mcp") {
       const next = argv[i + 1];
       if (!next) throw new Error("--mcp requires a command");
       flags.mcpCommand = next;
@@ -143,6 +158,7 @@ Usage:
   tah chat             continue last session if persisted; terminal UI in a terminal,
                        line mode when piped or with --plain
                        /exit /reset /sessions /resume <id|n> /fork [turns]
+  tah serve            web UI on 127.0.0.1 for this machine's agent; prints a one-time login link
   tah sessions         list saved sessions (newest first; numbers work with --session)
   tah init             scaffold a project (AGENTS.md, tools/, package.json) and install it
   tah help
@@ -168,6 +184,8 @@ Flags:
   --builtin-tools     project with tools/: also mount the built-in file / command tools
   --no-install        tah init: only write files, skip installing dependencies
   --plain             tah chat: line mode instead of the terminal UI
+  --port <n>          tah serve: port on 127.0.0.1 (default 7420; 0 = any free port)
+  --no-open           tah serve: do not open the browser
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)
