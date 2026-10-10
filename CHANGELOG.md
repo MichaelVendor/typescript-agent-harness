@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.0 — 2026-10-10
+
+CLI: convention projects may include a root `tah.config.json` for official capability packs (`capabilities.coding` / `web` / `vision`) and `extensions.mcp`. Merge order is built-in defaults → config → CLI / env. Unknown keys fail at startup. `capabilities.web: true` is rejected until web tools ship. `tah init` writes an example config (`coding: true` so builtins stay on next to `tools/`). Design: `docs/design/config.md`.
+
 ## 0.27.0 — 2026-10-10
 
 CLI / Web: `tah serve` accepts file and image attachments (pick, drag, or paste). Bytes are stored content-addressed under `<cwd>/.tah/attachments/`; the session keeps only metadata. By default the user message includes read-only host paths so tools can inspect them (including when the model is text-only). Pass `--vision` or set `TAH_VISION=1` to project images into OpenAI-compatible multimodal parts. Limits: images PNG/JPEG/WebP/GIF ≤ 20 MiB (≤ 20 per message), other files ≤ 32 MiB, ≤ 40 attachments per message.
