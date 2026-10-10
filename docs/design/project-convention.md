@@ -31,10 +31,10 @@ my-agent/
 
 ## 非目标
 
-- 不做配置文件（`tah.config.ts`、YAML 等）。模型、权限、步数仍走现有命令行参数和 `.env`。
-- 不做 profile、bundle、多层配置叠加（`dsh` 有，tah 不需要）。
+- 约定文件不替代官方能力开关：角色与自定义工具仍用 `AGENTS.md` / `tools/` / `plugins/`；官方能力包（coding / web / vision / mcp）见项目根目录 [`tah.config.json`](./config.md)（v0.28）。模型、权限细粒度、步数仍走命令行参数和 `.env`。
+- 不做 profile、bundle、多层配置叠加（`dsh` 有，tah 不需要）；不做用户级 `~/.tah/config`（见 config 设计非目标）。
 - 不做 `tah plugin add` 之类的安装命令；第三方能力就是 npm 依赖，在 `plugins/` 里引入。
-- 不做 Web UI。
+- 不做 Web UI（本机 `tah serve` 另见 serve 设计）。
 - 不改 `core` / `agent` / `tools` 等包，改动只在 `packages/cli`。
 - `AGENTS.md` 不沿目录向上查找、不支持 `AGENTS.local.md`，只读 `--cwd` 这一层。
 
@@ -47,7 +47,7 @@ mkdir my-agent && cd my-agent
 npx @typescript-agent-harness/cli init
 ```
 
-`tah init` 生成 `package.json`（依赖 CLI）、`AGENTS.md`、`tools/current-time.ts`、`tsconfig.json`、`.env.example`、`.gitignore`，已存在的文件跳过不覆盖；随后自动装依赖（v0.23.1，`--no-install` 跳过；在别的 pnpm 工作区里用 `pnpm install --ignore-workspace`）。本地安装 CLI 既是项目模式的开关，也提供 `defineTool` / `definePlugin` 和类型；运行用 `npx tah chat`。全局装的 `tah` 在同一目录下也会读取同样的约定文件。
+`tah init` 生成 `package.json`（依赖 CLI）、`AGENTS.md`、`tools/current-time.ts`、`tah.config.json`（可选能力包示例，v0.28）、`tsconfig.json`、`.env.example`、`.gitignore`，已存在的文件跳过不覆盖；随后自动装依赖（v0.23.1，`--no-install` 跳过；在别的 pnpm 工作区里用 `pnpm install --ignore-workspace`）。本地安装 CLI 既是项目模式的开关，也提供 `defineTool` / `definePlugin` 和类型；运行用 `npx tah chat`。全局装的 `tah` 在同一目录下也会读取同样的约定文件。
 
 ### 2. 写工具
 
@@ -158,7 +158,7 @@ npx tah chat
 
 ### 内置工具
 
-有 `tools/` 目录时，内置的 `list_files` / `read_file` / `grep` / `write_file` / `execute_command` 默认不挂，提示词里的对应规则也去掉，模型只看到项目自己的工具；没有 `AGENTS.md` 时默认角色换成通用的 `You are a helpful agent…`。`--builtin-tools` 恢复内置工具和规则。
+有 `tools/` 目录时，内置的 `list_files` / `read_file` / `grep` / `write_file` / `execute_command` 默认不挂，提示词里的对应规则也去掉，模型只看到项目自己的工具；没有 `AGENTS.md` 时默认角色换成通用的 `You are a helpful agent…`。`--builtin-tools` 或 `tah.config.json` 里 `"capabilities": { "coding": true }` 恢复内置工具和规则。
 
 只有 `AGENTS.md`、没有 `tools/` 时，内置工具照常挂上（典型场景：给代码仓库换个人设）。
 

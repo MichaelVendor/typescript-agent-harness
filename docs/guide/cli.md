@@ -1,6 +1,6 @@
 # CLI
 
-状态：✅ `packages/cli`（v0.26）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）
+状态：✅ `packages/cli`（v0.28）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）· 附件（v0.27）· 项目配置能力包（v0.28）
 
 模型回复边生成边显示（`agent.assistant-stream`），不必等整段 `generate` 结束。
 
@@ -150,6 +150,7 @@ npx tah --mock chat
 ```text
 my-agent/
 ├── AGENTS.md              # 人设和规则，替换默认的 coding agent 角色
+├── tah.config.json        # 可选：官方能力包 / 扩展（v0.28）
 ├── tools/                 # 一个文件 = 一个工具
 │   └── query-order.ts     # → 工具 query_order
 ├── plugins/               # 一个文件 = 一个插件（可选）
@@ -157,6 +158,31 @@ my-agent/
 ├── lib/                   # 共用代码，不自动加载（改了会热更新）
 └── package.json           # 依赖 @typescript-agent-harness/cli
 ```
+
+### 项目配置（v0.28）
+
+约定目录管角色与自定义工具；根目录可选 `tah.config.json` 管官方能力挂载。设计见 [项目配置](/design/config)。
+
+```json
+{
+  "capabilities": {
+    "coding": true,
+    "vision": true
+  },
+  "extensions": {
+    "mcp": { "command": "npx", "args": ["-y", "some-mcp-server"] }
+  }
+}
+```
+
+| 键 | 作用 |
+| --- | --- |
+| `capabilities.coding` | `true` / `false`，或 `{ "exec": false }`；有 `tools/` 时写 `true` 等同 `--builtin-tools` |
+| `capabilities.web` | 预留；设为 `true` 时 v0.28 会启动报错（工具尚未挂载） |
+| `capabilities.vision` | 等同 `--vision` / `TAH_VISION=1` |
+| `extensions.mcp` | 等同 `--mcp` + `--mcp-arg` |
+
+合并顺序：内置默认 → config → CLI / 环境变量。仅项目模式（`package.json` 依赖 CLI）且文件存在时读取；未知键启动失败。模型 key、`--allow` / `--deny`、`maxSteps` 等仍不进此文件。
 
 工具文件：
 

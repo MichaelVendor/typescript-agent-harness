@@ -16,6 +16,7 @@
 | 10 | `tah serve` + 本机网页工作台（HTTP + SSE） | ✅ `v0.25` |
 | 11 | 约定式项目热更新（`AGENTS.md` / `tools/` / `plugins/` / `lib/`） | ✅ `v0.26` |
 | 12 | 附件（`tah serve`：上传、路径投影、可选 vision） | ✅ `v0.27` |
+| 13 | 项目配置（`tah.config.json` 能力包） | ✅ `v0.28` |
 
 ## Phase 1 — Runtime ✅
 
@@ -198,6 +199,16 @@ pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的
 - 默认把只读路径写进 user 文本，模型用工具按需读；`--vision` / `TAH_VISION=1` 时图片进多模态请求
 - 网页草稿附件栏与历史卡片；TUI / `tah run` 不做
 
+## Phase 13 — 项目配置（能力包）✅（v0.28）
+
+设计见 [项目配置](/design/config)。
+
+交付物：
+
+- 约定式项目可选根目录 `tah.config.json`：`capabilities`（coding / web / vision）+ `extensions.mcp`
+- 合并顺序：内置默认 → config → CLI / 环境变量；无文件时行为与 v0.27 一致
+- `capabilities.web: true` 在 web 工具落地前启动报错；`tah init` 写入示例 config
+
 ## 非目标（刻意不做）
 
 - Phase 1–3 不做 Electron / 完整 Web IDE  
@@ -208,6 +219,6 @@ pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.27`）  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.28`）  
 - `v0.N`：当前小版本的开发分支，合入 `main` 后打 `v0.N.x`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  
