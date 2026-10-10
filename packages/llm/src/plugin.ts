@@ -94,15 +94,15 @@ export function llmPlugin(options: LLMPluginOptions = {}): Plugin {
           process.env.OPENAI_BASE_URL ??
           (process.env.DEEPSEEK_API_KEY
             ? "https://api.deepseek.com/v1"
-            : undefined);
+            : "https://api.openai.com/v1");
         const defaultModel =
           options.defaultModel ??
           process.env.DEEPSEEK_MODEL ??
           process.env.OPENAI_MODEL ??
           (process.env.DEEPSEEK_API_KEY ? "deepseek-chat" : "gpt-4o-mini");
-        if (!baseURL || !apiKey) {
+        if (!apiKey) {
           throw new Error(
-            "openai-compatible provider requires apiKey + baseURL (DEEPSEEK_API_KEY or OPENAI_API_KEY / OPENAI_BASE_URL)",
+            "openai-compatible provider requires apiKey (DEEPSEEK_API_KEY or OPENAI_API_KEY)",
           );
         }
         service = createOpenAICompatLLM({
