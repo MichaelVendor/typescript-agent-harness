@@ -47,7 +47,7 @@ function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
 
 type OpenAIMessage = {
   role: string;
-  content?: string | null;
+  content?: string | null | Array<{ type: string; text?: string; image_url?: { url: string } }>;
   tool_calls?: Array<{
     id: string;
     type: string;
@@ -78,7 +78,17 @@ function toOpenAIMessages(messages: ChatMessage[]): OpenAIMessage[] {
       }
       return out;
     }
-    return { role: m.role, content: m.content };
+    if (m.role === "user" && Array.isArray(m.content)) {
+      return {
+        role: "user",
+        content: m.content.map((part) =>
+          part.type === "text"
+            ? { type: "text", text: part.text }
+            : { type: "image_url", image_url: { url: part.image_url.url } },
+        ),
+      };
+    }
+    return { role: m.role, content: m.content as string };
   });
 }
 
@@ -196,7 +206,7 @@ export function createOpenAICompatLLM(config: OpenAICompatConfig): LLMService {
     const assistant: Extract<ChatMessage, { role: "assistant" }> = {
       role: "assistant",
     };
-    if (msg?.content) assistant.content = msg.content;
+    if (typeof msg?.content === "string" && msg.content) assistant.content = msg.content;
     if (toolCalls?.length) assistant.toolCalls = toolCalls;
 
     const response: LLMResponse = {

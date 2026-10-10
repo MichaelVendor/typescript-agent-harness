@@ -8,6 +8,7 @@ export {
 } from "./openai.js";
 export type {
   ChatMessage,
+  ContentPart,
   FinishReason,
   JSONSchema,
   LLMRequest,
