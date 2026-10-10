@@ -274,13 +274,11 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
   const typing = !snap.approval && !picker && !(snap.stepLimit && !snap.busy) && !exiting;
   const layout = layoutEditor(editor, Math.max(1, columns - INPUT_INSET - 2));
 
-  useEffect(() => {
-    if (!typing || !inputBox.hasMeasured) return setCursorPosition(undefined);
-    setCursorPosition({
-      x: inputBox.left + INPUT_INSET + layout.cursor.x,
-      y: inputBox.top + 1 + layout.cursor.y,
-    });
-  });
+  setCursorPosition(
+    typing && inputBox.hasMeasured
+      ? { x: inputBox.left + INPUT_INSET + layout.cursor.x, y: inputBox.top + 1 + layout.cursor.y }
+      : undefined,
+  );
 
   const hint = snap.busy ? "Ctrl+C stop" : "Enter send · Alt+Enter newline · / commands";
   const status = [snap.model ?? "tah", snap.sessionId, `${snap.rounds} rounds`, ...(host.approve ? [] : ["approve=off"])];
