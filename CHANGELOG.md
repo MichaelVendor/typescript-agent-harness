@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.26.2 — 2026-10-10
+
+CLI: `tah run --quiet` prints only the final reply, once the run ends, with no blank-line padding. Text the model wrote before its tool calls (“Let me check the docs…”) used to stream into stdout ahead of the answer.
+
+Repo: new issues get an automatic reply from a tah convention project in `.github/docs-assistant/` that answers from the docs in the checkout (workflow `docs-assistant.yml`, needs the `DEEPSEEK_API_KEY` secret).
+
 ## 0.26.1 — 2026-10-10
 
 Web: the message box and the Send / Stop button are now the same height on one line (the button sat 6px lower), and a growing message box accounts for its border instead of overflowing by 2px. With several lines the button stays at the bottom.
