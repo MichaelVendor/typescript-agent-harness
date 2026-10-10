@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.0 — 2026-10-10
+
+CLI: `tah serve` runs a local web workbench for the agent in the current directory and opens the browser: streamed Markdown, tool lines, approval cards (allow once / always / reject), step-limit continue, a session sidebar (switch / new / fork), stop, and a status bar — parity with the TUI. One current session; every open tab shows it and stays in sync, and a reloaded or reconnected tab rebuilds from the server. It listens on `127.0.0.1` only (default port 7420, `--port <n>`, `--no-open`); the printed link carries a one-time token that the page exchanges for an HttpOnly cookie, and `Host` / `Origin` are checked on every request. The other `tah chat` flags apply as before.
+
+CLI: `ChatHost` gains `user` and `approval.end` events and `snapshot()`, and the protocol types (`HostEvent`, `SessionEvent`, `ServeRequest`, …) are exported from the package. The TUI now shows the user's message and clears answered approvals from these events.
+
+Web: new private package `packages/web` (React + Vite), built into `packages/cli/dist/web` and shipped with the CLI. It depends only on the CLI's protocol types; Markdown is rendered without raw HTML.
+
 ## 0.24.2 — 2026-10-10
 
 CLI: the TUI's terminal cursor now sits in the input box. It used to lag one render behind, ending up below the status bar after a reply and one keystroke behind while typing.

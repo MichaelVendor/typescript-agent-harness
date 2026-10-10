@@ -8,7 +8,7 @@
 | 📐 已设计 | 方向已定，代码未做或只做了一部分 |
 | 🧭 规划中 | 以后可能做，现在不要当 API |
 
-当前版本 **v0.24.2**。已实现的包：
+当前版本 **v0.25.0**。已实现的包：
 
 | 包 | 作用 |
 | --- | --- |
@@ -20,8 +20,8 @@
 | `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |
 | `@typescript-agent-harness/mcp` | `McpBackend` → Tool（进程内 ping + stdio） |
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
-| `@typescript-agent-harness/cli` | `tah run` / `tah chat` / `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`） |
+| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`） |
 
-未做：TUI、Web UI、官方 MCP SDK 封装、shell/sandbox、插件市场。
+未做：官方 MCP SDK 封装、shell/sandbox、插件市场。
 
 各版本「踩了什么坑、为何改、怎么改」见 [版本踩坑与改动](/guide/lessons)。
