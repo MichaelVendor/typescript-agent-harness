@@ -245,7 +245,10 @@ test("tah init scaffolds a project and never overwrites", () => {
   const out = initProject(cwd).join("\n");
   assert.match(out, /skip {4}AGENTS\.md/);
   assert.match(out, /create {2}tools\/current-time\.ts/);
+  assert.match(out, /create {2}tah\.config\.json/);
   assert.equal(readFileSync(path.join(cwd, "AGENTS.md"), "utf8"), "mine");
+  const cfg = JSON.parse(readFileSync(path.join(cwd, "tah.config.json"), "utf8"));
+  assert.equal(cfg.capabilities?.coding, true);
   const pkg = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8"));
   assert.ok(pkg.devDependencies["@typescript-agent-harness/cli"]);
   assert.doesNotMatch(out, /does not depend on/);

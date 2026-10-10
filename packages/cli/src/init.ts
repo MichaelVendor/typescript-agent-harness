@@ -49,6 +49,14 @@ const GITIGNORE = `node_modules
 .tah
 `;
 
+/** Example: with tools/ present, coding true keeps the built-in file tools mounted. */
+const TAH_CONFIG = `{
+  "capabilities": {
+    "coding": true
+  }
+}
+`;
+
 function packageJson(cwd: string, version: string): string {
   const pkg = {
     name: path.basename(path.resolve(cwd)).toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
@@ -68,6 +76,7 @@ export function initProject(cwd: string): string[] {
     ["package.json", packageJson(cwd, version)],
     ["AGENTS.md", AGENTS_MD],
     ["tools/current-time.ts", EXAMPLE_TOOL],
+    ["tah.config.json", TAH_CONFIG],
     ["tsconfig.json", TSCONFIG],
     [".env.example", ENV_EXAMPLE],
     [".gitignore", GITIGNORE],

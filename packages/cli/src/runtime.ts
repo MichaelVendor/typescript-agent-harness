@@ -21,6 +21,12 @@ import {
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
+import {
+  assertWebImplemented,
+  loadTahConfig,
+  resolveCapabilities,
+  type ResolvedCapabilities,
+} from "./config.js";
 import { createMarkdownStream, dim, renderMarkdown, useColor } from "./markdown.js";
 import { loadProject, ProjectError, type Project } from "./project.js";
 import { buildSystemPrompt } from "./prompt.js";
@@ -51,14 +57,25 @@ export function describeProject(project: Project, systemFile: boolean): string {
 export async function bootRuntime(
   flags: CliFlags,
   opts: { ask?: ApprovalPluginOptions["ask"]; print?: boolean; project?: Project | undefined } = {},
-): Promise<{ runtime: Runtime; streamed: StreamFlag; project: Project | undefined; startup: string }> {
+): Promise<{
+  runtime: Runtime;
+  streamed: StreamFlag;
+  project: Project | undefined;
+  startup: string;
+  caps: ResolvedCapabilities;
+}> {
   const ask = flags.yes ? undefined : opts.ask;
   const project = "project" in opts ? opts.project : await loadProject(flags.cwd);
   const role = flags.systemFile
     ? readFileSync(path.resolve(flags.systemFile), "utf8")
     : project?.instructions;
-  const builtin = !project?.hasToolsDir || flags.builtinTools;
-  const exec = builtin && flags.exec;
+  const config = loadTahConfig(flags.cwd);
+  const caps = resolveCapabilities(config, flags, project);
+  assertWebImplemented(caps);
+  flags.vision = caps.vision;
+  const builtin = caps.coding;
+  const exec = caps.exec;
+  const mcpOn = Boolean(caps.mcp);
   const hasKey = Boolean(
     process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY,
   );
@@ -95,7 +112,7 @@ export async function bootRuntime(
     console.log(color ? dim(line) : line);
   };
 
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${flags.mcpCommand ? " mcp=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -169,13 +186,13 @@ export async function bootRuntime(
 
   runtime.use(llmPlugin({ provider })).use(toolsPlugin({ tools }));
 
-  if (flags.mcpCommand) {
+  if (caps.mcp) {
     const { mcpPlugin, stdioMcpBackend } = await import("@typescript-agent-harness/mcp");
     runtime.use(
       mcpPlugin({
         backend: stdioMcpBackend({
-          command: flags.mcpCommand,
-          args: flags.mcpArgs,
+          command: caps.mcp.command,
+          args: caps.mcp.args,
           cwd: flags.cwd,
         }),
       }),
@@ -188,7 +205,7 @@ export async function bootRuntime(
       contextChars: DEFAULT_CONTEXT_CHARS,
       systemPrompt: buildSystemPrompt({
         exec,
-        mcp: Boolean(flags.mcpCommand),
+        mcp: mcpOn,
         builtinTools: builtin,
         ...(role !== undefined ? { role } : {}),
       }),
@@ -203,7 +220,7 @@ export async function bootRuntime(
   for (const plugin of project?.plugins ?? []) runtime.use(plugin);
 
   await runtime.start();
-  return { runtime, streamed, project, startup };
+  return { runtime, streamed, project, startup, caps };
 }
 
 export async function openChatSession(

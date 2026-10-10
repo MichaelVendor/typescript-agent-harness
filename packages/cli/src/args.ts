@@ -6,6 +6,8 @@ export type CliFlags = {
   persist: boolean;
   quiet: boolean;
   exec: boolean;
+  /** True when `--exec` or `--no-exec` was passed (config must not win over an explicit flag). */
+  execSet: boolean;
   yes: boolean;
   systemFile: string;
   session: string;
@@ -30,9 +32,12 @@ export type CliFlags = {
   watch: boolean;
   /** `tah serve`: project image attachments into multimodal LLM requests. */
   vision: boolean;
+  /** True when `--vision` was passed or `TAH_VISION=1` at parse time. */
+  visionSet: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
+  const visionFromEnv = process.env.TAH_VISION === "1";
   const flags: CliFlags = {
     command: "help",
     prompt: "",
@@ -41,6 +46,7 @@ export function parseArgv(argv: string[]): CliFlags {
     persist: true,
     quiet: false,
     exec: true,
+    execSet: false,
     yes: false,
     systemFile: "",
     session: "",
@@ -56,7 +62,8 @@ export function parseArgv(argv: string[]): CliFlags {
     port: 7420,
     open: true,
     watch: true,
-    vision: process.env.TAH_VISION === "1",
+    vision: visionFromEnv,
+    visionSet: visionFromEnv,
   };
   const rest: string[] = [];
   let help = false;
@@ -68,15 +75,22 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--persist") flags.persist = true;
     else if (arg === "--no-persist") flags.persist = false;
     else if (arg === "--quiet") flags.quiet = true;
-    else if (arg === "--exec") flags.exec = true;
-    else if (arg === "--no-exec") flags.exec = false;
-    else if (arg === "--yes" || arg === "-y") flags.yes = true;
+    else if (arg === "--exec") {
+      flags.exec = true;
+      flags.execSet = true;
+    } else if (arg === "--no-exec") {
+      flags.exec = false;
+      flags.execSet = true;
+    } else if (arg === "--yes" || arg === "-y") flags.yes = true;
     else if (arg === "--builtin-tools") flags.builtinTools = true;
     else if (arg === "--no-install") flags.install = false;
     else if (arg === "--plain") flags.plain = true;
     else if (arg === "--no-open") flags.open = false;
     else if (arg === "--no-watch") flags.watch = false;
-    else if (arg === "--vision") flags.vision = true;
+    else if (arg === "--vision") {
+      flags.vision = true;
+      flags.visionSet = true;
+    }
     else if (arg === "--port") {
       const next = argv[i + 1];
       const n = Number(next);
@@ -199,6 +213,7 @@ Flags:
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)
+  tah.config.json     optional capabilities / extensions (CLI flags override)
   tools/<name>.ts     export default defineTool({...}); file query-order.ts → tool query_order
   plugins/<name>.ts   export default definePlugin({...}); registered after the built-ins
   Only top-level files load; skipped: _*.ts, *.test.*, *.spec.*, *.d.ts, subdirectories.
