@@ -60,7 +60,7 @@ export default defineTool({
 
 `tah chat` / `tah serve` 运行中改 `AGENTS.md`、`tools/`、`plugins/`、`lib/`，保存后自动重新加载，对话不断（v0.26）。
 
-规则（何时生效、内置工具、插件、热更新、报错）见 [CLI · 约定式项目](/guide/cli)；完整示例 `pnpm demo:convention`。
+规则（何时生效、内置工具、插件、热更新、报错）见 [CLI · 约定式项目](/guide/cli)；完整示例 `pnpm demo:convention`。从零做到上线的完整过程见 [教程：做一个文档问答 Agent](/guide/tutorial-docs-agent)。
 
 ## 从源码开发
 
@@ -132,6 +132,7 @@ pnpm docs:preview
 
 ## 下一步
 
+- [教程：做一个文档问答 Agent](/guide/tutorial-docs-agent)
 - [设计哲学](/guide/philosophy)
 - [Runtime](/guide/runtime)
 - [CLI](/guide/cli)

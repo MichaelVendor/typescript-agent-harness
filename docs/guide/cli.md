@@ -190,7 +190,7 @@ export default defineTool({
 - **出错**：文件加载失败、导出不对、名字不合法、重名，都在启动时报错并给出文件路径，退出码 1。运行中改出错不会退出，见下文「热更新」。
 - **审批**：自定义工具执行前不询问。
 
-启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）。
+启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）；从零做到部署的教程见 [做一个文档问答 Agent](/guide/tutorial-docs-agent)。
 
 ### 热更新（v0.26）
 

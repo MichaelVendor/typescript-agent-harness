@@ -18,6 +18,7 @@ const guideSidebar = [
     text: "开始",
     items: [
       { text: "快速开始", link: "/guide/getting-started" },
+      { text: "教程：文档问答 Agent", link: "/guide/tutorial-docs-agent" },
       { text: "文档状态说明", link: "/guide/status" },
       { text: "版本踩坑与改动", link: "/guide/lessons" },
     ],
