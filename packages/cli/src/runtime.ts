@@ -260,9 +260,13 @@ export async function openSessionByRef(runtime: Runtime, ref: string): Promise<S
   return session;
 }
 
-export async function describeSessions(runtime: Runtime, currentId?: string): Promise<string> {
+export async function describeSessions(
+  runtime: Runtime,
+  currentId?: string,
+  cwd?: string,
+): Promise<string> {
   const rows = await (await storageOf(runtime)).listSessions();
-  return formatSessions(toRows(rows), currentId);
+  return formatSessions(toRows(rows, cwd), currentId);
 }
 
 /** For `tah sessions`: reads `<cwd>/.tah/cli.db` without an LLM or API key. */
@@ -274,7 +278,7 @@ export async function listSavedSessions(cwd: string): Promise<string> {
   runtime.use(storagePlugin({ driver: "sqlite", path: dbPath }));
   await runtime.start();
   try {
-    return await describeSessions(runtime);
+    return await describeSessions(runtime, undefined, cwd);
   } finally {
     await runtime.stop();
   }

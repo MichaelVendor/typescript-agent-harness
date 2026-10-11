@@ -114,19 +114,37 @@ pre {
   padding: 0 8px 12px;
   overflow-y: auto;
 }
+.session-item {
+  margin-bottom: 2px;
+  border-radius: 6px;
+}
+.session-item.current {
+  background: var(--bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
 .session {
   display: flex;
   flex-direction: column;
   width: 100%;
   text-align: left;
+  padding: 4px 4px 4px 8px;
+}
+.preview-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+}
+.session-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
   border: none;
   background: transparent;
-  padding: 6px 8px;
-  margin-bottom: 2px;
-}
-.session.current {
-  background: var(--bg);
-  box-shadow: inset 2px 0 0 var(--accent);
+  padding: 2px 0;
+  color: inherit;
+  font: inherit;
 }
 .session .preview {
   overflow: hidden;
@@ -136,6 +154,38 @@ pre {
 .session .meta {
   font-size: 12px;
   color: var(--muted);
+}
+.session-rename-btn {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.2;
+  opacity: 0;
+}
+.session-item:hover .session-rename-btn,
+.session-item.current .session-rename-btn,
+.session-rename-btn:focus-visible {
+  opacity: 1;
+}
+.session-rename-btn:hover {
+  background: var(--panel);
+  color: var(--fg);
+}
+.session-rename {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font: inherit;
+  background: var(--panel);
+  color: var(--fg);
+}
+.user-attach-fallback {
+  color: var(--muted);
+  font-size: 13px;
 }
 
 main {

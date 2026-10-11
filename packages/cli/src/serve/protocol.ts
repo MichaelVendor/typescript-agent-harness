@@ -11,6 +11,7 @@ export type ServeRequest = {
   answer: { id: string; answer: ApprovalAnswer };
   resume: { ref: string };
   fork: { turns?: number };
+  rename: { id: string; title: string };
 };
 
 export type { AttachmentMeta };

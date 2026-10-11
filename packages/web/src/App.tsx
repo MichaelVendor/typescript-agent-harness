@@ -36,7 +36,8 @@ export function App() {
       if (cancelled) return;
       stop = connect({
         onOpen() {
-          enqueue({ type: "local.reset" });
+          // Do not wipe state here: SSE may deliver the session replay in the same tick,
+          // and a trailing reset would leave the transcript blank.
           api.info().then(setInfo, () => {});
         },
         onEvent: enqueue,
@@ -85,6 +86,11 @@ export function App() {
         onNew={() => run(api.reset())}
         onFork={() => run(api.fork())}
         onPick={(id) => run(api.resume({ ref: id }))}
+        onRename={async (id, title) => {
+          await api.rename({ id, title });
+          const rows = await api.sessions();
+          setSessions(rows);
+        }}
       />
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}

@@ -20,6 +20,7 @@ const host = {
   resume: async () => {},
   fork: async () => {},
   listSessions: async () => [],
+  renameSession: async () => undefined,
   close: async () => {},
 };
 

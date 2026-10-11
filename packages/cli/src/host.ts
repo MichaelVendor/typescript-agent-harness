@@ -20,7 +20,8 @@ import {
   storageOf,
   turnRounds,
 } from "./runtime.js";
-import { toRows, type SessionRow } from "./sessions.js";
+import { setSessionTitle } from "./session-titles.js";
+import { displayUserText, toRows, type SessionRow } from "./sessions.js";
 import { watchProject } from "./watch.js";
 
 export type HistoryItem =
@@ -68,6 +69,8 @@ export type ChatHost = {
   resume(ref: string): Promise<void>;
   fork(turns?: number): Promise<void>;
   listSessions(): Promise<SessionRow[]>;
+  /** Set or clear a custom sidebar title; returns the stored title (undefined if cleared). */
+  renameSession(id: string, title: string): Promise<string | undefined>;
   close(): Promise<void>;
 };
 
@@ -133,7 +136,7 @@ export function historyOf(
       const parsed = parseUserContent(raw);
       history.push({
         role: "user",
-        text: parsed.text,
+        text: displayUserText(parsed.text),
         ...(parsed.attachments.length ? { attachments: parsed.attachments } : {}),
       });
     }
@@ -447,9 +450,9 @@ export async function createChatHost(
             );
             return session.run({ text: display, content: userContentForVision(display, refs, images) });
           }
-          return session.run(prompt || composeAttachmentPrompt("(attachments only)", refs));
+          return session.run(prompt);
         };
-        return turn(run, { text: display || "(attachments)", ...(meta.length ? { attachments: meta } : {}) });
+        return turn(run, { text: display, ...(meta.length ? { attachments: meta } : {}) });
       }),
     continueTurn: () => ready(() => turn(() => session.resume())),
     cancel() {
@@ -475,7 +478,14 @@ export async function createChatHost(
         session = await sessions.fork(session.id, turns === undefined ? {} : { turns });
         showSession(true);
       }),
-    listSessions: () => ready(async () => toRows(await (await storageOf(runtime)).listSessions())),
+    listSessions: () =>
+      ready(async () => toRows(await (await storageOf(runtime)).listSessions(), flags.cwd)),
+    renameSession: (id, title) =>
+      ready(async () => {
+        const row = await (await storageOf(runtime)).getSession(id);
+        if (!row) throw new Error(`no session "${id}"`);
+        return setSessionTitle(flags.cwd, id, title);
+      }),
     async close() {
       stopWatching();
       await settled();

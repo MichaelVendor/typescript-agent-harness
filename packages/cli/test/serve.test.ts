@@ -109,7 +109,7 @@ function fakeHost() {
       const refs = attachmentIds.length ? store.getMany(attachmentIds) : [];
       emit({
         type: "user",
-        text: text || "(attachments)",
+        text,
         ...(refs.length
           ? {
               attachments: refs.map(({ id, kind, name, mime, bytes, sha256 }) => ({
@@ -139,6 +139,7 @@ function fakeHost() {
     resume: async () => {},
     fork: async () => {},
     listSessions: async () => [],
+    renameSession: async () => undefined,
     close: async () => {},
   };
   return { host, emit, finish: () => finish() };
@@ -328,7 +329,8 @@ test("upload attachment then send with attachmentIds", async () => {
     const events = await tab.until("user");
     const user = events.find((e) => e.type === "user") as Extract<HostEvent, { type: "user" }>;
     assert.equal(user.attachments?.[0]?.id, meta.id);
-    assert.equal(user.text, "(attachments)");
+    assert.equal(user.text, "");
+    assert.ok(user.attachments?.length);
     s.finish();
     await tab.until("turn.end");
     tab.close();

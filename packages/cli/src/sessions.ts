@@ -1,34 +1,67 @@
 import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
 import type { PersistedSession, StorageService } from "@typescript-agent-harness/storage";
+import type { AttachmentMeta } from "./attachments/store.js";
 import { parseUserContent } from "./attachments/compose.js";
+import { loadSessionTitles } from "./session-titles.js";
 
 export type SessionRow = {
   id: string;
   state: string;
   turns: number;
   updatedAt: number;
+  /** Auto title from first user turn (or attachments). */
   preview: string;
+  /** Optional user-set name; UI should prefer this over `preview`. */
+  title?: string;
 };
 
-function userText(content: string | ContentPart[]): string {
+const PLACEHOLDERS = new Set(["", "(attachments)", "(attachments only)"]);
+
+function userPayload(content: string | ContentPart[]): { text: string; attachments: AttachmentMeta[] } {
   const raw =
     typeof content === "string"
       ? content
       : content.filter((p) => p.type === "text").map((p) => p.text).join("\n");
-  return parseUserContent(raw).text;
+  return parseUserContent(raw);
 }
 
-export function toRows(rows: PersistedSession[]): SessionRow[] {
+/** Sidebar / list label: prefer real text, else attachment file names — never bare "(attachments)". */
+export function sessionPreview(text: string, attachments: AttachmentMeta[] = []): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (t && !PLACEHOLDERS.has(t)) return t.length > 60 ? `${t.slice(0, 60)}…` : t;
+  if (attachments.length === 1) {
+    const name = attachments[0]!.name.trim() || "attachment";
+    return name.length > 60 ? `${name.slice(0, 60)}…` : name;
+  }
+  if (attachments.length > 1) {
+    const first = attachments[0]!.name.trim() || "file";
+    const label = `${first} +${attachments.length - 1}`;
+    return label.length > 60 ? `${label.slice(0, 60)}…` : label;
+  }
+  return "New chat";
+}
+
+/** Display text for the transcript; strip internal placeholders. */
+export function displayUserText(text: string): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  return PLACEHOLDERS.has(t) ? "" : text;
+}
+
+export function toRows(rows: PersistedSession[], cwd?: string): SessionRow[] {
+  const titles = cwd !== undefined ? loadSessionTitles(cwd) : {};
   return rows.map((row) => {
     const messages = JSON.parse(row.messagesJson) as ChatMessage[];
-    const userTexts = messages.flatMap((m) => (m.role === "user" ? [userText(m.content)] : []));
-    const first = (userTexts[0] ?? "").replace(/\s+/g, " ").trim() || "(attachments)";
+    const users = messages.flatMap((m) => (m.role === "user" ? [userPayload(m.content)] : []));
+    const first = users[0] ?? { text: "", attachments: [] as AttachmentMeta[] };
+    const preview = sessionPreview(first.text, first.attachments);
+    const title = titles[row.id];
     return {
       id: row.id,
       state: row.status,
-      turns: userTexts.length,
+      turns: users.length,
       updatedAt: row.updatedAt,
-      preview: first.length > 60 ? `${first.slice(0, 60)}…` : first,
+      preview,
+      ...(title !== undefined ? { title } : {}),
     };
   });
 }
@@ -45,7 +78,8 @@ export function formatSessions(rows: SessionRow[], currentId?: string): string {
   return rows
     .map((r, i) => {
       const mark = r.id === currentId ? "*" : " ";
-      return `${mark}${String(i + 1).padStart(3)}  ${r.id}  ${r.state.padEnd(9)} ${String(r.turns).padStart(3)} turns  ${time(r.updatedAt)}  ${r.preview}`;
+      const label = r.title ?? r.preview;
+      return `${mark}${String(i + 1).padStart(3)}  ${r.id}  ${r.state.padEnd(9)} ${String(r.turns).padStart(3)} turns  ${time(r.updatedAt)}  ${label}`;
     })
     .join("\n");
 }

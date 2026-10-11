@@ -182,7 +182,7 @@ async function main(): Promise<void> {
         if (command === "/sessions" || command === "/resume" || command === "/fork") {
           try {
             if (command === "/sessions") {
-              console.log(await describeSessions(runtime, session.id));
+              console.log(await describeSessions(runtime, session.id, flags.cwd));
             } else if (command === "/resume") {
               if (!arg) throw new Error("usage: /resume <id|n>");
               session = await openSessionByRef(runtime, arg);

@@ -61,7 +61,7 @@ export function userContentForVision(
   images: Array<{ mime: string; data: Buffer }>,
 ): ContentPart[] {
   const prompt = composeAttachmentPrompt(text, refs);
-  const parts: ContentPart[] = [{ type: "text", text: prompt || "(attachments only)" }];
+  const parts: ContentPart[] = [{ type: "text", text: prompt || " " }];
   for (const img of images) {
     parts.push({
       type: "image_url",

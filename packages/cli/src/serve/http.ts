@@ -220,6 +220,15 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         await host.fork(turns as number | undefined);
         return json(res, 204);
       }
+      case "POST /api/rename": {
+        if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
+        const body = await readBody(req);
+        const id = str(body, "id");
+        if (typeof body.title !== "string") throw new HttpError(400, '"title" must be a string');
+        hub.assertIdle();
+        const title = await host.renameSession(id, body.title);
+        return json(res, 200, { id, title: title ?? null });
+      }
     }
     throw new HttpError(404, `no such endpoint: ${key}`);
   };

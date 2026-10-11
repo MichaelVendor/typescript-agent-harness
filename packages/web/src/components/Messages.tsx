@@ -36,7 +36,13 @@ const Row = memo(function Row({ entry }: { entry: Entry }) {
               ))}
             </div>
           ) : null}
-          {entry.text ? <div>{entry.text}</div> : null}
+          {entry.text ? (
+            <div>{entry.text}</div>
+          ) : entry.attachments?.length ? (
+            <div className="user-attach-fallback">Attached</div>
+          ) : (
+            <div className="user-attach-fallback">(empty)</div>
+          )}
         </div>
       );
     case "assistant":

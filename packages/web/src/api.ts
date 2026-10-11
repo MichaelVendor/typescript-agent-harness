@@ -58,6 +58,8 @@ export const api = {
   reset: () => post("/api/reset"),
   resume: (body: ServeRequest["resume"]) => post("/api/resume", body),
   fork: (body: ServeRequest["fork"] = {}) => post("/api/fork", body),
+  rename: async (body: ServeRequest["rename"]) =>
+    (await (await call("POST", "/api/rename", body)).json()) as { id: string; title: string | null },
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";
