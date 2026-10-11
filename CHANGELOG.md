@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.2 — 2026-10-11
+
+Web (`tah serve`): empty sessions show a short New chat placeholder in the main pane instead of a blank transcript.
+
 ## 0.28.1 — 2026-10-11
 
 CLI / Web (`tah serve`): session list titles for attachment-only turns use file names instead of `(attachments)`. Reconnecting no longer clears the transcript before the session replay (blank main pane). Sessions can be renamed from the sidebar (double-click or ✎); titles live in `<cwd>/.tah/session-titles.json` via `POST /api/rename`.
