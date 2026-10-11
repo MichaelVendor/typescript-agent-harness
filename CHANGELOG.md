@@ -1,8 +1,12 @@
 # Changelog
 
+## 0.28.3 — 2026-10-11
+
+Republish: `0.28.2` left `@typescript-agent-harness/llm` stuck in npm staging (installable CLI depended on a missing `llm@0.28.2`). Same features as 0.28.2.
+
 ## 0.28.2 — 2026-10-11
 
-Web (`tah serve`): empty sessions show a short New chat placeholder in the main pane instead of a blank transcript.
+Web (`tah serve`): empty sessions show a short New chat placeholder in the main pane instead of a blank transcript. **Broken on npm** — `llm@0.28.2` never left staging; use `0.28.3+`.
 
 ## 0.28.1 — 2026-10-11
 
