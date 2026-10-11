@@ -37,11 +37,11 @@ tah serve --mock    # 打开 http://127.0.0.1:7420/?token=…
 
 ## 做自己的 Agent
 
-不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具。
+不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具；官方能力（coding / vision / MCP 等）写在根目录可选的 `tah.config.json`（v0.28）。
 
 ```sh
 mkdir my-agent && cd my-agent
-npx @typescript-agent-harness/cli init   # 生成文件并装依赖
+npx @typescript-agent-harness/cli init   # 生成文件并装依赖（含示例 tah.config.json）
 npx tah --mock chat
 ```
 
@@ -58,9 +58,11 @@ export default defineTool({
 });
 ```
 
-`tah chat` / `tah serve` 运行中改 `AGENTS.md`、`tools/`、`plugins/`、`lib/`，保存后自动重新加载，对话不断（v0.26）。
+`tah chat` / `tah serve` 运行中改 `AGENTS.md`、`tools/`、`plugins/`、`lib/`，保存后自动重新加载，对话不断（v0.26）。改 `tah.config.json` 需重启。
 
-规则（何时生效、内置工具、插件、热更新、报错）见 [CLI · 约定式项目](/guide/cli)；完整示例 `pnpm demo:convention`。从零做到上线的完整过程见 [教程：做一个文档问答 Agent](/guide/tutorial-docs-agent)。
+- 约定与命令：[CLI · 约定式项目](/guide/cli)
+- 配置参考（查键）：[tah.config.json](/design/config)
+- 完整示例：`pnpm demo:convention`；从零上线见 [教程：做一个文档问答 Agent](/guide/tutorial-docs-agent)
 
 ## 从源码开发
 

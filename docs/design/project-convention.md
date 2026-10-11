@@ -231,7 +231,7 @@ v0.22 起 `write_file` / `execute_command` 执行前会询问 `[y/n/a]`。自定
 
 | 问题 | 决定 |
 | --- | --- |
-| 配置方式 | 纯目录约定，不要 `tah.config.ts` |
+| 配置方式 | 约定目录管角色/自定义工具；官方能力用根目录 `tah.config.json`（见 [项目配置](./config.md)，v0.28）；不做 TS/YAML config |
 | 工具名 | 由文件名推导，`name` 可覆盖 |
 | `AGENTS.md` | 替换人设，`--system-file` 优先 |
 | 项目模式开关 | `package.json` 依赖 CLI |

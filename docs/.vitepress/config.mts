@@ -7,54 +7,103 @@ import { defineConfig } from "vitepress";
  * Note: mermaid diagrams in markdown render as fenced code locally/on Pages
  * until a lightweight renderer is wired; avoid vitepress-plugin-mermaid under
  * pnpm (broken optimizeDeps / missing nested peers).
+ *
+ * Nav model (aligned with Vite / VitePress): Guide vs Config/Reference.
+ * - `/guide/` — how to use
+ * - `/design/` — design notes + config reference (tah.config.json)
+ * - `/api/` — package API
  */
 const base = process.env.DOCS_BASE ?? "/";
 
 const repo =
   process.env.DOCS_REPO_URL ?? "https://github.com/MichaelVendor/typescript-agent-harness";
 
-const guideSidebar = [
-  {
-    text: "开始",
-    items: [
-      { text: "快速开始", link: "/guide/getting-started" },
-      { text: "教程：文档问答 Agent", link: "/guide/tutorial-docs-agent" },
-      { text: "文档状态说明", link: "/guide/status" },
-      { text: "版本踩坑与改动", link: "/guide/lessons" },
-    ],
-  },
-  {
-    text: "设计",
-    items: [
-      { text: "设计哲学", link: "/guide/philosophy" },
-      { text: "整体架构", link: "/guide/architecture" },
-    ],
-  },
-  {
-    text: "核心",
-    items: [
-      { text: "Runtime", link: "/guide/runtime" },
-      { text: "Agent 与 Session", link: "/guide/agent-session" },
-      { text: "LLM", link: "/guide/llm" },
-      { text: "Tools 与 Runnable", link: "/guide/tools" },
-      { text: "Storage 与 Checkpoint", link: "/guide/storage" },
-      { text: "事件目录", link: "/guide/events" },
-      { text: "生态", link: "/guide/ecosystem" },
-      { text: "CLI", link: "/guide/cli" },
-    ],
-  },
-  {
-    text: "扩展",
-    items: [
-      { text: "编写插件", link: "/guide/plugins" },
-      { text: "路线图", link: "/guide/roadmap" },
-    ],
-  },
-  {
-    text: "API 参考",
-    items: [{ text: "@typescript-agent-harness/core", link: "/api/core" }],
-  },
-];
+/** Guide: learn and use. */
+function sidebarGuide() {
+  return [
+    {
+      text: "开始",
+      items: [
+        { text: "快速开始", link: "/guide/getting-started" },
+        { text: "教程：文档问答 Agent", link: "/guide/tutorial-docs-agent" },
+        { text: "文档状态说明", link: "/guide/status" },
+        { text: "版本踩坑与改动", link: "/guide/lessons" },
+      ],
+    },
+    {
+      text: "概念",
+      items: [
+        { text: "设计哲学", link: "/guide/philosophy" },
+        { text: "整体架构", link: "/guide/architecture" },
+      ],
+    },
+    {
+      text: "核心",
+      items: [
+        { text: "Runtime", link: "/guide/runtime" },
+        { text: "Agent 与 Session", link: "/guide/agent-session" },
+        { text: "LLM", link: "/guide/llm" },
+        { text: "Tools 与 Runnable", link: "/guide/tools" },
+        { text: "Storage 与 Checkpoint", link: "/guide/storage" },
+        { text: "事件目录", link: "/guide/events" },
+        { text: "生态", link: "/guide/ecosystem" },
+      ],
+    },
+    {
+      text: "使用",
+      items: [
+        { text: "CLI", link: "/guide/cli" },
+        { text: "配置 tah.config.json", link: "/design/config" },
+        { text: "编写插件", link: "/guide/plugins" },
+        { text: "路线图", link: "/guide/roadmap" },
+      ],
+    },
+  ];
+}
+
+/** Design notes + config reference (separate from day-1 guide). */
+function sidebarDesign() {
+  return [
+    {
+      text: "配置参考",
+      items: [{ text: "tah.config.json", link: "/design/config" }],
+    },
+    {
+      text: "设计说明",
+      collapsed: false,
+      items: [
+        { text: "约定式项目", link: "/design/project-convention" },
+        { text: "约定式热更新", link: "/design/reload" },
+        { text: "TUI 与会话接口", link: "/design/tui" },
+        { text: "tah serve", link: "/design/serve" },
+        { text: "附件", link: "/design/attachments" },
+      ],
+    },
+    {
+      text: "回到指南",
+      items: [
+        { text: "快速开始", link: "/guide/getting-started" },
+        { text: "CLI 用法", link: "/guide/cli" },
+      ],
+    },
+  ];
+}
+
+function sidebarApi() {
+  return [
+    {
+      text: "API 参考",
+      items: [{ text: "@typescript-agent-harness/core", link: "/api/core" }],
+    },
+    {
+      text: "相关",
+      items: [
+        { text: "配置 tah.config.json", link: "/design/config" },
+        { text: "CLI", link: "/guide/cli" },
+      ],
+    },
+  ];
+}
 
 export default defineConfig({
   lang: "zh-CN",
@@ -115,14 +164,15 @@ export default defineConfig({
     nav: [
       { text: "指南", link: "/guide/getting-started", activeMatch: "/guide/" },
       { text: "CLI", link: "/guide/cli" },
-      { text: "架构", link: "/guide/architecture" },
+      { text: "配置", link: "/design/config", activeMatch: "/design/" },
       { text: "API", link: "/api/core", activeMatch: "/api/" },
       { text: "路线图", link: "/guide/roadmap" },
     ],
 
     sidebar: {
-      "/guide/": guideSidebar,
-      "/api/": guideSidebar,
+      "/guide/": sidebarGuide(),
+      "/design/": sidebarDesign(),
+      "/api/": sidebarApi(),
     },
 
     socialLinks: [{ icon: "github", link: repo }],
