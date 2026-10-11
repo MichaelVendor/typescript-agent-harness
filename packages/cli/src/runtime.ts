@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { agentPlugin, SESSION, type Session } from "@typescript-agent-harness/agent";
 import { Runtime } from "@typescript-agent-harness/core";
@@ -28,8 +29,12 @@ import {
   type ResolvedCapabilities,
 } from "./config.js";
 import { createMarkdownStream, dim, renderMarkdown, useColor } from "./markdown.js";
-import { loadProject, ProjectError, type Project } from "./project.js";
+import { isProject, loadProject, ProjectError, type Project } from "./project.js";
 import { buildSystemPrompt } from "./prompt.js";
+import { buildSkillsCatalogSection } from "./skills/catalog.js";
+import { discoverSkills } from "./skills/discover.js";
+import { createSkillTool } from "./skills/tool.js";
+import type { SkillSummary } from "./skills/types.js";
 import { formatSessions, resolveSessionRef, toRows } from "./sessions.js";
 
 /**
@@ -63,6 +68,8 @@ export async function bootRuntime(
   project: Project | undefined;
   startup: string;
   caps: ResolvedCapabilities;
+  skills: SkillSummary[];
+  warnings: string[];
 }> {
   const ask = flags.yes ? undefined : opts.ask;
   const project = "project" in opts ? opts.project : await loadProject(flags.cwd);
@@ -112,7 +119,14 @@ export async function bootRuntime(
     console.log(color ? dim(line) : line);
   };
 
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}`;
+  const discovered = discoverSkills({
+    cwd: flags.cwd,
+    isProject: Boolean(project) || isProject(flags.cwd),
+    homeDir: os.homedir(),
+  });
+  const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
+  const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -139,6 +153,9 @@ export async function bootRuntime(
       );
     });
   }
+  if (print) {
+    for (const w of discovered.warnings) log(`[tah] ${w}`);
+  }
 
   if (flags.persist) {
     const { storagePlugin } = await import("@typescript-agent-harness/storage");
@@ -159,12 +176,19 @@ export async function bootRuntime(
         ...(exec ? [executeCommandTool(flags.cwd)] : []),
       ]
     : [];
+  const mountSkill = discovered.skills.some((s) => s.modelInvocable);
   for (const { file, tool } of project?.tools ?? []) {
+    if (mountSkill && tool.name === "skill") {
+      throw new ProjectError(
+        `tah: tools/${file}: tool "skill" is reserved by the CLI skills tool; rename the file or set name`,
+      );
+    }
     if (tools.some((t) => t.name === tool.name)) {
       throw new ProjectError(`tah: tools/${file}: tool "${tool.name}" is built in; rename the file or set name`);
     }
   }
   tools.push(...(project?.tools.map((t) => t.tool) ?? []));
+  if (mountSkill) tools.push(createSkillTool(discovered.skills));
 
   if (exec || flags.allow.length > 0 || flags.deny.length > 0) {
     const perms: PermissionsPluginOptions = {};
@@ -208,6 +232,7 @@ export async function bootRuntime(
         mcp: mcpOn,
         builtinTools: builtin,
         ...(role !== undefined ? { role } : {}),
+        ...(skillsCatalog !== undefined ? { skillsCatalog } : {}),
       }),
     }),
   );
@@ -220,7 +245,7 @@ export async function bootRuntime(
   for (const plugin of project?.plugins ?? []) runtime.use(plugin);
 
   await runtime.start();
-  return { runtime, streamed, project, startup, caps };
+  return { runtime, streamed, project, startup, caps, skills: discovered.skills, warnings: discovered.warnings };
 }
 
 export async function openChatSession(

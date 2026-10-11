@@ -22,9 +22,20 @@ export function applySlashSkills(
     const summary = byName.get(name);
     if (!summary || !summary.userInvocable) continue;
     seen.add(name);
-    const { body } = loadSkillBody(summary);
-    const resources = listSkillResources(summary.dir, body);
-    parts.push(renderSkillContent(summary, body, resources));
+    try {
+      const { body } = loadSkillBody(summary);
+      const resources = listSkillResources(summary.dir, body);
+      parts.push(renderSkillContent(summary, body, resources));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      parts.push(`<skill_content name="${name}">\nError: ${message}\n</skill_content>`);
+    }
   }
   return { displayText: text, modelSuffix: parts.join("\n\n") };
+}
+
+/** Drop a model-only skill payload so transcripts keep the user's original text. */
+export function stripSkillInjection(text: string): string {
+  const idx = text.indexOf("\n\n<skill_content ");
+  return idx < 0 ? text : text.slice(0, idx);
 }

@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { SESSION, type RunResult, type Session, type SessionService } from "@typescript-agent-harness/agent";
 import type { Runtime } from "@typescript-agent-harness/core";
 import type { ChatMessage } from "@typescript-agent-harness/llm";
@@ -22,6 +25,8 @@ import {
 } from "./runtime.js";
 import { setSessionTitle } from "./session-titles.js";
 import { displayUserText, toRows, type SessionRow } from "./sessions.js";
+import { applySlashSkills, stripSkillInjection } from "./skills/slash.js";
+import type { SkillSummary } from "./skills/types.js";
 import { watchProject } from "./watch.js";
 
 export type HistoryItem =
@@ -136,7 +141,7 @@ export function historyOf(
       const parsed = parseUserContent(raw);
       history.push({
         role: "user",
-        text: displayUserText(parsed.text),
+        text: displayUserText(stripSkillInjection(parsed.text)),
         ...(parsed.attachments.length ? { attachments: parsed.attachments } : {}),
       });
     }
@@ -208,6 +213,21 @@ export function rememberAlways(ask: ApprovalPluginOptions["ask"]): ApprovalPlugi
 
 const reason = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/^tah: /, "");
 
+/** Model prompt keeps the attachment text; a slash skill is appended and never shown as the user line. */
+function promptWithSkills(
+  prompt: string,
+  display: string,
+  skills: SkillSummary[],
+): { modelText: string; suffix: string } {
+  try {
+    const suffix = applySlashSkills(display, skills).modelSuffix;
+    if (!suffix) return { modelText: prompt, suffix: "" };
+    return { modelText: `${prompt}\n\n${suffix}`, suffix };
+  } catch {
+    return { modelText: prompt, suffix: "" };
+  }
+}
+
 /** `historyTurns`: how many recent turns `session` events carry (default 3, for a terminal). */
 export async function createChatHost(
   flags: CliFlags,
@@ -277,11 +297,15 @@ export async function createChatHost(
   let runtime: Runtime;
   let sessions: SessionService;
   let project: Project | undefined;
+  let skills: SkillSummary[] = [];
+  let skillWarnings: string[] = [];
   const boot = async (opts: { project?: Project | undefined } = {}) => {
     const booted = await bootRuntime(flags, { ask, print: false, ...opts });
     runtime = booted.runtime;
     sessions = runtime.get(SESSION);
     project = booted.project;
+    skills = booted.skills;
+    skillWarnings = booted.warnings;
     attach(runtime);
     return booted.startup;
   };
@@ -314,14 +338,17 @@ export async function createChatHost(
       await boot({ project: previous });
     }
     session = await openSessionByRef(runtime, id);
+    const reloaded = project
+      ? describeProject(project, Boolean(flags.systemFile)).replace("[tah] project:", "[tah] reloaded:")
+      : "[tah] reloaded";
     emit(
       failure === undefined
-        ? {
-            type: "notice",
-            text: describeProject(project!, Boolean(flags.systemFile)).replace("[tah] project:", "[tah] reloaded:"),
-          }
+        ? { type: "notice", text: reloaded }
         : { type: "notice", text: `[tah] reload failed — still using the previous version: ${reason(failure)}`, error: true },
     );
+    if (failure === undefined) {
+      for (const w of skillWarnings) emit({ type: "notice", text: `[tah] ${w}` });
+    }
   }
 
   const changed = new Set<string>();
@@ -342,7 +369,10 @@ export async function createChatHost(
   };
   let stopWatching = () => {};
   const watch = () => {
-    if (!flags.watch || !project) return;
+    if (!flags.watch) return;
+    const home = os.homedir();
+    const homeSkillsExist = existsSync(path.join(home, ".tah", "skills"));
+    if (!project && !homeSkillsExist) return;
     stopWatching = watchProject(flags.cwd, (files) => {
       if (!flags.persist) {
         emit({ type: "notice", text: `[tah] ${files.join(", ")} changed — restart to apply (persist is off)` });
@@ -350,7 +380,7 @@ export async function createChatHost(
       }
       for (const file of files) changed.add(file);
       reloadWhenIdle();
-    });
+    }, 200, { homeSkillsDir: home });
   };
   const sessionEvent = (resumed: boolean): SessionEvent => ({
     type: "session",
@@ -415,6 +445,7 @@ export async function createChatHost(
       if (!flags.quiet) {
         emit({ type: "notice", text: startup });
         if (project) emit({ type: "notice", text: describeProject(project, Boolean(flags.systemFile)) });
+        for (const w of skillWarnings) emit({ type: "notice", text: `[tah] ${w}` });
       }
       const opened = await openChatSession(runtime, flags);
       session = opened.session;
@@ -440,6 +471,7 @@ export async function createChatHost(
           sha256,
         }));
         const prompt = composeAttachmentPrompt(display, refs);
+        const { modelText, suffix } = promptWithSkills(prompt, display, skills);
         const run = async () => {
           if (flags.vision && refs.some((r) => r.kind === "image")) {
             const images = await Promise.all(
@@ -448,9 +480,16 @@ export async function createChatHost(
                 data: await attachments.readBytes(r.id),
               })),
             );
-            return session.run({ text: display, content: userContentForVision(display, refs, images) });
+            const content = userContentForVision(display, refs, images);
+            if (suffix) {
+              const first = content[0];
+              if (first && first.type === "text") {
+                content[0] = { type: "text", text: `${first.text}\n\n${suffix}` };
+              }
+            }
+            return session.run({ text: display, content });
           }
-          return session.run(prompt);
+          return session.run(modelText);
         };
         return turn(run, { text: display, ...(meta.length ? { attachments: meta } : {}) });
       }),

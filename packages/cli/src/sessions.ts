@@ -3,6 +3,7 @@ import type { PersistedSession, StorageService } from "@typescript-agent-harness
 import type { AttachmentMeta } from "./attachments/store.js";
 import { parseUserContent } from "./attachments/compose.js";
 import { loadSessionTitles } from "./session-titles.js";
+import { stripSkillInjection } from "./skills/slash.js";
 
 export type SessionRow = {
   id: string;
@@ -22,7 +23,8 @@ function userPayload(content: string | ContentPart[]): { text: string; attachmen
     typeof content === "string"
       ? content
       : content.filter((p) => p.type === "text").map((p) => p.text).join("\n");
-  return parseUserContent(raw);
+  const parsed = parseUserContent(raw);
+  return { text: stripSkillInjection(parsed.text), attachments: parsed.attachments };
 }
 
 /** Sidebar / list label: prefer real text, else attachment file names — never bare "(attachments)". */
