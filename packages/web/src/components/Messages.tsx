@@ -71,6 +71,14 @@ export function Messages({ entries, children }: { entries: Entry[]; children?: R
         pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
       }}
     >
+      {entries.length === 0 ? (
+        <div className="empty">
+          <div className="empty-title">New chat</div>
+          <p className="empty-hint">
+            Ask the agent anything below. Attach files with +, or drop / paste into the composer.
+          </p>
+        </div>
+      ) : null}
       {entries.map((entry) => (
         <Row key={entry.id} entry={entry} />
       ))}

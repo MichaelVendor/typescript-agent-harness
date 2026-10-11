@@ -208,6 +208,28 @@ main {
   padding: 16px max(16px, calc((100% - 860px) / 2));
 }
 
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: min(52vh, 420px);
+  padding: 24px 16px;
+  text-align: center;
+}
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.empty-hint {
+  margin: 8px 0 0;
+  max-width: 28rem;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .user {
   margin: 20px 0 8px;
   padding: 8px 12px;
