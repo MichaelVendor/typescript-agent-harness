@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.1 — 2026-10-11
+
+CLI / Web (`tah serve`): session list titles for attachment-only turns use file names instead of `(attachments)`. Reconnecting no longer clears the transcript before the session replay (blank main pane). Sessions can be renamed from the sidebar (double-click or ✎); titles live in `<cwd>/.tah/session-titles.json` via `POST /api/rename`.
+
 ## 0.28.0 — 2026-10-10
 
 CLI: convention projects may include a root `tah.config.json` for official capability packs (`capabilities.coding` / `web` / `vision`) and `extensions.mcp`. Merge order is built-in defaults → config → CLI / env. Unknown keys fail at startup. `capabilities.web: true` is rejected until web tools ship. `tah init` writes an example config (`coding: true` so builtins stay on next to `tools/`). Design: `docs/design/config.md`.
