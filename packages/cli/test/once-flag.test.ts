@@ -7,6 +7,8 @@ import { SCHEDULER } from "@typescript-agent-harness/scheduler";
 import { parseArgv } from "../dist/args.js";
 import { bootRuntime, runPrompt } from "../dist/runtime.js";
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+
 function baseFlags(cwd: string) {
   return {
     command: "run",
@@ -33,11 +35,11 @@ test("parseArgv defaults --once off and accepts a delay", () => {
 
 test("bootRuntime mounts scheduler only with --once", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-cli-once-"));
-  const off = await bootRuntime(baseFlags(cwd));
+  const off = await bootRuntime(baseFlags(cwd), { homeDir });
   assert.equal(off.runtime.context().tryGet(SCHEDULER), undefined);
   await off.runtime.stop();
 
-  const on = await bootRuntime({ ...baseFlags(cwd), onceMs: 20 });
+  const on = await bootRuntime({ ...baseFlags(cwd), onceMs: 20 }, { homeDir });
   assert.ok(on.runtime.context().tryGet(SCHEDULER));
   await on.runtime.stop();
 });
@@ -45,7 +47,7 @@ test("bootRuntime mounts scheduler only with --once", async () => {
 test("runPrompt --once fires a session after the delay", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-cli-once-run-"));
   const flags = { ...baseFlags(cwd), onceMs: 20 };
-  const { runtime, streamed } = await bootRuntime(flags);
+  const { runtime, streamed } = await bootRuntime(flags, { homeDir });
   const started = Date.now();
   const ended: string[] = [];
   runtime.on("scheduler.job.end", (e) => {

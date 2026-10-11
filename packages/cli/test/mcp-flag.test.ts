@@ -20,6 +20,8 @@ test("parseArgv defaults mcp off and accepts --mcp / --mcp-arg", () => {
   assert.deepEqual(on.mcpArgs, [pingServer]);
 });
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+
 test("bootRuntime mounts stdio MCP tools only with --mcp", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-cli-mcp-"));
   const base = {
@@ -38,18 +40,21 @@ test("bootRuntime mounts stdio MCP tools only with --mcp", async () => {
     maxSteps: 32,
   };
 
-  const off = await bootRuntime(base);
+  const off = await bootRuntime(base, { homeDir });
   assert.equal(
     off.runtime.get(TOOLS).listSchemas().some((t) => t.name === "ping"),
     false,
   );
   await off.runtime.stop();
 
-  const on = await bootRuntime({
-    ...base,
-    mcpCommand: process.execPath,
-    mcpArgs: [pingServer],
-  });
+  const on = await bootRuntime(
+    {
+      ...base,
+      mcpCommand: process.execPath,
+      mcpArgs: [pingServer],
+    },
+    { homeDir },
+  );
   assert.equal(
     on.runtime.get(TOOLS).listSchemas().some((t) => t.name === "ping"),
     true,

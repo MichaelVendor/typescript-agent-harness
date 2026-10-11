@@ -8,6 +8,8 @@ import { TOOLS } from "@typescript-agent-harness/tools";
 import { parseArgv } from "../dist/args.js";
 import { bootRuntime } from "../dist/runtime.js";
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+
 function baseFlags(cwd: string) {
   return {
     command: "run",
@@ -47,17 +49,20 @@ test("parseArgv accepts repeatable --allow and --deny", () => {
 test("bootRuntime --deny hides the tool; --allow is a whitelist", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-cli-perm-"));
 
-  const denied = await bootRuntime({ ...baseFlags(cwd), deny: ["write_file"] });
+  const denied = await bootRuntime({ ...baseFlags(cwd), deny: ["write_file"] }, { homeDir });
   const deniedNames = denied.runtime.get(TOOLS).listSchemas().map((t) => t.name);
   assert.equal(deniedNames.includes("write_file"), false);
   assert.equal(deniedNames.includes("list_files"), true);
   assert.ok(denied.runtime.context().tryGet(PERMISSIONS));
   await denied.runtime.stop();
 
-  const allowed = await bootRuntime({
-    ...baseFlags(cwd),
-    allow: ["list_files", "read_file"],
-  });
+  const allowed = await bootRuntime(
+    {
+      ...baseFlags(cwd),
+      allow: ["list_files", "read_file"],
+    },
+    { homeDir },
+  );
   const allowedNames = allowed.runtime.get(TOOLS).listSchemas().map((t) => t.name);
   assert.deepEqual(allowedNames.sort(), ["list_files", "read_file"]);
   await allowed.runtime.stop();

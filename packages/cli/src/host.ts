@@ -231,9 +231,10 @@ function promptWithSkills(
 /** `historyTurns`: how many recent turns `session` events carry (default 3, for a terminal). */
 export async function createChatHost(
   flags: CliFlags,
-  opts: { historyTurns?: number } = {},
+  opts: { historyTurns?: number; homeDir?: string } = {},
 ): Promise<ChatHost> {
   const historyTurns = opts.historyTurns ?? HISTORY_TURNS;
+  const homeDir = opts.homeDir ?? os.homedir();
   const listeners = new Set<(event: HostEvent) => void>();
   const emit = (event: HostEvent) => {
     for (const listener of listeners) listener(event);
@@ -300,7 +301,7 @@ export async function createChatHost(
   let skills: SkillSummary[] = [];
   let skillWarnings: string[] = [];
   const boot = async (opts: { project?: Project | undefined } = {}) => {
-    const booted = await bootRuntime(flags, { ask, print: false, ...opts });
+    const booted = await bootRuntime(flags, { ask, print: false, homeDir, ...opts });
     runtime = booted.runtime;
     sessions = runtime.get(SESSION);
     project = booted.project;
@@ -370,8 +371,7 @@ export async function createChatHost(
   let stopWatching = () => {};
   const watch = () => {
     if (!flags.watch) return;
-    const home = os.homedir();
-    const homeSkillsExist = existsSync(path.join(home, ".tah", "skills"));
+    const homeSkillsExist = existsSync(path.join(homeDir, ".tah", "skills"));
     if (!project && !homeSkillsExist) return;
     stopWatching = watchProject(flags.cwd, (files) => {
       if (!flags.persist) {
@@ -380,7 +380,7 @@ export async function createChatHost(
       }
       for (const file of files) changed.add(file);
       reloadWhenIdle();
-    }, 200, { homeSkillsDir: home });
+    }, 200, { homeSkillsDir: homeDir });
   };
   const sessionEvent = (resumed: boolean): SessionEvent => ({
     type: "session",

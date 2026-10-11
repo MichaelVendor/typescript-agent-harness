@@ -15,6 +15,7 @@ import {
 import { ProjectError } from "../dist/project.js";
 import { bootRuntime } from "../dist/runtime.js";
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
 const MARKER = JSON.stringify({
   type: "module",
   devDependencies: { "@typescript-agent-harness/cli": "*" },
@@ -145,7 +146,7 @@ test("bootRuntime loads tah.config.json coding with tools/", async () => {
     "tah.config.json": JSON.stringify({ capabilities: { coding: true, vision: true } }),
   });
   const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
-  const { runtime, caps, startup } = await bootRuntime(flags);
+  const { runtime, caps, startup } = await bootRuntime(flags, { homeDir });
   assert.equal(caps.coding, true);
   assert.equal(caps.vision, true);
   assert.equal(flags.vision, true);
@@ -161,7 +162,7 @@ test("bootRuntime rejects capabilities.web true", async () => {
     "tah.config.json": JSON.stringify({ capabilities: { web: true } }),
   });
   const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
-  await assert.rejects(bootRuntime(flags), (err: unknown) => {
+  await assert.rejects(bootRuntime(flags, { homeDir }), (err: unknown) => {
     assert.ok(err instanceof ProjectError);
     assert.match(err.message, /web is not implemented/);
     return true;
@@ -176,7 +177,7 @@ test("bootRuntime --no-exec overrides config coding.exec", async () => {
     ...parseArgv(["--mock", "--no-persist", "--quiet", "--no-exec", "run", "hi"]),
     cwd,
   };
-  const { runtime, caps } = await bootRuntime(flags);
+  const { runtime, caps } = await bootRuntime(flags, { homeDir });
   assert.equal(caps.exec, false);
   assert.equal(
     runtime.get(TOOLS).list().some((t) => t.name === "execute_command"),
@@ -195,7 +196,7 @@ test("bootRuntime mounts mcp from extensions.mcp", async () => {
     }),
   });
   const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
-  const { runtime, startup } = await bootRuntime(flags);
+  const { runtime, startup } = await bootRuntime(flags, { homeDir });
   assert.match(startup, /mcp=on/);
   assert.equal(runtime.get(TOOLS).listSchemas().some((t) => t.name === "ping"), true);
   await runtime.stop();

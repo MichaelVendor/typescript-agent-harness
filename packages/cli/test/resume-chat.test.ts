@@ -7,6 +7,8 @@ import { SESSION } from "@typescript-agent-harness/agent";
 import { bootRuntime, openChatSession } from "../dist/runtime.js";
 import type { CliFlags } from "../dist/args.js";
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+
 function flags(cwd: string, extra: Partial<CliFlags> = {}): CliFlags {
   return {
     command: "chat",
@@ -40,13 +42,13 @@ function flags(cwd: string, extra: Partial<CliFlags> = {}): CliFlags {
 
 test("openChatSession resumes the latest persisted session", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-resume-"));
-  const first = await bootRuntime(flags(cwd));
+  const first = await bootRuntime(flags(cwd), { homeDir });
   const created = await first.runtime.get(SESSION).create();
   await created.run("hello");
   const id = created.id;
   await first.runtime.stop();
 
-  const second = await bootRuntime(flags(cwd));
+  const second = await bootRuntime(flags(cwd), { homeDir });
   const opened = await openChatSession(second.runtime, flags(cwd));
   assert.equal(opened.resumed, true);
   assert.equal(opened.session.id, id);
@@ -56,13 +58,13 @@ test("openChatSession resumes the latest persisted session", async () => {
 
 test("resumed session picks up a new --system-file", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-system-"));
-  const first = await bootRuntime(flags(cwd));
+  const first = await bootRuntime(flags(cwd), { homeDir });
   await (await first.runtime.get(SESSION).create()).run("hello");
   await first.runtime.stop();
 
   const roleFile = path.join(cwd, "reviewer.md");
   writeFileSync(roleFile, "You are a strict code reviewer.");
-  const second = await bootRuntime(flags(cwd, { systemFile: roleFile }));
+  const second = await bootRuntime(flags(cwd, { systemFile: roleFile }), { homeDir });
   const opened = await openChatSession(second.runtime, flags(cwd, { systemFile: roleFile }));
   assert.equal(opened.resumed, true);
   const system = opened.session.messages[0];
@@ -74,7 +76,7 @@ test("resumed session picks up a new --system-file", async () => {
 
 test("openChatSession creates when persist is off", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-ephemeral-"));
-  const boot = await bootRuntime(flags(cwd, { persist: false }));
+  const boot = await bootRuntime(flags(cwd, { persist: false }), { homeDir });
   const a = await openChatSession(boot.runtime, flags(cwd, { persist: false }));
   const b = await openChatSession(boot.runtime, flags(cwd, { persist: false }));
   assert.equal(a.resumed, false);

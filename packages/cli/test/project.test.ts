@@ -15,6 +15,7 @@ import { bootRuntime } from "../dist/runtime.js";
 
 const cliRoot = fileURLToPath(new URL("..", import.meta.url));
 const MARKER = JSON.stringify({ type: "module", devDependencies: { "@typescript-agent-harness/cli": "*" } });
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
 
 const PLAIN_TOOL = `export default {
   description: "echo",
@@ -39,7 +40,7 @@ function flags(cwd: string, extra: string[] = []) {
 }
 
 async function boot(cwd: string, extra: string[] = []) {
-  const { runtime } = await bootRuntime(flags(cwd, extra));
+  const { runtime } = await bootRuntime(flags(cwd, extra), { homeDir });
   const tools = runtime.get(TOOLS).list().map((t) => t.name).sort();
   const session = await runtime.get(SESSION).create();
   const system = session.messages[0]?.content ?? "";
@@ -152,7 +153,7 @@ test("plugins/ register last, in file name order, and can add tools", async () =
 
 async function rejects(files: Record<string, string>, pattern: RegExp, extra: string[] = []) {
   const cwd = makeDir(files);
-  await assert.rejects(bootRuntime(flags(cwd, extra)), (err: unknown) => {
+  await assert.rejects(bootRuntime(flags(cwd, extra), { homeDir }), (err: unknown) => {
     assert.ok(err instanceof ProjectError);
     assert.match(err.message, pattern);
     return true;
@@ -222,7 +223,7 @@ test("loading again picks up edited tools and the helpers they import", async ()
 test("bootRuntime uses a project passed in instead of reading the directory", async () => {
   const cwd = makeDir({ "AGENTS.md": "You are a pirate." });
   const project = { instructions: "You are a parrot.", tools: [], plugins: [], hasToolsDir: false };
-  const { runtime } = await bootRuntime(flags(cwd), { project });
+  const { runtime } = await bootRuntime(flags(cwd), { project, homeDir });
   const session = await runtime.get(SESSION).create();
   assert.match(session.messages[0]?.content ?? "", /parrot/);
   await runtime.stop();

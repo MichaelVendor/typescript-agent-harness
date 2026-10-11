@@ -15,12 +15,14 @@ import {
   type HostEvent,
 } from "../dist/host.js";
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-host-home-"));
+
 function flags(cwd: string, argv: string[] = []) {
   return { ...parseArgv(["--mock", "--no-exec", ...argv, "chat"]), cwd };
 }
 
 async function openHost(cwd: string, argv: string[] = []) {
-  const host = await createChatHost(flags(cwd, argv));
+  const host = await createChatHost(flags(cwd, argv), { homeDir });
   const events: HostEvent[] = [];
   host.on((e) => events.push(e));
   await host.open();
@@ -146,7 +148,7 @@ test("approvals wait for an answer; abort and rejectAll answer no", async () => 
 
 test("snapshot returns the current session without emitting; historyTurns sets its length", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-host-"));
-  const host = await createChatHost(flags(cwd, ["--quiet"]), { historyTurns: Infinity });
+  const host = await createChatHost(flags(cwd, ["--quiet"]), { historyTurns: Infinity, homeDir });
   const events: HostEvent[] = [];
   host.on((e) => events.push(e));
   await host.open();

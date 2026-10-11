@@ -97,6 +97,8 @@ test("continue prompt: Enter or y continues; n, other text, or EOF stops", () =>
   assert.equal(wantsContinue(undefined), false);
 });
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+
 test("bootRuntime asks before write_file; --yes skips the question", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-approve-"));
   const flags = {
@@ -119,14 +121,14 @@ test("bootRuntime asks before write_file; --yes skips the question", async () =>
   });
   const call = { id: "c", name: "write_file", arguments: { path: "out.txt", content: "hi" } };
 
-  const gated = await bootRuntime(flags, { ask });
+  const gated = await bootRuntime(flags, { ask, homeDir });
   const rejected = await gated.runtime.get(TOOLS).execute(call, toolCtx(gated.runtime));
   assert.equal(rejected.ok, false);
   assert.equal(existsSync(path.join(cwd, "out.txt")), false);
   assert.deepEqual(asked, ["write_file"]);
   await gated.runtime.stop();
 
-  const yes = await bootRuntime({ ...flags, yes: true }, { ask });
+  const yes = await bootRuntime({ ...flags, yes: true }, { ask, homeDir });
   const ok = await yes.runtime.get(TOOLS).execute(call, toolCtx(yes.runtime));
   assert.equal(ok.ok, true);
   assert.deepEqual(asked, ["write_file"]);

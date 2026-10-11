@@ -58,10 +58,16 @@ export function describeProject(project: Project, systemFile: boolean): string {
 /**
  * `print: false` leaves stdout alone; the caller subscribes to runtime events itself (the TUI).
  * `project` skips reading the project files (a reload has already loaded them).
+ * `homeDir` overrides `os.homedir()` for `~/.tah/skills` (tests pass a temp directory).
  */
 export async function bootRuntime(
   flags: CliFlags,
-  opts: { ask?: ApprovalPluginOptions["ask"]; print?: boolean; project?: Project | undefined } = {},
+  opts: {
+    ask?: ApprovalPluginOptions["ask"];
+    print?: boolean;
+    project?: Project | undefined;
+    homeDir?: string;
+  } = {},
 ): Promise<{
   runtime: Runtime;
   streamed: StreamFlag;
@@ -122,7 +128,7 @@ export async function bootRuntime(
   const discovered = discoverSkills({
     cwd: flags.cwd,
     isProject: Boolean(project) || isProject(flags.cwd),
-    homeDir: os.homedir(),
+    homeDir: opts.homeDir ?? os.homedir(),
   });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
@@ -178,7 +184,7 @@ export async function bootRuntime(
     : [];
   const mountSkill = discovered.skills.some((s) => s.modelInvocable);
   for (const { file, tool } of project?.tools ?? []) {
-    if (mountSkill && tool.name === "skill") {
+    if (tool.name === "skill") {
       throw new ProjectError(
         `tah: tools/${file}: tool "skill" is reserved by the CLI skills tool; rename the file or set name`,
       );

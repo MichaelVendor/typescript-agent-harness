@@ -1,20 +1,30 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { SESSION } from "@typescript-agent-harness/agent";
 import { TOOLS } from "@typescript-agent-harness/tools";
 import { parseArgv } from "../dist/args.js";
 import { createChatHost, type HostEvent } from "../dist/host.js";
 import { ProjectError } from "../dist/project.js";
 import { bootRuntime } from "../dist/runtime.js";
-import { applySlashSkills } from "../dist/skills/slash.js";
+import { applySlashSkills, stripSkillInjection } from "../dist/skills/slash.js";
 import type { SkillSummary } from "../dist/skills/types.js";
 
 const MARKER = JSON.stringify({ type: "module", devDependencies: { "@typescript-agent-harness/cli": "*" } });
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-skills-home-"));
+const cli = fileURLToPath(new URL("../dist/cli.js", import.meta.url));
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const SKILL_TOOL = `export default {
+  description: "echo",
+  inputSchema: { type: "object" },
+  async execute() { return "x"; },
+};
+`;
 
 function writeTree(cwd: string, files: Record<string, string>): void {
   for (const [rel, content] of Object.entries(files)) {
@@ -63,7 +73,7 @@ test("bootRuntime mounts the skill tool, catalog, and skills+N", async () => {
   const cwd = project({
     "skills/greet/SKILL.md": skillMd("greet", "Say hi."),
   });
-  const booted = await bootRuntime(runFlags(cwd));
+  const booted = await bootRuntime(runFlags(cwd), { homeDir });
   try {
     assert.match(booted.startup, /skills\+1/);
     assert.deepEqual(booted.skills.map((s) => s.name), ["greet"]);
@@ -82,7 +92,7 @@ test("a user-only skill is listed but does not mount the skill tool", async () =
   const cwd = project({
     "skills/manual/SKILL.md": skillMd("manual", "Do it by hand.", "disable-model-invocation: true\n"),
   });
-  const booted = await bootRuntime(runFlags(cwd));
+  const booted = await bootRuntime(runFlags(cwd), { homeDir });
   try {
     assert.match(booted.startup, /skills\+1/);
     assert.equal(booted.skills[0]?.modelInvocable, false);
@@ -95,21 +105,22 @@ test("a user-only skill is listed but does not mount the skill tool", async () =
   }
 });
 
-test("a project tool named skill is rejected when the CLI mounts skill", async () => {
-  const cwd = project({
-    "skills/greet/SKILL.md": skillMd("greet", "Say hi."),
-    "tools/skill.ts": `export default {
-      description: "echo",
-      inputSchema: { type: "object" },
-      async execute() { return "x"; },
-    };
-    `,
-  });
-  await assert.rejects(bootRuntime(runFlags(cwd, ["--builtin-tools"])), (err: unknown) => {
-    assert.ok(err instanceof ProjectError);
-    assert.match(err.message, /tools\/skill\.ts: tool "skill" is reserved by the CLI skills tool/);
-    return true;
-  });
+test("a project tool named skill is reserved at boot", async () => {
+  const rejectSkill = async (cwd: string, extra: string[] = []) => {
+    await assert.rejects(bootRuntime(runFlags(cwd, extra), { homeDir }), (err: unknown) => {
+      assert.ok(err instanceof ProjectError);
+      assert.match(err.message, /tools\/skill\.ts: tool "skill" is reserved by the CLI skills tool/);
+      return true;
+    });
+  };
+  await rejectSkill(project({ "tools/skill.ts": SKILL_TOOL }));
+  await rejectSkill(
+    project({
+      "skills/greet/SKILL.md": skillMd("greet", "Say hi."),
+      "tools/skill.ts": SKILL_TOOL,
+    }),
+    ["--builtin-tools"],
+  );
 });
 
 test("applySlashSkills reports a load error instead of throwing", () => {
@@ -134,7 +145,7 @@ test("host send keeps the user text and appends the skill for the model", async 
     "AGENTS.md": "You are v1.",
     "skills/greet/SKILL.md": skillMd("greet", "Say hi."),
   });
-  const host = await createChatHost(chatFlags(cwd, ["--no-watch"]));
+  const host = await createChatHost(chatFlags(cwd, ["--no-watch"]), { homeDir });
   const events: HostEvent[] = [];
   host.on((e) => events.push(e));
   await host.open();
@@ -160,7 +171,7 @@ test("reload rediscovers skills for catalog and slash", async () => {
     "AGENTS.md": "You are v1.",
     "skills/greet/SKILL.md": skillMd("greet", "Say hi."),
   });
-  const host = await createChatHost(chatFlags(cwd));
+  const host = await createChatHost(chatFlags(cwd), { homeDir });
   const events: HostEvent[] = [];
   host.on((e) => events.push(e));
   await host.open();
@@ -184,4 +195,32 @@ test("reload rediscovers skills for catalog and slash", async () => {
   } finally {
     await host.close();
   }
+});
+
+test("plain tah chat sends /name to the model and keeps the user line", () => {
+  const cwd = project({
+    "skills/greet/SKILL.md": skillMd("greet", "Say hi."),
+  });
+  const env = { ...process.env, HOME: homeDir };
+  delete env.DEEPSEEK_API_KEY;
+  delete env.OPENAI_API_KEY;
+  delete env.DEEPSEEK_BASE_URL;
+  delete env.OPENAI_BASE_URL;
+  const result = spawnSync(
+    process.execPath,
+    [cli, "--mock", "--cwd", cwd, "--quiet", "--plain", "chat"],
+    { encoding: "utf8", input: "please /greet\n", env, timeout: 30_000 },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const db = new DatabaseSync(path.join(cwd, ".tah", "cli.db"));
+  const rows = db.prepare("SELECT messages_json FROM sessions").all() as Array<{ messages_json: string }>;
+  db.close();
+  const users = rows.flatMap((row) => {
+    const msgs = JSON.parse(row.messages_json) as Array<{ role: string; content: unknown }>;
+    return msgs.filter((m) => m.role === "user").map((m) => String(m.content));
+  });
+  assert.equal(users.length, 1);
+  assert.match(users[0]!, /^please \/greet\n\n<skill_content name="greet">/);
+  assert.match(users[0]!, /Say hi\./);
+  assert.equal(stripSkillInjection(users[0]!), "please /greet");
 });

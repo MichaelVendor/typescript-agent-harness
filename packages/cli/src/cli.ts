@@ -134,6 +134,7 @@ async function main(): Promise<void> {
   }
 
   if (flags.command === "chat") {
+    const { applySlashSkills } = await import("./skills/slash.js");
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -147,7 +148,7 @@ async function main(): Promise<void> {
       rl.close();
       throw err;
     }
-    const { runtime, streamed } = booted;
+    const { runtime, streamed, skills } = booted;
     const prompt = () => process.stdout.write("you> ");
     try {
       let { session, resumed } = await openChatSession(runtime, flags);
@@ -205,7 +206,9 @@ async function main(): Promise<void> {
         running = true;
         try {
           let from = session.steps.length;
-          let result = await session.run(line);
+          const suffix = applySlashSkills(line, skills).modelSuffix;
+          const modelText = suffix ? `${line}\n\n${suffix}` : line;
+          let result = await session.run(modelText);
           endTurn(result, session, flags.quiet, streamed, from);
           while (result.finishReason === "max_steps" && tty) {
             process.stdout.write(formatContinuePrompt(flags.maxSteps, useColor()));

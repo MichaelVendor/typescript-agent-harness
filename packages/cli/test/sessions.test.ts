@@ -12,6 +12,8 @@ import {
   openSessionByRef,
 } from "../dist/runtime.js";
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+
 function flags(cwd: string, argv: string[] = []) {
   return { ...parseArgv([...argv, "chat"]), cwd, mock: true, quiet: true, exec: false };
 }
@@ -26,7 +28,7 @@ test("tah sessions lists newest first; --session picks by number or id", async (
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-sessions-"));
   assert.match(await listSavedSessions(cwd), /no saved sessions/);
 
-  const boot = await bootRuntime(flags(cwd));
+  const boot = await bootRuntime(flags(cwd), { homeDir });
   const sessions = boot.runtime.get(SESSION);
   const older = await sessions.create();
   await older.run("first topic");
@@ -40,7 +42,7 @@ test("tah sessions lists newest first; --session picks by number or id", async (
   assert.match(lines[0]!, new RegExp(`1  ${newer.id}.*second topic`));
   assert.match(lines[1]!, new RegExp(`2  ${older.id}.*first topic`));
 
-  const byNumber = await bootRuntime(flags(cwd, ["--session", "2"]));
+  const byNumber = await bootRuntime(flags(cwd, ["--session", "2"]), { homeDir });
   const opened = await openChatSession(byNumber.runtime, flags(cwd, ["--session", "2"]));
   assert.equal(opened.session.id, older.id);
   assert.equal((await openSessionByRef(byNumber.runtime, newer.id)).id, newer.id);
@@ -51,7 +53,7 @@ test("tah sessions lists newest first; --session picks by number or id", async (
 test("--session needs persist", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-sessions-off-"));
   const f = flags(cwd, ["--no-persist", "--session", "1"]);
-  const boot = await bootRuntime(f);
+  const boot = await bootRuntime(f, { homeDir });
   await assert.rejects(openChatSession(boot.runtime, f), /persist/);
   await boot.runtime.stop();
 });

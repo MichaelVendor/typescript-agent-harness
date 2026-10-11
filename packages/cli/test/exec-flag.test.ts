@@ -14,6 +14,8 @@ test("parseArgv defaults exec on; --no-exec turns it off", () => {
   assert.equal(parseArgv(["--exec", "run", "hi"]).exec, true);
 });
 
+const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+
 test("bootRuntime mounts execute_command by default; --no-exec hides it", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-cli-"));
   const base = {
@@ -31,7 +33,7 @@ test("bootRuntime mounts execute_command by default; --no-exec hides it", async 
     maxSteps: 32,
   };
 
-  const on = await bootRuntime({ ...base, exec: true });
+  const on = await bootRuntime({ ...base, exec: true }, { homeDir });
   assert.equal(
     on.runtime.get(TOOLS).listSchemas().some((t) => t.name === "execute_command"),
     true,
@@ -39,7 +41,7 @@ test("bootRuntime mounts execute_command by default; --no-exec hides it", async 
   assert.ok(on.runtime.context().tryGet(PERMISSIONS));
   await on.runtime.stop();
 
-  const off = await bootRuntime({ ...base, exec: false });
+  const off = await bootRuntime({ ...base, exec: false }, { homeDir });
   const offNames = off.runtime.get(TOOLS).listSchemas().map((t) => t.name);
   assert.equal(offNames.includes("execute_command"), false);
   assert.equal(offNames.includes("grep"), true);
