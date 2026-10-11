@@ -1,6 +1,6 @@
 # CLI
 
-状态：✅ `packages/cli`（v0.28）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）· 附件（v0.27）· 项目配置能力包（v0.28）
+状态：✅ `packages/cli`（v0.28）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）· 附件（v0.27）· 项目配置能力包（v0.28）· **Skills**（v0.29，当前分支已落地）
 
 模型回复边生成边显示（`agent.assistant-stream`），不必等整段 `generate` 结束。
 
@@ -155,6 +155,8 @@ my-agent/
 │   └── query-order.ts     # → 工具 query_order
 ├── plugins/               # 一个文件 = 一个插件（可选）
 │   └── audit-log.ts       # → 插件 project:audit-log
+├── skills/                # Agent Skills（Markdown 指令，v0.29）
+│   └── hello/SKILL.md     # init 示例；模型用 skill 工具或 /hello 加载正文
 ├── lib/                   # 共用代码，不自动加载（改了会热更新）
 └── package.json           # 依赖 @typescript-agent-harness/cli
 ```
@@ -207,11 +209,15 @@ export default defineTool({
 - **出错**：文件加载失败、导出不对、名字不合法、重名，都在启动时报错并给出文件路径，退出码 1。运行中改出错不会退出，见下文「热更新」。
 - **审批**：自定义工具执行前不询问。
 
-启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）；从零做到部署的教程见 [做一个文档问答 Agent](/guide/tutorial-docs-agent)。
+启动行会多一行 `[tah] project: AGENTS.md tools+1 plugins+1`；有可用 skill 时还会带 `skills+N`。完整示例见 `examples/convention-agent`（`pnpm demo:convention`）；从零做到部署的教程见 [做一个文档问答 Agent](/guide/tutorial-docs-agent)。
+
+### Skills（v0.29）
+
+`skills/<name>/SKILL.md` 放可复用流程说明（对齐 [Agent Skills](https://agentskills.io/specification)）：启动只在 system prompt 里列出 **name + description**；模型用内置 **`skill`** 工具加载正文，或在 `tah chat` / `tah serve` 里输入 **`/hello`** 这类 slash（UI 仍只显示你打的那行字）。也读 `.agents/skills/`、`.cursor/skills/` 与 `~/.tah/skills/`（优先级与格式见 **[Skills 设计](/design/skills)**）。`tah init` 会生成 `skills/hello/SKILL.md` 作试玩示例。工具名 **`skill`** 由 CLI 保留，不要在 `tools/` 里占同名文件。
 
 ### 热更新（v0.26）
 
-终端里的 `tah chat` 和 `tah serve` 会监听 `AGENTS.md`、`tools/`、`plugins/`、`lib/`（含子目录）。保存后自动重新加载，当前会话和历史都保留，新的人设和工具从下一轮起生效：
+终端里的 `tah chat` 和 `tah serve` 会监听 `AGENTS.md`、`tools/`、`plugins/`、`lib/`（含子目录），以及 `skills/`、`.agents/skills/`、`.cursor/skills/` 与（若存在）`~/.tah/skills/`（v0.29）。保存后自动重新加载，当前会话和历史都保留，新的人设、工具与 skill catalog 从下一轮起生效：
 
 ```text
 [tah] reloaded: AGENTS.md tools+1 plugins+1

@@ -20,7 +20,7 @@
 | `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |
 | `@typescript-agent-harness/mcp` | `McpBackend` → Tool（进程内 ping + stdio） |
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
-| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`，改动热更新）+ `tah.config.json` 能力包 |
+| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包 · **Skills**（`skill` 工具 + `/name`，待 **v0.29** 发布，见 [设计说明](/design/skills)） |
 
 未做：官方 `capabilities.web`（`web_search` / `web_fetch`）、内置浏览器自动化、官方 MCP SDK 封装、shell/sandbox、插件市场。上网与浏览器现阶段用 `extensions.mcp` / `--mcp`（见 [CLI](/guide/cli.md)）。
 

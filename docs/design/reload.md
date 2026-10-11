@@ -4,7 +4,7 @@
 
 ## 背景
 
-约定式项目（见 [约定式项目设计](./project-convention.md)）的 `AGENTS.md`、`tools/`、`plugins/` 只在 `tah chat` / `tah serve` 启动时加载一次。边写工具边试的时候，每改一次都要 Ctrl+C 重启，`tah serve` 还要重新打开带令牌的链接。v0.26 让这些文件改了就生效，会话不中断。
+约定式项目（见 [约定式项目设计](./project-convention.md)）的 `AGENTS.md`、`tools/`、`plugins/` 只在 `tah chat` / `tah serve` 启动时加载一次。边写工具边试的时候，每改一次都要 Ctrl+C 重启，`tah serve` 还要重新打开带令牌的链接。v0.26 让这些文件改了就生效，会话不中断。v0.29 起同样监听 **Skills** 目录（见 [Skills](./skills.md)）。
 
 参考了 DeepSeek Harness（`dsh`）：
 
@@ -32,9 +32,9 @@ tah 的 `core` 没有作用域：插件必须在 `start()` 前注册，注册的
 ## 行为
 
 - **范围**：`ChatHost`（TUI 与 `tah serve` 共用）。只在约定式项目（`package.json` 依赖 CLI）里生效，默认开启，`--no-watch` 关闭。
-- **监听**：`AGENTS.md`；`tools/`、`plugins/`、`lib/` 下的所有文件，含子目录。`lib/` 是约定的共用代码目录（`examples/convention-agent` 的工具 `import "../lib/orders.ts"`），本身不加载，改了同样重载。目录启动时不存在，之后新建的也能发现。
+- **监听**：`AGENTS.md`；`tools/`、`plugins/`、`lib/` 下的所有文件，含子目录；`skills/`、`.agents/skills/`、`.cursor/skills/`（仅 skills 子树，v0.29）；若存在则还有 `~/.tah/skills/`。`lib/` 是约定的共用代码目录（`examples/convention-agent` 的工具 `import "../lib/orders.ts"`），本身不加载，改了同样重载。目录启动时不存在，之后新建的也能发现。
 - **时机**：变化防抖 200ms。正在跑一轮（含等待审批）时只记下，这一轮结束后再重载。重载中又有变化，跑完再重载一次。
-- **成功**：换上新 Runtime，按 id 重新打开当前会话（`Session` 恢复时会换成当前 system prompt，所以新的 `AGENTS.md` 从下一轮生效）。提示 `[tah] reloaded: AGENTS.md tools+2 plugins+1`（格式同启动时的 project 行）。
+- **成功**：换上新 Runtime，按 id 重新打开当前会话（`Session` 恢复时会换成当前 system prompt，所以新的 `AGENTS.md` 与 Skills catalog 从下一轮生效）。提示 `[tah] reloaded: AGENTS.md tools+2 plugins+1`（格式同启动时的 project 行；有 skill 时启动行还带 `skills+N`）。
 - **失败**：继续用旧版本，提示 `[tah] reload failed — still using the previous version: <原因>`；下次保存再试。
 - **「总是允许」**：`ChatHost` 自己记住答过「总是允许」的工具，重建后照样跳过审批（审批插件的记录随 Runtime 丢失）。
 - **`--no-persist`**：会话只在 Runtime 内存里，重建会丢，所以不重载，只提示 `[tah] <文件> changed — restart to apply (persist is off)`。

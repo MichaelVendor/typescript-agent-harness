@@ -74,6 +74,7 @@ function sidebarDesign() {
       items: [
         { text: "约定式项目", link: "/design/project-convention" },
         { text: "约定式热更新", link: "/design/reload" },
+        { text: "Skills", link: "/design/skills" },
         { text: "TUI 与会话接口", link: "/design/tui" },
         { text: "tah serve", link: "/design/serve" },
         { text: "附件", link: "/design/attachments" },

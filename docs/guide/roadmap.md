@@ -17,6 +17,7 @@
 | 11 | 约定式项目热更新（`AGENTS.md` / `tools/` / `plugins/` / `lib/`） | ✅ `v0.26` |
 | 12 | 附件（`tah serve`：上传、路径投影、可选 vision） | ✅ `v0.27` |
 | 13 | 项目配置（`tah.config.json` 能力包） | ✅ `v0.28` |
+| 14 | Skills（`SKILL.md`、catalog、`skill` 工具、`/name`、热更新） | ✅ 当前分支 · 待 **`v0.29`** 发布 |
 
 ## Phase 1 — Runtime ✅
 
@@ -208,6 +209,25 @@ pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的
 - 约定式项目可选根目录 `tah.config.json`：`capabilities`（coding / web / vision）+ `extensions.mcp`
 - 合并顺序：内置默认 → config → CLI / 环境变量；无文件时行为与 v0.27 一致
 - `capabilities.web: true` 在官方联网工具落地前启动报错；**上网 / 浏览器现阶段用 MCP**（见 [CLI · 上网与浏览器](/guide/cli.md)）；`tah init` 写入示例 config（仅 coding）
+
+## Phase 14 — Skills ✅（待 v0.29 发布）
+
+设计见 [Skills](/design/skills)。
+
+交付物：
+
+- 发现与合并 `skills/`、`.agents/skills/`、`.cursor/skills/`、`~/.tah/skills/` 下的 `SKILL.md`（及扁平 `.md`）
+- system prompt **catalog**（仅 model-invocable 的 name + description）；内置 **`skill`** 工具按需读正文
+- 用户 **`/kebab-name`**（`tah chat` TUI / `tah serve`）；`disable-model-invocation` 技能仅 slash 入口
+- 与 `AGENTS.md` / `tools/` 同类热更新；启动行 `skills+N`
+- `tah init` 示例 `skills/hello/SKILL.md`
+
+验收：
+
+```sh
+cd packages/cli && pnpm build && node --test --experimental-strip-types test/skills-*.test.ts
+mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah --mock chat   # 试 /hello
+```
 
 ## 非目标（刻意不做）
 

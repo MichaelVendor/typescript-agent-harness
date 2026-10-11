@@ -23,6 +23,8 @@ my-agent/
 │   └── refund.ts          # → 工具 refund
 ├── plugins/               # 一个文件 = 一个插件，自动加载（可选）
 │   └── audit-log.ts       # → 插件 project:audit-log
+├── skills/                # Agent Skills（Markdown 指令包，v0.29）
+│   └── hello/SKILL.md     # → 按需加载；见 [Skills](./skills.md)
 ├── lib/                   # 共用代码，不自动加载
 │   └── api-client.ts
 ├── .env                   # DEEPSEEK_API_KEY=...（已有约定）
@@ -47,7 +49,11 @@ mkdir my-agent && cd my-agent
 npx @typescript-agent-harness/cli init
 ```
 
-`tah init` 生成 `package.json`（依赖 CLI）、`AGENTS.md`、`tools/current-time.ts`、`tah.config.json`（可选能力包示例，v0.28）、`tsconfig.json`、`.env.example`、`.gitignore`，已存在的文件跳过不覆盖；随后自动装依赖（v0.23.1，`--no-install` 跳过；在别的 pnpm 工作区里用 `pnpm install --ignore-workspace`）。本地安装 CLI 既是项目模式的开关，也提供 `defineTool` / `definePlugin` 和类型；运行用 `npx tah chat`。全局装的 `tah` 在同一目录下也会读取同样的约定文件。
+`tah init` 生成 `package.json`（依赖 CLI）、`AGENTS.md`、`tools/current-time.ts`、`skills/hello/SKILL.md`（Skills 示例，v0.29）、`tah.config.json`（可选能力包示例，v0.28）、`tsconfig.json`、`.env.example`、`.gitignore`，已存在的文件跳过不覆盖；随后自动装依赖（v0.23.1，`--no-install` 跳过；在别的 pnpm 工作区里用 `pnpm install --ignore-workspace`）。本地安装 CLI 既是项目模式的开关，也提供 `defineTool` / `definePlugin` 和类型；运行用 `npx tah chat`。全局装的 `tah` 在同一目录下也会读取同样的约定文件。
+
+### Skills（v0.29）
+
+`skills/<name>/SKILL.md` 是可复用的任务流程说明（渐进披露：启动只注入 name + description，正文经 `skill` 工具或用户 `/name` 加载）。与 `tools/`（可执行代码）分工不同；发现路径、frontmatter、热更新见 **[Skills 设计](./skills.md)**。用户级目录 `~/.tah/skills/` 在非项目 cwd 也可单独使用。
 
 ### 2. 写工具
 

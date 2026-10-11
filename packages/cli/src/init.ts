@@ -57,6 +57,17 @@ const TAH_CONFIG = `{
 }
 `;
 
+const HELLO_SKILL = `---
+name: hello
+description: Tiny example skill. Use when the user asks to try skills or says hello-skill.
+---
+
+# Hello skill
+
+1. Greet the user briefly.
+2. Mention they invoked the hello skill.
+`;
+
 function packageJson(cwd: string, version: string): string {
   const pkg = {
     name: path.basename(path.resolve(cwd)).toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
@@ -76,6 +87,7 @@ export function initProject(cwd: string): string[] {
     ["package.json", packageJson(cwd, version)],
     ["AGENTS.md", AGENTS_MD],
     ["tools/current-time.ts", EXAMPLE_TOOL],
+    ["skills/hello/SKILL.md", HELLO_SKILL],
     ["tah.config.json", TAH_CONFIG],
     ["tsconfig.json", TSCONFIG],
     [".env.example", ENV_EXAMPLE],

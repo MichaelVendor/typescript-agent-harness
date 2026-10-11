@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+CLI: **Skills** — discover local `SKILL.md` packages (and flat `.md`) under `skills/`, `.agents/skills/`, `.cursor/skills/`, and `~/.tah/skills/`; merge by priority when names collide. Model-invocable skills appear as a catalog in the system prompt; load full instructions via the built-in `skill` tool or user `/kebab-name` in `tah chat` / `tah serve`. Hot reload covers the same skill directories. Reserved tool name `skill`. Design: `docs/design/skills`. `tah init` scaffolds `skills/hello/SKILL.md`.
+
 ## 0.28.3 — 2026-10-11
 
 Republish: `0.28.2` left `@typescript-agent-harness/llm` stuck in npm staging (installable CLI depended on a missing `llm@0.28.2`). Same features as 0.28.2.
