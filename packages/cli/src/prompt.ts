@@ -7,6 +7,7 @@ export function buildSystemPrompt(opts: {
   role?: string;
   /** false: only the project's tools are mounted, so the file / command rules are left out. */
   builtinTools?: boolean;
+  skillsCatalog?: string;
 }): string {
   const role = opts.role?.trim();
   if (opts.builtinTools === false) {
@@ -14,7 +15,7 @@ export function buildSystemPrompt(opts: {
     if (opts.mcp) {
       systemPrompt += "\n\nMCP tools from --mcp are also available.";
     }
-    return systemPrompt;
+    return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
   }
   const rules =
     "Prefer list_files, read_file, and grep before answering. Use write_file only when asked to change files.";
@@ -29,5 +30,10 @@ export function buildSystemPrompt(opts: {
   if (opts.mcp) {
     systemPrompt += " MCP tools from --mcp are also available.";
   }
-  return systemPrompt;
+  return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
+}
+
+function appendSkillsCatalog(systemPrompt: string, skillsCatalog?: string): string {
+  if (!skillsCatalog) return systemPrompt;
+  return `${systemPrompt}\n\n${skillsCatalog}`;
 }
