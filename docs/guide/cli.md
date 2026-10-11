@@ -178,11 +178,36 @@ my-agent/
 | 键 | 作用 |
 | --- | --- |
 | `capabilities.coding` | `true` / `false`，或 `{ "exec": false }`；有 `tools/` 时写 `true` 等同 `--builtin-tools` |
-| `capabilities.web` | 预留；设为 `true` 时 v0.28 会启动报错（工具尚未挂载） |
+| `capabilities.web` | 预留官方联网工具；**v0.28 未实现**，写 `true` 会启动失败。上网 / 浏览器请用 `extensions.mcp` |
 | `capabilities.vision` | 等同 `--vision` / `TAH_VISION=1` |
-| `extensions.mcp` | 等同 `--mcp` + `--mcp-arg` |
+| `extensions.mcp` | 等同 `--mcp` + `--mcp-arg`；接第三方 stdio MCP（搜索、抓取、浏览器等） |
 
 合并顺序：内置默认 → config → CLI / 环境变量。仅项目模式（`package.json` 依赖 CLI）且文件存在时读取；未知键启动失败。模型 key、`--allow` / `--deny`、`maxSteps` 等仍不进此文件。
+
+#### 上网与浏览器（用 MCP，不要开 `web`）
+
+tah **没有**内置 `web_search` / `web_fetch`，也没有内置浏览器点选 / 截图工具。需要这些能力时：
+
+1. 在 `tah.config.json` 里保持不写 `capabilities.web`，或显式 `"web": false`。
+2. 用 `extensions.mcp`（或命令行 `--mcp`）挂上对应的 MCP 服务器。
+
+```json
+{
+  "capabilities": { "coding": true },
+  "extensions": {
+    "mcp": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"]
+    }
+  }
+}
+```
+
+具体包名、是否需要 API key，以所选 MCP 的文档为准。仓库内冒烟可用内置 ping fixture：
+
+```sh
+pnpm tah -- --mcp node --mcp-arg ./packages/mcp/test/fixtures/ping-server.mjs --mock "调用 ping"
+```
 
 工具文件：
 
@@ -308,7 +333,7 @@ Ctrl+C 停止服务并打印续聊命令（`tah chat --session …`），再按�
 pnpm tah -- --no-exec --mock chat
 ```
 
-挂 stdio MCP（子进程，不是官方 SDK）：
+挂 stdio MCP（子进程，不是官方 SDK；约定式项目也可写在 `tah.config.json` 的 `extensions.mcp`，见上文「上网与浏览器」）：
 
 ```sh
 pnpm tah -- --mcp node --mcp-arg ./packages/mcp/test/fixtures/ping-server.mjs --mock "调用 ping"

@@ -53,15 +53,16 @@
 | 键 | 含义 |
 | --- | --- |
 | `capabilities.coding` | `true` / `false`，或 `{ "exec": boolean }`（默认 `exec: true`）。挂 `list_files` / `read_file` / `grep` / `write_file`，以及可选的 `execute_command` |
-| `capabilities.web` | 官方 `web_search` / `web_fetch`；**v0.28 尚未实现挂载**，设为 `true` 时启动失败并提示 |
+| `capabilities.web` | 预留官方 `web_search` / `web_fetch`。**v0.28 未实现**：写 `true` 会启动失败。需要上网或浏览器时用 `extensions.mcp`（见下），不要开 `web` |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |
-| `extensions.mcp` | `{ "command": string, "args"?: string[] }`，stdio MCP（同 `--mcp` / `--mcp-arg`） |
+| `extensions.mcp` | `{ "command": string, "args"?: string[] }`，stdio MCP（同 `--mcp` / `--mcp-arg`）。**当前推荐**用来接搜索、抓取、浏览器类第三方 MCP |
 
 规则：
 
 - 省略的键 = 用「该项目形态下的内置默认」，不是强制 `false`。
 - 未知顶层键、未知 capability、未知 extension → 启动失败（防拼写静默失效）。
 - `capabilities` / `extensions` 本身可省略。
+- 无内置浏览器自动化工具；完整点选 / 截图等靠 MCP 或自写 `tools/`。
 
 ### 与 `tools/` 的默认交互
 
@@ -95,8 +96,7 @@ parseArgv → loadProject → loadTahConfig → resolveCapabilities → bootRunt
 
 ## 用户视角
 
-```sh
-# tah.config.json
+```json
 {
   "capabilities": {
     "coding": true,
@@ -110,11 +110,30 @@ npx tah serve          # 有 tools/ 时仍挂内置文件工具，且开启 visi
 npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.exec
 ```
 
-`tah init` 会生成带注释说明的示例 `tah.config.json`（已存在则跳过）。
+需要搜索或浏览器时，保持 `"web": false`（或省略），用 MCP：
+
+```json
+{
+  "capabilities": {
+    "coding": true
+  },
+  "extensions": {
+    "mcp": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-brave-search"]
+    }
+  }
+}
+```
+
+包名与环境变量（API key 等）以所选 MCP 的说明为准；也可用命令行 `--mcp` / `--mcp-arg` 临时挂上。
+
+`tah init` 会生成示例 `tah.config.json`（仅 `coding: true`，已存在则跳过）。
 
 ## 演进
 
-- 实现 `capabilities.web` 挂载后，去掉「web: true 即报错」的守卫。
+- 官方 `capabilities.web`（`web_search` / `web_fetch`）落地后，去掉「web: true 即报错」的守卫；在此之前以 MCP 为准。
+- 内置浏览器自动化不在本阶段范围。
 - 若需要用户级默认，再另开设计；不在本文件静默扩展加载路径。
 - v0.28 热更新只盯 `AGENTS.md` / `tools/` / `plugins/` / `lib/`；改 `tah.config.json` 需重启进程（或再开一轮设计把它纳入 watch）。
 

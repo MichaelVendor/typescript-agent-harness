@@ -31,7 +31,7 @@ my-agent/
 
 ## 非目标
 
-- 约定文件不替代官方能力开关：角色与自定义工具仍用 `AGENTS.md` / `tools/` / `plugins/`；官方能力包（coding / web / vision / mcp）见项目根目录 [`tah.config.json`](./config.md)（v0.28）。模型、权限细粒度、步数仍走命令行参数和 `.env`。
+- 约定文件不替代官方能力开关：角色与自定义工具仍用 `AGENTS.md` / `tools/` / `plugins/`；官方能力包与扩展见项目根目录 [`tah.config.json`](./config.md)（v0.28：`capabilities.coding` / `vision` 等；`extensions.mcp` 接第三方 MCP。`capabilities.web` 预留未实现，上网用 MCP）。模型、权限细粒度、步数仍走命令行参数和 `.env`。
 - 不做 profile、bundle、多层配置叠加（`dsh` 有，tah 不需要）；不做用户级 `~/.tah/config`（见 config 设计非目标）。
 - 不做 `tah plugin add` 之类的安装命令；第三方能力就是 npm 依赖，在 `plugins/` 里引入。
 - 不做 Web UI（本机 `tah serve` 另见 serve 设计）。
