@@ -6,6 +6,7 @@ import type {
   ServeError,
   ServeInfo,
   ServeRequest,
+  SettingsView,
   WorkspaceView,
 } from "@typescript-agent-harness/cli";
 
@@ -63,12 +64,21 @@ export const api = {
   removeWorkspace: (body: ServeRequest["workspace"]) => post("/api/workspaces/remove", body),
   fs: async (path?: string) =>
     (await (await call("GET", `/api/fs${path ? `?path=${encodeURIComponent(path)}` : ""}`)).json()) as DirListing,
+  choose: async (body: ServeRequest["choose"] = {}) =>
+    ((await (await call("POST", "/api/fs/choose", body)).json()) as { path: string | null }).path,
   mkdir: async (body: ServeRequest["mkdir"]) => (await (await call("POST", "/api/fs/mkdir", body)).json()) as { path: string },
   resume: (body: ServeRequest["resume"]) => post("/api/resume", body),
   fork: (body: ServeRequest["fork"] = {}) => post("/api/fork", body),
   rename: async (body: ServeRequest["rename"]) =>
     (await (await call("POST", "/api/rename", body)).json()) as { id: string; title: string | null },
   sessionFlag: (body: ServeRequest["sessionFlag"]) => post("/api/session-flag", body),
+  settings: async () => (await (await call("GET", "/api/settings")).json()) as SettingsView,
+  addModel: async (body: ServeRequest["addModel"]) =>
+    (await (await call("POST", "/api/settings/models", body)).json()) as SettingsView,
+  removeModel: async (body: ServeRequest["removeModel"]) =>
+    (await (await call("POST", "/api/settings/models/remove", body)).json()) as SettingsView,
+  activeModel: async (body: ServeRequest["activeModel"]) =>
+    (await (await call("POST", "/api/settings/active", body)).json()) as SettingsView,
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";

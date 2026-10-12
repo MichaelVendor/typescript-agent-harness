@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { FolderPicker } from "./FolderPicker";
 
 const text = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -11,6 +11,7 @@ export function NewFolder(props: { busy: boolean; desktop: string; onOpen(path: 
   const [choosing, setChoosing] = useState(false);
   const [error, setError] = useState<string>();
   const [creating, setCreating] = useState(false);
+  const [picking, setPicking] = useState(false);
   const { onClose } = props;
 
   useEffect(() => {
@@ -37,7 +38,21 @@ export function NewFolder(props: { busy: boolean; desktop: string; onOpen(path: 
     );
   }
 
-  const canCreate = Boolean(name.trim()) && !props.busy && !creating;
+  const change = async () => {
+    setPicking(true);
+    setError(undefined);
+    try {
+      const picked = await api.choose({ start: where });
+      if (picked) setWhere(picked);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 501) setChoosing(true);
+      else setError(text(err));
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const canCreate = Boolean(name.trim()) && !props.busy && !creating && !picking;
   const create = () => {
     if (!canCreate) return;
     setCreating(true);
@@ -74,7 +89,7 @@ export function NewFolder(props: { busy: boolean; desktop: string; onOpen(path: 
           <span className="where-path" title={where}>
             {where}
           </span>
-          <button type="button" onClick={() => setChoosing(true)}>
+          <button type="button" disabled={picking} onClick={() => void change()}>
             Change…
           </button>
         </div>

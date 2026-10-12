@@ -45,9 +45,47 @@ const ArchiveIcon = () => (
   </svg>
 );
 
+export const ChevronIcon = (props: { open: boolean }) => (
+  <svg
+    viewBox="0 0 16 16"
+    width="14"
+    height="14"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.6"
+    aria-hidden
+    style={{ transform: props.open ? "rotate(90deg)" : undefined, transition: "transform 0.12s" }}
+  >
+    <path d="M6 3.5 10.5 8 6 12.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+    <path d="M8 3v10M3 8h10" strokeLinecap="round" />
+  </svg>
+);
+
+const CloseIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+    <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+  </svg>
+);
+
 const FolderPlusIcon = () => (
   <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
     <path d="M1.5 4V12.5h7M1.5 4V3h4.5l1.5 1.5h7v4M12 10v5M9.5 12.5h5" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
+
+const GearIcon = () => (
+  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
+    <circle cx="8" cy="8" r="2.2" />
+    <path
+      d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"
+      strokeLinecap="round"
+    />
+    <circle cx="8" cy="8" r="4.6" />
   </svg>
 );
 
@@ -65,6 +103,8 @@ export function Sidebar(props: {
   onOpenProject(): void;
   onNewFolder(): void;
   onRemoveFolder(path: string): void;
+  user: string | undefined;
+  onSettings(): void;
 }) {
   const [editing, setEditing] = useState<string>();
   const [draft, setDraft] = useState("");
@@ -254,19 +294,21 @@ export function Sidebar(props: {
             <section key={ws.path} className="ws">
               <div className={`ws-head${ws.active ? " active" : ""}${ws.missing ? " missing" : ""}`} title={ws.path}>
                 <button type="button" className="ws-toggle" aria-expanded={!closed} onClick={() => toggle(ws.path)}>
-                  <span className="ws-chevron">{closed ? "▸" : "▾"}</span>
+                  <span className="ws-chevron">
+                    <ChevronIcon open={!closed} />
+                  </span>
                   <span className="ws-name">{ws.name}</span>
                 </button>
                 {ws.missing ? <span className="ws-note">folder not found</span> : null}
                 <span className="ws-tools">
                   {ws.missing ? null : (
                     <button type="button" title="New session" aria-label={`New session in ${ws.name}`} disabled={props.busy} onClick={() => props.onNew(ws.path)}>
-                      +
+                      <PlusIcon />
                     </button>
                   )}
                   {ws.active ? null : (
                     <button type="button" title="Remove from list" aria-label={`Remove ${ws.name}`} onClick={() => props.onRemoveFolder(ws.path)}>
-                      ×
+                      <CloseIcon />
                     </button>
                   )}
                 </span>
@@ -281,6 +323,17 @@ export function Sidebar(props: {
           );
         })}
       </div>
+      {props.user !== undefined ? (
+        <div className="sidebar-user">
+          <span className="avatar" aria-hidden>
+            {(props.user[0] ?? "?").toUpperCase()}
+          </span>
+          <span className="user-name">{props.user}</span>
+          <button type="button" className="icon-btn" title="Settings" aria-label="Settings" onClick={props.onSettings}>
+            <GearIcon />
+          </button>
+        </div>
+      ) : null}
       {menu ? (
         <ul ref={menuRef} className="context-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
           <li>

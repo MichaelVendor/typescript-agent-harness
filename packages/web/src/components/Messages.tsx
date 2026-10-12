@@ -1,8 +1,9 @@
-import { memo, useEffect, useRef, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import Markdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import type { Entry } from "../state";
+import { ChevronIcon } from "./Sidebar";
 import { ToolLine } from "./ToolLine";
 
 /** No raw HTML: replies can echo file contents, and this page can approve commands. */
@@ -54,8 +55,61 @@ const Row = memo(function Row({ entry }: { entry: Entry }) {
   }
 });
 
+type Item = { kind: "row"; entry: Entry } | { kind: "steps"; id: number; entries: Entry[] };
+
+const isCtx = (e: Entry) => e.kind === "notice" && !e.error && e.text.startsWith("[ctx]");
+
+/** Runs of tool calls (and the context-trim notices between them) become one collapsible block. */
+function group(entries: Entry[]): Item[] {
+  const items: Item[] = [];
+  for (const entry of entries) {
+    const last = items.at(-1);
+    if (entry.kind === "tool" || isCtx(entry)) {
+      if (last?.kind === "steps") last.entries.push(entry);
+      else items.push({ kind: "steps", id: entry.id, entries: [entry] });
+    } else {
+      items.push({ kind: "row", entry });
+    }
+  }
+  return items;
+}
+
+/** While live, shows the latest few steps; once the turn moves on, collapses to one summary line. */
+function Steps({ entries, live }: { entries: Entry[]; live: boolean }) {
+  const [open, setOpen] = useState(false);
+  const tools = entries.filter((e) => e.kind === "tool");
+  if (!tools.length) return entries.map((e) => <Row key={e.id} entry={e} />);
+
+  const counts = new Map<string, number>();
+  for (const t of tools) counts.set(t.tool, (counts.get(t.tool) ?? 0) + 1);
+  const detail = [...counts].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name)).join(" · ");
+  const failed = tools.filter((t) => t.status === "failed").length;
+  const shown = open ? entries : live ? tools.slice(-3) : [];
+
+  return (
+    <div className="steps">
+      <button type="button" className="steps-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <ChevronIcon open={open} />
+        {live ? <span className="spinner" aria-label="running" /> : null}
+        <span className="steps-title">
+          {live ? "Working" : "Ran"} {tools.length} {tools.length === 1 ? "step" : "steps"}
+        </span>
+        <span className="steps-detail">{detail}</span>
+        {failed ? <span className="steps-failed">{failed} failed</span> : null}
+      </button>
+      {shown.length ? (
+        <div className="steps-body">
+          {shown.map((e) => (
+            <Row key={e.id} entry={e} />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Follows new output while the reader is at the bottom; leaves them alone once they scroll up. */
-export function Messages({ entries, children }: { entries: Entry[]; children?: ReactNode }) {
+export function Messages({ entries, busy, children }: { entries: Entry[]; busy: boolean; children?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
   useEffect(() => {
@@ -79,9 +133,13 @@ export function Messages({ entries, children }: { entries: Entry[]; children?: R
           </p>
         </div>
       ) : null}
-      {entries.map((entry) => (
-        <Row key={entry.id} entry={entry} />
-      ))}
+      {group(entries).map((item, i, items) =>
+        item.kind === "row" ? (
+          <Row key={item.entry.id} entry={item.entry} />
+        ) : (
+          <Steps key={item.id} entries={item.entries} live={busy && i === items.length - 1} />
+        ),
+      )}
       {children}
     </div>
   );

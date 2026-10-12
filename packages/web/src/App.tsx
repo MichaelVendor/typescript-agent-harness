@@ -1,4 +1,4 @@
-import type { ServeInfo, WorkspaceView } from "@typescript-agent-harness/cli";
+import type { ServeInfo, SettingsView, WorkspaceView } from "@typescript-agent-harness/cli";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { api, connect, type Connection } from "./api";
 import { ApprovalCard } from "./components/ApprovalCard";
@@ -6,6 +6,7 @@ import { Composer } from "./components/Composer";
 import { Messages } from "./components/Messages";
 import { NewFolder } from "./components/NewFolder";
 import { OpenProject } from "./components/OpenProject";
+import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { applyEvent, initialState, type Action } from "./state";
@@ -16,7 +17,8 @@ export function App() {
   const [connection, setConnection] = useState<Connection>("connecting");
   const [workspaces, setWorkspaces] = useState<WorkspaceView[]>();
   const [sessionsError, setSessionsError] = useState<string>();
-  const [dialog, setDialog] = useState<"open" | "new">();
+  const [dialog, setDialog] = useState<"open" | "new" | "settings">();
+  const [settings, setSettings] = useState<SettingsView>();
   const closeDialog = useCallback(() => setDialog(undefined), []);
 
   // Streamed deltas arrive far faster than the screen refreshes: render at most once per frame.
@@ -43,6 +45,7 @@ export function App() {
           // Do not wipe state here: SSE may deliver the session replay in the same tick,
           // and a trailing reset would leave the transcript blank.
           api.info().then(setInfo, () => {});
+          api.settings().then(setSettings, () => {});
         },
         onEvent: enqueue,
         onStatus: setConnection,
@@ -111,14 +114,19 @@ export function App() {
         onOpenProject={() => setDialog("open")}
         onNewFolder={() => setDialog("new")}
         onRemoveFolder={(path) => run(api.removeWorkspace({ path }).then(refresh))}
+        user={settings?.user}
+        onSettings={() => setDialog("settings")}
       />
+      {dialog === "settings" && settings ? (
+        <Settings busy={state.busy} view={settings} onChange={setSettings} onClose={closeDialog} />
+      ) : null}
       {dialog === "open" ? <OpenProject busy={state.busy} onClose={closeDialog} onOpen={openFolder} /> : null}
       {dialog === "new" && info ? (
         <NewFolder busy={state.busy} desktop={info.desktop} onClose={closeDialog} onOpen={openFolder} />
       ) : null}
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
-        <Messages entries={state.entries}>
+        <Messages entries={state.entries} busy={state.busy}>
           {thinking ? (
             <div className="thinking">
               <span className="spinner" /> thinking…
