@@ -140,6 +140,7 @@ function fakeHost() {
     fork: async () => {},
     listSessions: async () => [],
     renameSession: async () => undefined,
+    setSessionFlag: async () => {},
     close: async () => {},
   };
   return { host, emit, finish: () => finish() };
@@ -212,6 +213,10 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
     assert.ok(history.some((h) => h.role === "assistant"));
 
     assert.ok(JSON.parse((await api.get("/api/sessions")).body).some((r: { id: string }) => r.id === serve.sessionId));
+    assert.equal((await api.post("/api/session-flag", { id: serve.sessionId, flag: "starred", on: true })).status, 400);
+    assert.equal((await api.post("/api/session-flag", { id: serve.sessionId, flag: "pinned", on: true })).status, 204);
+    const pinned = JSON.parse((await api.get("/api/sessions")).body).find((r: { id: string }) => r.id === serve.sessionId);
+    assert.equal(pinned.pinned, true);
     tab.close();
     late.close();
   } finally {

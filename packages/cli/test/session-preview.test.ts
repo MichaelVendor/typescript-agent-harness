@@ -5,6 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { composeAttachmentPrompt } from "../dist/attachments/compose.js";
 import { createAttachmentStore } from "../dist/attachments/store.js";
+import { setSessionFlag } from "../dist/session-flags.js";
 import { setSessionTitle } from "../dist/session-titles.js";
 import { displayUserText, sessionPreview, toRows } from "../dist/sessions.js";
 
@@ -62,4 +63,37 @@ test("toRows uses attachment names and custom titles", () => {
   );
   assert.equal(titled[0]?.title, "My screenshot");
   assert.match(readFileSync(path.join(cwd, ".tah", "session-titles.json"), "utf8"), /My screenshot/);
+});
+
+test("toRows reports pinned / archived; archiving unpins", () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-flags-"));
+  const row = (id: string) => ({
+    id,
+    status: "completed",
+    maxSteps: 32,
+    messagesJson: JSON.stringify([{ role: "user", content: id }]),
+    stepsJson: "[]",
+    createdAt: 1,
+    updatedAt: 2,
+  });
+  const rows = () => toRows([row("a"), row("b")], cwd);
+
+  setSessionFlag(cwd, "a", "pinned", true);
+  setSessionFlag(cwd, "b", "pinned", true);
+  assert.equal(rows()[0]?.pinned, true);
+  assert.equal(rows()[1]?.pinned, true);
+
+  setSessionFlag(cwd, "b", "archived", true);
+  assert.equal(rows()[1]?.archived, true);
+  assert.equal(rows()[1]?.pinned, undefined);
+
+  setSessionFlag(cwd, "a", "pinned", false);
+  setSessionFlag(cwd, "b", "archived", false);
+  assert.deepEqual(
+    rows().map((r) => [r.pinned, r.archived]),
+    [
+      [undefined, undefined],
+      [undefined, undefined],
+    ],
+  );
 });

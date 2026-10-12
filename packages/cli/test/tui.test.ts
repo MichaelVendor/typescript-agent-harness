@@ -21,6 +21,7 @@ const host = {
   fork: async () => {},
   listSessions: async () => [],
   renameSession: async () => undefined,
+  setSessionFlag: async () => {},
   close: async () => {},
 };
 

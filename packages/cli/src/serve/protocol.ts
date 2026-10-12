@@ -12,6 +12,7 @@ export type ServeRequest = {
   resume: { ref: string };
   fork: { turns?: number };
   rename: { id: string; title: string };
+  sessionFlag: { id: string; flag: "pinned" | "archived"; on: boolean };
 };
 
 export type { AttachmentMeta };

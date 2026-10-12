@@ -229,6 +229,17 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         const title = await host.renameSession(id, body.title);
         return json(res, 200, { id, title: title ?? null });
       }
+      case "POST /api/session-flag": {
+        if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
+        const body = await readBody(req);
+        const id = str(body, "id");
+        if (body.flag !== "pinned" && body.flag !== "archived") {
+          throw new HttpError(400, '"flag" must be "pinned" or "archived"');
+        }
+        if (typeof body.on !== "boolean") throw new HttpError(400, '"on" must be a boolean');
+        await host.setSessionFlag(id, body.flag, body.on);
+        return json(res, 204);
+      }
     }
     throw new HttpError(404, `no such endpoint: ${key}`);
   };

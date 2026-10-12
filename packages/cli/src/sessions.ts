@@ -2,6 +2,7 @@ import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
 import type { PersistedSession, StorageService } from "@typescript-agent-harness/storage";
 import type { AttachmentMeta } from "./attachments/store.js";
 import { parseUserContent } from "./attachments/compose.js";
+import { loadSessionFlags } from "./session-flags.js";
 import { loadSessionTitles } from "./session-titles.js";
 import { stripSkillInjection } from "./skills/slash.js";
 
@@ -14,6 +15,8 @@ export type SessionRow = {
   preview: string;
   /** Optional user-set name; UI should prefer this over `preview`. */
   title?: string;
+  pinned?: true;
+  archived?: true;
 };
 
 const PLACEHOLDERS = new Set(["", "(attachments)", "(attachments only)"]);
@@ -51,6 +54,9 @@ export function displayUserText(text: string): string {
 
 export function toRows(rows: PersistedSession[], cwd?: string): SessionRow[] {
   const titles = cwd !== undefined ? loadSessionTitles(cwd) : {};
+  const flags = cwd !== undefined ? loadSessionFlags(cwd) : { pinned: [], archived: [] };
+  const pinned = new Set(flags.pinned);
+  const archived = new Set(flags.archived);
   return rows.map((row) => {
     const messages = JSON.parse(row.messagesJson) as ChatMessage[];
     const users = messages.flatMap((m) => (m.role === "user" ? [userPayload(m.content)] : []));
@@ -64,6 +70,8 @@ export function toRows(rows: PersistedSession[], cwd?: string): SessionRow[] {
       updatedAt: row.updatedAt,
       preview,
       ...(title !== undefined ? { title } : {}),
+      ...(pinned.has(row.id) ? { pinned: true as const } : {}),
+      ...(archived.has(row.id) ? { archived: true as const } : {}),
     };
   });
 }

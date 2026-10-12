@@ -23,6 +23,7 @@ import {
   storageOf,
   turnRounds,
 } from "./runtime.js";
+import { setSessionFlag, type SessionFlag } from "./session-flags.js";
 import { setSessionTitle } from "./session-titles.js";
 import { displayUserText, toRows, type SessionRow } from "./sessions.js";
 import { applySlashSkills, stripSkillInjection } from "./skills/slash.js";
@@ -76,6 +77,8 @@ export type ChatHost = {
   listSessions(): Promise<SessionRow[]>;
   /** Set or clear a custom sidebar title; returns the stored title (undefined if cleared). */
   renameSession(id: string, title: string): Promise<string | undefined>;
+  /** Pin / archive a session in the sidebar; archiving also unpins. */
+  setSessionFlag(id: string, flag: SessionFlag, on: boolean): Promise<void>;
   close(): Promise<void>;
 };
 
@@ -524,6 +527,12 @@ export async function createChatHost(
         const row = await (await storageOf(runtime)).getSession(id);
         if (!row) throw new Error(`no session "${id}"`);
         return setSessionTitle(flags.cwd, id, title);
+      }),
+    setSessionFlag: (id, flag, on) =>
+      ready(async () => {
+        const row = await (await storageOf(runtime)).getSession(id);
+        if (!row) throw new Error(`no session "${id}"`);
+        setSessionFlag(flags.cwd, id, flag, on);
       }),
     async close() {
       stopWatching();
