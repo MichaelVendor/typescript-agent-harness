@@ -7,6 +7,8 @@ import type {
   ServeInfo,
   ServeRequest,
   SettingsView,
+  SkillsImport,
+  SkillsView,
   WorkspaceView,
 } from "@typescript-agent-harness/cli";
 
@@ -79,6 +81,11 @@ export const api = {
     (await (await call("POST", "/api/settings/models/remove", body)).json()) as SettingsView,
   activeModel: async (body: ServeRequest["activeModel"]) =>
     (await (await call("POST", "/api/settings/active", body)).json()) as SettingsView,
+  skills: async () => (await (await call("GET", "/api/skills")).json()) as SkillsView,
+  importSkills: async (body: ServeRequest["importSkills"]) =>
+    (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,
+  removeSkill: async (body: ServeRequest["removeSkill"]) =>
+    (await (await call("POST", "/api/skills/remove", body)).json()) as SkillsView,
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";
