@@ -32,8 +32,10 @@ tah 作为本机 coding harness，应能直接消费现成技能目录，并提�
 
 | 来源 | 何时扫描 |
 | --- | --- |
-| 项目目录（见下表前三行） | 仅当 `package.json` 依赖 `@typescript-agent-harness/cli`（与 `tools/` 同安全边界） |
-| `~/.tah/skills/` | 目录存在即参与合并；非项目 cwd 也可只用用户级 |
+| 工作目录（见下表前三行） | 总是扫描（v0.30.1 起；之前只在 `package.json` 依赖 `@typescript-agent-harness/cli` 的项目里扫描） |
+| `~/.tah/skills/` | 目录存在即参与合并 |
+
+v0.30.1 起普通文件夹也读这三处，和 Cursor / Claude Code 读自己的 skills 目录一样；这样 Agent 用 `write_file` 写入 `skills/<name>/SKILL.md` 就算装好了。代价：打开一个别人的仓库时，里面的 skill 指令也会进 catalog。Skill 只是 Markdown 指令，不执行代码；`tools/`、`plugins/` 仍只在项目里加载。
 
 无任何可用 skill 时：不挂 `skill` 工具、不注入 catalog。
 
@@ -134,7 +136,15 @@ loadProject / home skills
 
 ## 热更新
 
-`tah chat` / `tah serve` 监听：`skills/`、`.agents/skills/`、`.cursor/skills/`、以及 `~/.tah/skills/`（若存在）。变更走现有 reload 路径（重建 Runtime、保留会话与「总是允许」审批）。
+`tah chat` / `tah serve` 监听：`skills/`、`.agents/skills/`、`.cursor/skills/`、以及 `~/.tah/skills/`（若存在）。变更走现有 reload 路径（重建 Runtime、保留会话与「总是允许」审批）。普通文件夹（非项目）只监听这几处 skills 目录，改 `lib/`、`AGENTS.md` 等不会触发 reload。
+
+## 让模型知道 Skill（v0.30.1）
+
+内置工具模式下，系统提示词总会附一段：Agent 运行在 tah 里（不是 Cursor / Claude Code）、Skill 的格式和存放位置、用 `write_file` 写 `skills/<name>/SKILL.md` 即可安装、网页 Settings → Skills 可导入。没有这段时，模型看到「skill.md」会照 Cursor 的方式回答。项目只用自己工具（`builtinTools: false`）时不加，角色完全由项目决定。
+
+## 网页导入（v0.30.1）
+
+`tah serve` 的 Settings → Skills 列出当前文件夹加载的 skill（「All folders」= `~/.tah/skills`，「This folder」= 工作目录三处）。「Import skill folder…」弹系统对话框：选中的文件夹有 `SKILL.md` 就导入它一个，否则导入其下一层所有带 `SKILL.md` 的文件夹（如 `~/.cursor/skills`）。复制到 `~/.tah/skills/<name>/`，软链接按实际内容复制；frontmatter 不合格或同名已存在的跳过并说明原因，不覆盖。只能删除 `~/.tah/skills` 里的。导入 / 删除后当前文件夹的 host 重新加载。
 
 ## 测试
 
@@ -143,7 +153,7 @@ loadProject / home skills
 - catalog 仅摘要；`skill` 返回正文 + resources
 - `/name` 与双入口策略（disable-model 只能 slash）
 - 资源引用与 `..` 拒绝
-- 非项目 cwd 不读项目三处 skills 目录
+- 普通文件夹也读工作目录三处 skills 目录；只监听 skills 目录
 
 ## 文档与版本
 

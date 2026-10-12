@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+CLI: the agent is told it runs inside tah and how Skills work (where they live, how to install one with `write_file`), so it no longer answers "install a skill" with Cursor instructions. Plain folders (not tah projects) now load `skills/`, `.agents/skills/` and `.cursor/skills/` too, and only those folders are watched for reloads there.
+
+Web (`tah serve`): Settings → **Skills** lists the skills the open folder loads and imports skill folders with the system dialog — one skill, or every skill inside a folder such as `~/.cursor/skills` — into `~/.tah/skills` (symlinks copied as files; invalid or already-installed names are skipped). Imported skills can be removed there. New endpoints: `GET /api/skills`, `POST /api/skills/import`, `POST /api/skills/remove`.
+
 ## 0.30.0 — 2026-10-12
 
 Web (`tah serve`): **work folders** — the sidebar groups sessions by folder (Pinned stays on top, across folders); a Cursor-style "Workspaces" header with a folder button offers "Open project…" (recently removed folders first, or browse) and "New folder…" (created on the Desktop by default, location changeable, then opened); opening a session in another folder makes it the agent's working directory (one current session at a time). The folder list lives in `~/.tah/workspaces.json`. New endpoints: `GET /api/workspaces`, `GET /api/workspaces/recent`, `POST /api/workspaces/add|remove`, `GET /api/fs`, `POST /api/fs/mkdir`; `reset` / `resume` / `fork` / `rename` / `session-flag` accept an optional `cwd`. Design: `docs/design/workspaces`. Picking a folder ("Choose folder…", "Change…") opens the system folder dialog on macOS and Windows (`POST /api/fs/choose`); elsewhere the in-page browser is used. Folder groups use icon buttons and indent their sessions.

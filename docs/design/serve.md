@@ -101,7 +101,9 @@ type HostEvent =
 | `POST /api/settings/models/remove` `{id}` | 删除；删的是选中的就退回 `.env` |
 | `POST /api/settings/active` `{id \| null}` | 选中模型；`null` 用 `.env` |
 
-三个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
+Skills（v0.30.1）：`GET /api/skills` 列出当前文件夹加载的 skill（`source`: `home` / `folder`）；`POST /api/skills/import` `{path}` 把一个 skill 文件夹（或一层子文件夹里的全部 skill）复制进 `~/.tah/skills`，返回列表加 `imported` / `skipped`；`POST /api/skills/remove` `{name}` 只删 `~/.tah/skills` 里的。导入 / 删除后 host 重新加载；一轮进行中返回 409。见 [Skills](./skills.md#网页导入-v0-30-1)。
+
+上面模型设置的三个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
 
 规则：
 
