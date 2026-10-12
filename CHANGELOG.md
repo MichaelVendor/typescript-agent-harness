@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Web (`tah serve`): **work folders** — the sidebar groups sessions by folder (Pinned stays on top, across folders); "Add folder" opens an in-page folder browser that can also create a folder; opening a session in another folder makes it the agent's working directory (one current session at a time). The folder list lives in `~/.tah/workspaces.json`. New endpoints: `GET /api/workspaces`, `POST /api/workspaces/add|remove`, `GET /api/fs`, `POST /api/fs/mkdir`; `reset` / `resume` / `fork` / `rename` / `session-flag` accept an optional `cwd`. Design: `docs/design/workspaces`.
+Web (`tah serve`): **work folders** — the sidebar groups sessions by folder (Pinned stays on top, across folders); a Cursor-style "Workspaces" header with a folder button offers "Open project…" (recently removed folders first, or browse) and "New folder…" (created on the Desktop by default, location changeable, then opened); opening a session in another folder makes it the agent's working directory (one current session at a time). The folder list lives in `~/.tah/workspaces.json`. New endpoints: `GET /api/workspaces`, `GET /api/workspaces/recent`, `POST /api/workspaces/add|remove`, `GET /api/fs`, `POST /api/fs/mkdir`; `reset` / `resume` / `fork` / `rename` / `session-flag` accept an optional `cwd`. Design: `docs/design/workspaces`.
 
 ## 0.29.1 — 2026-10-12
 

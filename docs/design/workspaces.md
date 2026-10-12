@@ -28,14 +28,15 @@
 ### 文件夹列表：`~/.tah/workspaces.json`
 
 ```json
-{ "workspaces": ["/Users/me/proj-a", "/Users/me/proj-b"] }
+{ "workspaces": ["/Users/me/proj-a", "/Users/me/proj-b"], "recent": ["/Users/me/old-proj"] }
 ```
 
 - 绝对路径数组，顺序 = 加入顺序 = 侧边栏顺序；去重按 `path.resolve` 后的字符串。
-- `tah serve` 启动时把自己的 `cwd` 加进去（已在则不动）。
+- `tah serve` 启动时把自己的 `cwd` 加进去（已在则不动）；写不进去（`~/.tah` 不可写）只打一行提示，照常启动。
 - 「移除」只从列表里删，不碰磁盘上的任何文件；当前文件夹不能移除。
+- `recent`：从侧栏移除过的文件夹，最新在前，最多 10 个；重新加入时从 `recent` 里去掉。供「Open project…」列出最近项目。
 - 文件读不了 / 不是合法 JSON / 字段类型不对 → 当空列表（与 `session-flags.json` 同样宽容）。
-- 模块：`packages/cli/src/workspaces.ts`（`loadWorkspaces(home)` / `addWorkspace(home, dir)` / `removeWorkspace(home, dir)`；`home` 可注入，测试不碰真实 `~`）。
+- 模块：`packages/cli/src/workspaces.ts`（`loadWorkspaces(home)` / `loadRecent(home)` / `addWorkspace(home, dir)` / `removeWorkspace(home, dir)`；`home` 可注入，测试不碰真实 `~`）。
 
 ### 每个文件夹自己的数据（不变）
 
@@ -75,9 +76,10 @@
 | 接口 | 说明 |
 | --- | --- |
 | `GET /api/workspaces` | `[{ path, name, active, missing?, error?, sessions: SessionRow[] }]`；`name` = 路径最后一段 |
+| `GET /api/workspaces/recent` | `[{ path, name }]`：`recent` 里仍存在、且不是当前文件夹的 |
 | `POST /api/workspaces/add { path }` | 必须是已存在的目录（否则 400）；只加入列表，不切换 |
 | `POST /api/workspaces/remove { path }` | 当前文件夹 → 409 |
-| `GET /api/fs?path=` | `{ path, parent, dirs: string[] }`；只列子文件夹名，跳过 `.` 开头；不传 `path` 从 home 开始；不存在 / 不是目录 → 400 |
+| `GET /api/fs?path=` | `{ path, parent, dirs: string[], crumbs: [{ name, path }] }`；只列子文件夹名（含指向文件夹的软链），跳过 `.` 开头；`crumbs` 从根到 `path`；不传 `path` 从 home 开始；不存在 / 不是目录 → 400 |
 | `POST /api/fs/mkdir { path, name }` | 在 `path` 下新建 `name`；`name` 不能含 `/`、`\`、不能是 `.` / `..`、不能已存在（400） |
 
 已有接口加可选 `cwd`（不传 = 当前文件夹，行为不变）：
@@ -102,7 +104,9 @@
 
 ### 侧边栏
 
-1. 顶部：「New session」（当前文件夹）、「Fork」、新增「Add folder」（打开目录浏览器）。
+1. 顶部：「New session」（当前文件夹）、「Fork」。其下「Workspaces」标题，右侧文件夹图标（对齐 Cursor），点开菜单：
+   - 「Open project…」：先列最近项目（`/api/workspaces/recent`），点一项即打开；底部「Browse…」进目录浏览器。没有最近项目时直接进目录浏览器。
+   - 「New folder…」：输入名字；位置默认 `~/Desktop`（`/api/info` 的 `desktop`，没有 Desktop 时为 home），「Change…」用目录浏览器换位置；「Create」新建后直接打开。
 2. **Pinned**：所有文件夹的置顶 session；每行在时间前用浅色显示所属文件夹名。
 3. **文件夹分组**（按列表顺序）：
    - 组头：折叠箭头 + 文件夹名（悬停显示完整路径）；当前文件夹组头高亮。

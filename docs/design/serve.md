@@ -90,7 +90,7 @@ type HostEvent =
 | `POST /api/resume` `{ref}` | 切到会话（id 或列表序号） | 204 |
 | `POST /api/fork` `{turns?}` | 从当前会话分叉 | 204 |
 
-工作文件夹（v0.30）另加 `GET /api/workspaces`、`POST /api/workspaces/add|remove`、`GET /api/fs`、`POST /api/fs/mkdir`，`reset` / `resume` / `fork` / `rename` / `session-flag` 可带 `cwd`，见 [工作文件夹](./workspaces.md)。
+工作文件夹（v0.30）另加 `GET /api/workspaces`、`GET /api/workspaces/recent`、`POST /api/workspaces/add|remove`、`GET /api/fs`、`POST /api/fs/mkdir`，`reset` / `resume` / `fork` / `rename` / `session-flag` 可带 `cwd`，见 [工作文件夹](./workspaces.md)。
 
 规则：
 
