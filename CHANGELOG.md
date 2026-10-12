@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.29.1 — 2026-10-12
 
 Web (`tah serve`): Cursor-style session sidebar — a Pinned section, one-line rows with relative times (`now` / `5m` / `21h` / `2d`), pin and archive buttons that replace the time on hover, and a right-click menu (Pin / Rename / Fork / Copy ID / Archive). Pinned and archived ids live in `.tah/session-flags.json` (new `POST /api/session-flag`); archived sessions are hidden from the web list only — `tah sessions` and `/sessions` still show them.
 
