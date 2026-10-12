@@ -18,7 +18,7 @@
 ## 非目标
 
 - 多个文件夹并行跑：同一时间仍只有一个当前 session（和现在一样）；跑着的时候不能切。
-- 每个文件夹各自的 `.env`：API key 仍来自启动 `serve` 时加载的 `.env`，所有文件夹共用。
+- 每个文件夹各自的 `.env`：API key 仍来自启动 `serve` 时加载的 `.env`（或 Settings 里选中的模型），所有文件夹共用。
 - `tah chat` / TUI / `tah sessions` 的多文件夹支持：它们照旧单 `cwd`。
 - 文件夹重排序、重命名分组显示名、远程目录。
 - 目录浏览器显示文件或文件内容：只列子文件夹名。
@@ -105,8 +105,9 @@
 ### 侧边栏
 
 1. 顶部：「New session」（当前文件夹）、「Fork」。其下「Workspaces」标题，右侧文件夹图标（对齐 Cursor），点开菜单：
-   - 「Open project…」：先列最近项目（`/api/workspaces/recent`），点一项即打开；底部「Browse…」进目录浏览器。没有最近项目时直接进目录浏览器。
-   - 「New folder…」：输入名字；位置默认 `~/Desktop`（`/api/info` 的 `desktop`，没有 Desktop 时为 home），「Change…」用目录浏览器换位置；「Create」新建后直接打开。
+   - 「Open project…」：先列最近项目（`/api/workspaces/recent`），点一项即打开；底部「Choose folder…」弹系统的选文件夹对话框（`POST /api/fs/choose`）。没有最近项目时直接弹系统对话框，取消即关闭。
+   - 「New folder…」：输入名字；位置默认 `~/Desktop`（`/api/info` 的 `desktop`，没有 Desktop 时为 home），「Change…」用系统对话框换位置；「Create」新建后直接打开。
+   - 系统对话框：macOS 用 `osascript`（`choose folder`），Windows 用 PowerShell 的 `FolderBrowserDialog`；对话框开在运行 `tah serve` 的那台电脑上。其他系统返回 501，网页退回下面的目录浏览器。同一时间只开一个，再点返回 409。
 2. **Pinned**：所有文件夹的置顶 session；每行在时间前用浅色显示所属文件夹名。
 3. **文件夹分组**（按列表顺序）：
    - 组头：折叠箭头 + 文件夹名（悬停显示完整路径）；当前文件夹组头高亮。

@@ -1420,7 +1420,7 @@ In the browser (the printed URL): send a message; Add folder → browse → New 
 **Files:**
 - Modify: `docs/design/workspaces.md` (status line → `✅ 已实现（当前分支；计划随 v0.30 发布）`), `docs/design/serve.md`, `docs/guide/cli.md`, `CHANGELOG.md`
 
-- [ ] **Step 1:** `docs/design/serve.md` — in 非目标, change「不做多会话并行（下一版再议）；同一时间只有一个当前会话」to also say multiple folders are supported via [工作文件夹](./workspaces.md) (still one current session). In the security section, add one line: the folder picker (`GET /api/fs`) lists folder names (not files) anywhere the user can read.
+- [ ] **Step 1:** `docs/design/serve.md` — in 非目标, change「不做多会话并行（下一版再议）；同一时间只有一个当前会话」to also say multiple folders are supported via 工作文件夹 (`./workspaces.md`) (still one current session). In the security section, add one line: the folder picker (`GET /api/fs`) lists folder names (not files) anywhere the user can read.
 - [ ] **Step 2:** `docs/guide/cli.md` — in the `tah serve` section add a short paragraph: sidebar groups sessions by folder; "Add folder" browses / creates folders; the list is in `~/.tah/workspaces.json`; switching folders makes it the agent's working directory; `.env` stays the one loaded at startup.
 - [ ] **Step 3:** `CHANGELOG.md` — add at the top:
 

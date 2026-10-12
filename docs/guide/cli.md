@@ -51,7 +51,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--no-watch` | 约定式项目里不热更新（终端 `tah chat` / `tah serve`，v0.26） |
 | `--vision` | `tah serve`：图片附件以多模态 parts 发给模型（也可用 `TAH_VISION=1`，v0.27） |
 
-不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。只有 `OPENAI_API_KEY` 时连 OpenAI 官方（`https://api.openai.com/v1`，模型 `gpt-4o-mini`，v0.26.3）；其他厂商走 OpenAI 兼容接口，还要设 `OPENAI_BASE_URL` 和 `OPENAI_MODEL`（`DEEPSEEK_MODEL` 可换 DeepSeek 的模型）。`.env` 里值为空的行（如 `DEEPSEEK_API_KEY=`）等于没写（v0.26.3）。各家地址见 [教程 · 接上真模型](/guide/tutorial-docs-agent#_5-接上真模型-边改边试)。
+不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。只有 `OPENAI_API_KEY` 时连 OpenAI 官方（`https://api.openai.com/v1`，模型 `gpt-4o-mini`，v0.26.3）；其他厂商走 OpenAI 兼容接口，还要设 `OPENAI_BASE_URL` 和 `OPENAI_MODEL`（`DEEPSEEK_MODEL` 可换 DeepSeek 的模型）。`.env` 里值为空的行（如 `DEEPSEEK_API_KEY=`）等于没写（v0.26.3）。也可以在 `tah serve` 网页左下角的 Settings 里添加模型（存在 `~/.tah/settings.json`，选中的模型优先于 `.env`，`tah chat` / `tah run` 也会用它）；`tah serve` 没有 key 也能启动，再去 Settings 里加（v0.30）。各家地址见 [教程 · 接上真模型](/guide/tutorial-docs-agent#_5-接上真模型-边改边试)。
 
 默认一轮跑到模型自己停下为止，中途 Ctrl+C 打断。传了 `--max-steps` 后，走到上限会打印 `finishReason=max_steps`（状态行的 `steps` 是本轮 LLM 次数）；`tah chat` 在终端里会接着问「继续？」，回车就用新的一份额度继续同一轮，`n` 停下。`tah run` 或管道输入时不问，可之后在会话里说「继续」。
 
@@ -254,7 +254,7 @@ tah serve --yes --port 8000 --no-open
 
 `tah serve` 在本机起服务并打开浏览器，网页里操作的就是当前目录的 Agent：流式 Markdown、工具调用行、审批卡片（允许一次 / 总是允许 / 拒绝）、步数上限的「继续」、会话侧栏（切换 / 新建 / 分叉）、停止当前轮。和 TUI 一样同一时间只有一个当前会话；开多个标签页看到的是同一个会话，操作实时同步，刷新或断线重连后从服务端补齐。`tah chat` 的其他参数（`--yes`、`--max-steps`、`--no-persist`、`--session`、`--mock` …）照常可用。
 
-工作文件夹（v0.30）：侧栏按文件夹分组列出会话（Pinned 跨文件夹置顶）；「Workspaces」标题旁的文件夹图标有两项：「Open project…」先列最近移除过的项目、也可浏览目录，「New folder…」默认在桌面新建（可换位置）并直接打开。文件夹列表存在 `~/.tah/workspaces.json`。打开另一个文件夹里的会话（或点该组的 `+`）时，Agent 的工作目录随之切换；运行中的一轮结束前不能切换。`.env` 始终用启动时那个目录的。见 [工作文件夹设计](/design/workspaces)。
+工作文件夹（v0.30）：侧栏按文件夹分组列出会话（Pinned 跨文件夹置顶）；「Workspaces」标题旁的文件夹图标有两项：「Open project…」先列最近移除过的项目，「Choose folder…」弹系统的选文件夹对话框（macOS / Windows；其他系统用网页里的目录浏览器），「New folder…」默认在桌面新建（可换位置）并直接打开。文件夹列表存在 `~/.tah/workspaces.json`。打开另一个文件夹里的会话（或点该组的 `+`）时，Agent 的工作目录随之切换；运行中的一轮结束前不能切换。`.env` 始终用启动时那个目录的。见 [工作文件夹设计](/design/workspaces)。
 
 它是本机工作台，不是对外服务：
 

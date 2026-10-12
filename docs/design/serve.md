@@ -90,7 +90,18 @@ type HostEvent =
 | `POST /api/resume` `{ref}` | 切到会话（id 或列表序号） | 204 |
 | `POST /api/fork` `{turns?}` | 从当前会话分叉 | 204 |
 
-工作文件夹（v0.30）另加 `GET /api/workspaces`、`GET /api/workspaces/recent`、`POST /api/workspaces/add|remove`、`GET /api/fs`、`POST /api/fs/mkdir`，`reset` / `resume` / `fork` / `rename` / `session-flag` 可带 `cwd`，见 [工作文件夹](./workspaces.md)。
+工作文件夹（v0.30）另加 `GET /api/workspaces`、`GET /api/workspaces/recent`、`POST /api/workspaces/add|remove`、`GET /api/fs`、`POST /api/fs/mkdir`、`POST /api/fs/choose`（系统选文件夹对话框），`reset` / `resume` / `fork` / `rename` / `session-flag` 可带 `cwd`，见 [工作文件夹](./workspaces.md)。
+
+模型设置（v0.30）：
+
+| 接口 | 作用 |
+| --- | --- |
+| `GET /api/settings` | `{ user, models: [{ id, model, baseURL, keyHint }], activeModel }`；`user` 是电脑用户名 |
+| `POST /api/settings/models` `{model, apiKey, baseURL?}` | 添加模型；第一个自动选中 |
+| `POST /api/settings/models/remove` `{id}` | 删除；删的是选中的就退回 `.env` |
+| `POST /api/settings/active` `{id \| null}` | 选中模型；`null` 用 `.env` |
+
+三个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
 
 规则：
 
@@ -123,7 +134,8 @@ hub 维护：
 - 终端打印 `http://127.0.0.1:<port>/?token=<token>`。网页读到 `?token=` 后调 `POST /api/auth`，服务端设置 cookie `tah_token_<port>=<token>; HttpOnly; SameSite=Strict; Path=/`（cookie 不区分端口，名字带上端口，两个项目同时 `tah serve` 才不会互相顶掉登录）；网页用 `history.replaceState` 去掉地址栏里的令牌。换 cookie 走 API 而不是静态页，所以 Vite 开发服务器代理时也能用。
 - 所有请求校验 `Host` 头为 `127.0.0.1:<port>` 或 `localhost:<port>`（防 DNS 重绑定）。
 - 所有 POST 校验 `Origin` 为同一地址，且 `Content-Type: application/json`（防跨站请求伪造）。
-- 文件夹选择器（`GET /api/fs`）能列出当前用户可读的任意目录下的文件夹名（不列文件），`POST /api/fs/mkdir` 能在可写目录下新建文件夹，同样受上面的令牌保护。
+- 文件夹选择器（`GET /api/fs`）能列出当前用户可读的任意目录下的文件夹名（不列文件），`POST /api/fs/mkdir` 能在可写目录下新建文件夹，`POST /api/fs/choose` 会在本机弹出系统对话框，同样受上面的令牌保护。
+- `~/.tah/settings.json` 明文存 API key，只有当前用户可读写（0600）；接口从不返回完整 key。
 - 打开一个文件夹会加载它的 `tools/`、`plugins/`、`skills/` 与 `tah.config.json`，和在那里跑 `tah chat` 一样会执行其中代码；只添加信任的文件夹。
 
 ## 命令
