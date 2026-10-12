@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -17,10 +17,16 @@ test("listDirs: folders only, hidden skipped, sorted; makeDir validates names", 
   mkdirSync(path.join(root, "a"));
   mkdirSync(path.join(root, ".git"));
   writeFileSync(path.join(root, "file.txt"), "x");
+  symlinkSync(path.join(root, "a"), path.join(root, "link-dir"));
+  symlinkSync(path.join(root, "file.txt"), path.join(root, "link-file"));
+  symlinkSync(path.join(root, "gone"), path.join(root, "link-broken"));
   const listing = listDirs(root, "/unused");
   assert.equal(listing.path, root);
   assert.equal(listing.parent, path.dirname(root));
-  assert.deepEqual(listing.dirs, ["a", "b"]);
+  assert.deepEqual(listing.dirs, ["a", "b", "link-dir"]);
+  assert.deepEqual(listing.crumbs.at(-1), { name: path.basename(root), path: root });
+  assert.deepEqual(listing.crumbs[0], { name: path.parse(root).root, path: path.parse(root).root });
+  assert.equal(listing.crumbs.length, root.split(path.sep).filter(Boolean).length + 1);
   assert.equal(listDirs(undefined, root).path, root);
   assert.equal(listDirs("/", root).parent, null);
   assert.throws(() => listDirs(path.join(root, "file.txt"), root), /not a readable folder/);

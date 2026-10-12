@@ -35,16 +35,13 @@ export function FolderPicker(props: { busy: boolean; onOpen(path: string): Promi
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const crumbs = (listing?.path ?? "").split(/[\\/]/).filter(Boolean);
-
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal" role="dialog" aria-label="Add folder">
         <div className="crumbs">
-          <button type="button" onClick={() => void go("/")}>/</button>
-          {crumbs.map((part, i) => (
-            <button key={i} type="button" onClick={() => void go(`/${crumbs.slice(0, i + 1).join("/")}`)}>
-              {part}/
+          {listing?.crumbs.map((c, i) => (
+            <button key={c.path} type="button" onClick={() => void go(c.path)}>
+              {i === 0 ? c.name : `${c.name}/`}
             </button>
           ))}
         </div>

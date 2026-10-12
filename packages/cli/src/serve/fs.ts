@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { type Dirent, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import type { DirListing } from "./protocol.js";
 
@@ -11,12 +11,26 @@ export function listDirs(dir: string | undefined, home: string): DirListing {
   } catch {
     throw new Error(`not a readable folder: ${target}`);
   }
+  const isDir = (e: Dirent) => {
+    if (e.isDirectory()) return true;
+    if (!e.isSymbolicLink()) return false;
+    try {
+      return statSync(path.join(target, e.name)).isDirectory();
+    } catch {
+      return false;
+    }
+  };
   const dirs = entries
-    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+    .filter((e) => isDir(e) && !e.name.startsWith("."))
     .map((e) => e.name)
     .sort((x, y) => x.localeCompare(y));
+  const crumbs: DirListing["crumbs"] = [];
+  for (let p = target; ; p = path.dirname(p)) {
+    crumbs.unshift({ name: path.basename(p) || p, path: p });
+    if (path.dirname(p) === p) break;
+  }
   const parent = path.dirname(target);
-  return { path: target, parent: parent === target ? null : parent, dirs };
+  return { path: target, parent: parent === target ? null : parent, dirs, crumbs };
 }
 
 export function makeDir(parent: string, name: string): string {

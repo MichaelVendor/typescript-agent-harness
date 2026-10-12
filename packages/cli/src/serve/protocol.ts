@@ -38,4 +38,5 @@ export type WorkspaceView = {
 };
 
 /** `GET /api/fs`: sub-folders of `path`; `parent` is null at the root. */
-export type DirListing = { path: string; parent: string | null; dirs: string[] };
+/** `crumbs` runs from the filesystem root down to `path`. */
+export type DirListing = { path: string; parent: string | null; dirs: string[]; crumbs: { name: string; path: string }[] };
