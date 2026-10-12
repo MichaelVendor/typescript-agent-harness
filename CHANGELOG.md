@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.29.0 — 2026-10-12
 
 CLI: **Skills** — discover local `SKILL.md` packages (and flat `.md`) under `skills/`, `.agents/skills/`, `.cursor/skills/`, and `~/.tah/skills/`; merge by priority when names collide. Model-invocable skills appear as a catalog in the system prompt; load full instructions via the built-in `skill` tool or user `/kebab-name` in `tah chat` / `tah serve`. Hot reload covers the same skill directories. Reserved tool name `skill`. Design: `docs/design/skills`. `tah init` scaffolds `skills/hello/SKILL.md`.
 

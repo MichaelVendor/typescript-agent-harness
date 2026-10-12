@@ -8,7 +8,7 @@
 | 📐 已设计 | 方向已定，代码未做或只做了一部分 |
 | 🧭 规划中 | 以后可能做，现在不要当 API |
 
-当前版本 **v0.28.3**。已实现的包：
+当前版本 **v0.29.0**。已实现的包：
 
 | 包 | 作用 |
 | --- | --- |
@@ -20,7 +20,7 @@
 | `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |
 | `@typescript-agent-harness/mcp` | `McpBackend` → Tool（进程内 ping + stdio） |
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
-| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包 · **Skills**（`skill` 工具 + `/name`，待 **v0.29** 发布，见 [设计说明](/design/skills)） |
+| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包 · **Skills**（`skill` 工具 + `/name`，v0.29，见 [设计说明](/design/skills)） |
 
 未做：官方 `capabilities.web`（`web_search` / `web_fetch`）、内置浏览器自动化、官方 MCP SDK 封装、shell/sandbox、插件市场。上网与浏览器现阶段用 `extensions.mcp` / `--mcp`（见 [CLI](/guide/cli.md)）。
 

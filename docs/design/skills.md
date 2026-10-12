@@ -1,6 +1,6 @@
 # 设计说明：Skills（Agent Skills）
 
-状态：✅ 已实现（当前开发分支；计划随 **`v0.29`** 发布，npm 上仍为 `0.28.x`）
+状态：✅ 已实现（v0.29）
 
 对齐 [Agent Skills](https://agentskills.io/specification) / Claude Code / [DeepSeek Harness skills](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/skills.md)：渐进披露的 Markdown 指令包，不是可执行插件。
 
@@ -149,7 +149,7 @@ loadProject / home skills
 
 - 交叉说明：`docs/guide/cli.md`、`docs/design/project-convention.md`、`docs/guide/status.md`、`docs/guide/roadmap.md`（Phase 14）
 - `tah init` 写入轻量示例 `skills/hello/SKILL.md`（已存在则跳过）
-- 计划版本线 **`v0.29`**（尚未打 tag / 升 package 版本）
+- 随 **`v0.29.0`** 发布
 
 ## 决策摘要
 

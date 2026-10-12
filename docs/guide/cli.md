@@ -1,6 +1,6 @@
 # CLI
 
-状态：✅ `packages/cli`（v0.28）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）· 附件（v0.27）· 项目配置能力包（v0.28）· **Skills**（v0.29，当前分支已落地）
+状态：✅ `packages/cli`（v0.29）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）· 附件（v0.27）· 项目配置能力包（v0.28）· **Skills**（v0.29）
 
 模型回复边生成边显示（`agent.assistant-stream`），不必等整段 `generate` 结束。
 

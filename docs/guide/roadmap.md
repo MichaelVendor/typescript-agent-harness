@@ -17,7 +17,7 @@
 | 11 | 约定式项目热更新（`AGENTS.md` / `tools/` / `plugins/` / `lib/`） | ✅ `v0.26` |
 | 12 | 附件（`tah serve`：上传、路径投影、可选 vision） | ✅ `v0.27` |
 | 13 | 项目配置（`tah.config.json` 能力包） | ✅ `v0.28` |
-| 14 | Skills（`SKILL.md`、catalog、`skill` 工具、`/name`、热更新） | ✅ 当前分支 · 待 **`v0.29`** 发布 |
+| 14 | Skills（`SKILL.md`、catalog、`skill` 工具、`/name`、热更新） | ✅ `v0.29` |
 
 ## Phase 1 — Runtime ✅
 
@@ -210,7 +210,7 @@ pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的
 - 合并顺序：内置默认 → config → CLI / 环境变量；无文件时行为与 v0.27 一致
 - `capabilities.web: true` 在官方联网工具落地前启动报错；**上网 / 浏览器现阶段用 MCP**（见 [CLI · 上网与浏览器](/guide/cli.md)）；`tah init` 写入示例 config（仅 coding）
 
-## Phase 14 — Skills ✅（待 v0.29 发布）
+## Phase 14 — Skills ✅
 
 设计见 [Skills](/design/skills)。
 
@@ -240,6 +240,6 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.28`）  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.29`）  
 - `v0.N`：当前小版本的开发分支，合入 `main` 后打 `v0.N.x`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  
