@@ -2,8 +2,8 @@ import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import type { AttachmentMeta } from "../attachments/store.js";
 import type { SessionRow } from "../sessions.js";
 
-/** `GET /api/info`; `maxSteps` is null when unlimited. */
-export type ServeInfo = { approve: boolean; maxSteps: number | null; version: string; vision: boolean };
+/** `GET /api/info`; `maxSteps` is null when unlimited; `desktop` is where "New folder" starts (home when there is no Desktop). */
+export type ServeInfo = { approve: boolean; maxSteps: number | null; version: string; vision: boolean; desktop: string };
 
 /** Request bodies of the `POST /api/*` commands that take one. */
 export type ServeRequest = {
@@ -37,6 +37,8 @@ export type WorkspaceView = {
   sessions: SessionRow[];
 };
 
-/** `GET /api/fs`: sub-folders of `path`; `parent` is null at the root. */
-/** `crumbs` runs from the filesystem root down to `path`. */
+/** `GET /api/workspaces/recent`. */
+export type RecentFolder = { path: string; name: string };
+
+/** `GET /api/fs`: sub-folders of `path`; `parent` is null at the root; `crumbs` runs from the root down to `path`. */
 export type DirListing = { path: string; parent: string | null; dirs: string[]; crumbs: { name: string; path: string }[] };

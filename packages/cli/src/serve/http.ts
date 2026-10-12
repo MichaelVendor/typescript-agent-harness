@@ -271,6 +271,8 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "GET /api/workspaces":
         needPersist();
         return json(res, 200, await workspaces.list());
+      case "GET /api/workspaces/recent":
+        return json(res, 200, workspaces.recent());
       case "POST /api/workspaces/add":
         workspaces.add(str(await readBody(req), "path"));
         return json(res, 204);

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -62,6 +62,7 @@ export async function startServe(
         maxSteps: Number.isFinite(flags.maxSteps) ? flags.maxSteps : null,
         version: pkg.version,
         vision: flags.vision,
+        desktop: existsSync(path.join(home, "Desktop")) ? path.join(home, "Desktop") : home,
       },
       webDir: fileURLToPath(new URL("../web/", import.meta.url)),
       persist: flags.persist,

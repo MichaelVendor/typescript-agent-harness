@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -165,7 +165,7 @@ async function fakeServer(webDir = path.join(tmpdir(), "tah-no-web")) {
     workspaces,
     hub,
     token: TOKEN,
-    info: { approve: true, maxSteps: null, version: "0.0.0", vision: false },
+    info: { approve: true, maxSteps: null, version: "0.0.0", vision: false, desktop: "/unused" },
     webDir,
     persist: true,
     home,
@@ -214,6 +214,7 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
       maxSteps: null,
       version: JSON.parse((await import("node:fs")).readFileSync(new URL("../package.json", import.meta.url), "utf8")).version,
       vision: false,
+      desktop: home,
     });
 
     const tab = stream(base, cookie);
@@ -408,6 +409,27 @@ test("folder browser lists sub-folders only and creates folders", async () => {
     assert.equal(JSON.parse(made.body).path, path.join(s.home, "fresh"));
     assert.equal((await api.post("/api/fs/mkdir", { path: s.home, name: "../x" })).status, 400);
     assert.equal((await api.post("/api/fs/mkdir", { path: s.home, name: "fresh" })).status, 400);
+  } finally {
+    await s.close();
+  }
+});
+
+test("recent projects: folders removed from the sidebar that still exist", async () => {
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  try {
+    const kept = path.join(s.home, "kept");
+    const gone = path.join(s.home, "gone");
+    mkdirSync(kept);
+    mkdirSync(gone);
+    for (const dir of [kept, gone]) {
+      assert.equal((await api.post("/api/workspaces/add", { path: dir })).status, 204);
+      assert.equal((await api.post("/api/workspaces/remove", { path: dir })).status, 204);
+    }
+    rmSync(gone, { recursive: true });
+    assert.deepEqual(JSON.parse((await api.get("/api/workspaces/recent")).body), [{ path: kept, name: "kept" }]);
+    await api.post("/api/workspaces/add", { path: kept });
+    assert.deepEqual(JSON.parse((await api.get("/api/workspaces/recent")).body), []);
   } finally {
     await s.close();
   }

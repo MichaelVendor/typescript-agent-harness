@@ -4,9 +4,9 @@ import type { ChatHost, HostEvent } from "../host.js";
 import { setSessionFlag, type SessionFlag } from "../session-flags.js";
 import { setSessionTitle } from "../session-titles.js";
 import type { SessionRow } from "../sessions.js";
-import { addWorkspace, loadWorkspaces, removeWorkspace } from "../workspaces.js";
+import { addWorkspace, loadRecent, loadWorkspaces, removeWorkspace } from "../workspaces.js";
 import { BusyError, type Hub } from "./hub.js";
-import type { WorkspaceView } from "./protocol.js";
+import type { RecentFolder, WorkspaceView } from "./protocol.js";
 
 /** Answered as HTTP 409. */
 export class ConflictError extends Error {}
@@ -15,6 +15,8 @@ export type Workspaces = {
   readonly cwd: string;
   readonly host: ChatHost;
   list(): Promise<WorkspaceView[]>;
+  /** Folders removed from the list that still exist, newest first. */
+  recent(): RecentFolder[];
   add(dir: string): void;
   remove(dir: string): void;
   /** Opens `dir` and moves every tab to it; false when it already was current. On failure the current folder stays. */
@@ -82,6 +84,11 @@ export function createWorkspaces(opts: {
           }
         }),
       );
+    },
+    recent() {
+      return loadRecent(opts.home)
+        .filter((dir) => dir !== current.cwd && existsSync(dir) && statSync(dir).isDirectory())
+        .map((dir) => ({ path: dir, name: path.basename(dir) || dir }));
     },
     add(dir) {
       const target = path.resolve(dir);

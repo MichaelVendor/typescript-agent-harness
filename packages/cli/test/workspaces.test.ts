@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { readSavedSessions } from "../dist/runtime.js";
-import { addWorkspace, loadWorkspaces, removeWorkspace, workspacesPath } from "../dist/workspaces.js";
+import { addWorkspace, loadRecent, loadWorkspaces, removeWorkspace, workspacesPath } from "../dist/workspaces.js";
 
 test("workspaces.json: add dedupes by resolved path, remove keeps order", () => {
   const home = mkdtempSync(path.join(tmpdir(), "tah-ws-home-"));
@@ -16,6 +16,18 @@ test("workspaces.json: add dedupes by resolved path, remove keeps order", () => 
   assert.match(readFileSync(workspacesPath(home), "utf8"), /"workspaces"/);
   assert.deepEqual(removeWorkspace(home, "/tmp/a"), ["/tmp/b"]);
   assert.deepEqual(loadWorkspaces(home), ["/tmp/b"]);
+});
+
+test("workspaces.json: removed folders become recent (newest first, capped); adding one takes it out", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "tah-ws-home-"));
+  for (let i = 0; i < 12; i++) addWorkspace(home, `/tmp/r${i}`);
+  for (let i = 0; i < 12; i++) removeWorkspace(home, `/tmp/r${i}`);
+  assert.deepEqual(loadRecent(home), Array.from({ length: 10 }, (_, i) => `/tmp/r${11 - i}`));
+  addWorkspace(home, "/tmp/r5");
+  assert.equal(loadRecent(home).includes("/tmp/r5"), false);
+  assert.deepEqual(loadWorkspaces(home), ["/tmp/r5"]);
+  removeWorkspace(home, "/tmp/r5");
+  assert.equal(loadRecent(home)[0], "/tmp/r5");
 });
 
 test("workspaces.json: corrupt or wrong-shaped file reads as empty", () => {
