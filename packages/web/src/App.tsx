@@ -3,8 +3,9 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { api, connect, type Connection } from "./api";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { Composer } from "./components/Composer";
-import { FolderPicker } from "./components/FolderPicker";
 import { Messages } from "./components/Messages";
+import { NewFolder } from "./components/NewFolder";
+import { OpenProject } from "./components/OpenProject";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { applyEvent, initialState, type Action } from "./state";
@@ -15,8 +16,8 @@ export function App() {
   const [connection, setConnection] = useState<Connection>("connecting");
   const [workspaces, setWorkspaces] = useState<WorkspaceView[]>();
   const [sessionsError, setSessionsError] = useState<string>();
-  const [picking, setPicking] = useState(false);
-  const closePicker = useCallback(() => setPicking(false), []);
+  const [dialog, setDialog] = useState<"open" | "new">();
+  const closeDialog = useCallback(() => setDialog(undefined), []);
 
   // Streamed deltas arrive far faster than the screen refreshes: render at most once per frame.
   const queue = useRef<Action[]>([]);
@@ -70,6 +71,13 @@ export function App() {
     void refresh();
   }, [connection, state.busy, state.sessionId, state.turnsEnded, refresh]);
 
+  const openFolder = async (path: string) => {
+    await api.addWorkspace({ path });
+    await api.reset({ cwd: path });
+    setDialog(undefined);
+    await refresh();
+  };
+
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
 
@@ -100,20 +108,13 @@ export function App() {
           await refresh();
         }}
         onFlag={(id, flag, on, cwd) => run(api.sessionFlag({ id, flag, on, cwd }).then(refresh))}
-        onAddFolder={() => setPicking(true)}
+        onOpenProject={() => setDialog("open")}
+        onNewFolder={() => setDialog("new")}
         onRemoveFolder={(path) => run(api.removeWorkspace({ path }).then(refresh))}
       />
-      {picking ? (
-        <FolderPicker
-          busy={state.busy}
-          onClose={closePicker}
-          onOpen={async (path) => {
-            await api.addWorkspace({ path });
-            await api.reset({ cwd: path });
-            setPicking(false);
-            await refresh();
-          }}
-        />
+      {dialog === "open" ? <OpenProject busy={state.busy} onClose={closeDialog} onOpen={openFolder} /> : null}
+      {dialog === "new" && info ? (
+        <NewFolder busy={state.busy} desktop={info.desktop} onClose={closeDialog} onOpen={openFolder} />
       ) : null}
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}

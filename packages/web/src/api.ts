@@ -2,6 +2,7 @@ import type {
   AttachmentMeta,
   DirListing,
   HostEvent,
+  RecentFolder,
   ServeError,
   ServeInfo,
   ServeRequest,
@@ -57,6 +58,7 @@ export const api = {
   answer: (body: ServeRequest["answer"]) => post("/api/answer", body),
   reset: (body: ServeRequest["reset"] = {}) => post("/api/reset", body),
   workspaces: async () => (await (await call("GET", "/api/workspaces")).json()) as WorkspaceView[],
+  recent: async () => (await (await call("GET", "/api/workspaces/recent")).json()) as RecentFolder[],
   addWorkspace: (body: ServeRequest["workspace"]) => post("/api/workspaces/add", body),
   removeWorkspace: (body: ServeRequest["workspace"]) => post("/api/workspaces/remove", body),
   fs: async (path?: string) =>

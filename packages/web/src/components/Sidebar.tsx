@@ -45,6 +45,12 @@ const ArchiveIcon = () => (
   </svg>
 );
 
+const FolderPlusIcon = () => (
+  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden>
+    <path d="M1.5 4V12.5h7M1.5 4V3h4.5l1.5 1.5h7v4M12 10v5M9.5 12.5h5" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
+
 export function Sidebar(props: {
   workspaces: WorkspaceView[] | undefined;
   /** Why the list is unavailable (e.g. --no-persist). */
@@ -56,12 +62,14 @@ export function Sidebar(props: {
   onPick(id: string, cwd: string): void;
   onRename(id: string, title: string, cwd: string): Promise<void>;
   onFlag(id: string, flag: Flag, on: boolean, cwd: string): void;
-  onAddFolder(): void;
+  onOpenProject(): void;
+  onNewFolder(): void;
   onRemoveFolder(path: string): void;
 }) {
   const [editing, setEditing] = useState<string>();
   const [draft, setDraft] = useState("");
   const [menu, setMenu] = useState<{ item: Item; x: number; y: number }>();
+  const [addMenu, setAddMenu] = useState<{ x: number; y: number }>();
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
@@ -77,9 +85,13 @@ export function Sidebar(props: {
     if (editing) inputRef.current?.focus();
   }, [editing]);
 
+  const menuOpen = Boolean(menu || addMenu);
   useEffect(() => {
-    if (!menu) return;
-    const close = () => setMenu(undefined);
+    if (!menuOpen) return;
+    const close = () => {
+      setMenu(undefined);
+      setAddMenu(undefined);
+    };
     const onDown = (e: MouseEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) close();
     };
@@ -98,7 +110,7 @@ export function Sidebar(props: {
       window.removeEventListener("resize", close);
       window.removeEventListener("scroll", close, true);
     };
-  }, [menu]);
+  }, [menuOpen]);
 
   const keyOf = (item: Item) => `${item.ws.path}\n${item.session.id}`;
 
@@ -197,6 +209,7 @@ export function Sidebar(props: {
 
   const act = (fn: () => void) => () => {
     setMenu(undefined);
+    setAddMenu(undefined);
     fn();
   };
 
@@ -209,8 +222,22 @@ export function Sidebar(props: {
         <button type="button" onClick={() => props.onFork(props.current)} disabled={props.busy || !props.current}>
           Fork
         </button>
-        <button type="button" onClick={props.onAddFolder} disabled={props.busy} title="Add folder">
-          Add folder
+      </div>
+      <div className="ws-header">
+        <span>Workspaces</span>
+        <button
+          type="button"
+          className="icon-btn"
+          title="Add workspace"
+          aria-label="Add workspace"
+          aria-haspopup="menu"
+          disabled={props.busy}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setAddMenu({ x: Math.min(r.left, innerWidth - 180), y: r.bottom + 4 });
+          }}
+        >
+          <FolderPlusIcon />
         </button>
       </div>
       {props.unavailable ? <div className="sidebar-note">{props.unavailable}</div> : null}
@@ -298,6 +325,20 @@ export function Sidebar(props: {
               onClick={act(() => props.onFlag(menu.item.session.id, "archived", true, menu.item.ws.path))}
             >
               Archive
+            </button>
+          </li>
+        </ul>
+      ) : null}
+      {addMenu ? (
+        <ul ref={menuRef} className="context-menu" role="menu" style={{ left: addMenu.x, top: addMenu.y }}>
+          <li>
+            <button type="button" role="menuitem" onClick={act(props.onOpenProject)}>
+              Open project…
+            </button>
+          </li>
+          <li>
+            <button type="button" role="menuitem" onClick={act(props.onNewFolder)}>
+              New folder…
             </button>
           </li>
         </ul>

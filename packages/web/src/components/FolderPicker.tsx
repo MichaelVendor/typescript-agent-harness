@@ -5,8 +5,14 @@ import { api } from "../api";
 const text = (err: unknown) => (err instanceof Error ? err.message : String(err));
 const join = (dir: string, name: string) => `${dir.replace(/[\\/]$/, "")}/${name}`;
 
-/** Browse sub-folders from home, optionally create one, then open it as a workspace. */
-export function FolderPicker(props: { busy: boolean; onOpen(path: string): Promise<void>; onClose(): void }) {
+/** Browse sub-folders (from `start`, default home), optionally create one, then hand the chosen folder to `onOpen`. */
+export function FolderPicker(props: {
+  busy: boolean;
+  start?: string;
+  confirmLabel?: string;
+  onOpen(path: string): Promise<void>;
+  onClose(): void;
+}) {
   const [listing, setListing] = useState<DirListing>();
   const [error, setError] = useState<string>();
   const [naming, setNaming] = useState(false);
@@ -24,7 +30,7 @@ export function FolderPicker(props: { busy: boolean; onOpen(path: string): Promi
     );
 
   useEffect(() => {
-    void go();
+    void go(props.start);
   }, []);
 
   useEffect(() => {
@@ -109,7 +115,7 @@ export function FolderPicker(props: { busy: boolean; onOpen(path: string): Promi
               });
             }}
           >
-            Open this folder
+            {props.confirmLabel ?? "Open this folder"}
           </button>
         </div>
       </div>
