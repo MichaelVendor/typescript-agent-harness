@@ -1,5 +1,5 @@
 import type { AttachmentMeta } from "@typescript-agent-harness/cli";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../api";
 
 type Draft = AttachmentMeta & { status: "uploading" | "ready" | "error"; error?: string; preview?: string };
@@ -11,6 +11,7 @@ function formatSize(bytes: number): string {
 }
 
 export function Composer(props: {
+  cwd?: string;
   busy: boolean;
   disabled: boolean;
   onSend(text: string, attachmentIds: string[]): void;
@@ -30,6 +31,14 @@ export function Composer(props: {
     const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
     el.style.height = `${Math.min(el.scrollHeight + border, 240)}px`;
   }, [text]);
+
+  // Uploads live in the folder that was active; they can't be sent from another one.
+  useEffect(() => {
+    setDrafts((d) => {
+      for (const x of d) if (x.preview) URL.revokeObjectURL(x.preview);
+      return [];
+    });
+  }, [props.cwd]);
 
   const uploading = drafts.some((d) => d.status === "uploading");
   const readyIds = drafts.filter((d) => d.status === "ready").map((d) => d.id);

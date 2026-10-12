@@ -150,6 +150,7 @@ export function App() {
           ) : null}
         </Messages>
         <Composer
+          cwd={workspaces?.find((w) => w.active)?.path}
           busy={state.busy}
           disabled={connection !== "open" || state.stepLimit}
           onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}
