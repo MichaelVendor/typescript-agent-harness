@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.30.1 — 2026-10-12
 
 CLI: the agent is told it runs inside tah and how Skills work (where they live, how to install one with `write_file`), so it no longer answers "install a skill" with Cursor instructions. Plain folders (not tah projects) now load `skills/`, `.agents/skills/` and `.cursor/skills/` too, and only those folders are watched for reloads there.
 
