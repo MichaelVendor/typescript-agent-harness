@@ -201,3 +201,25 @@ test("activate: the old host's close() rejecting still switches and is logged", 
   assert.equal(ws.cwd, b);
   assert.deepEqual(errors, [`[tah] closing ${a} failed: close failed`]);
 });
+
+test("an unwritable home still starts; the active folder is listed", async () => {
+  const home = tmp("tah-ws-home-");
+  writeFileSync(path.join(home, ".tah"), "not a folder");
+  const a = tmp("tah-ws-a-");
+  const { make } = hostFactory();
+  const first = await make(a);
+  const hub = createHub(first);
+  await first.open();
+  const errors: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => void errors.push(args.join(" "));
+  let ws;
+  try {
+    ws = createWorkspaces({ cwd: a, home, host: first, hub, createHost: make, readSessions: async () => [] });
+  } finally {
+    console.error = original;
+  }
+  assert.deepEqual((await ws.list()).map((w) => w.path), [a]);
+  assert.equal(errors.length, 1);
+  assert.match(String(errors[0]), /^\[tah\] could not save the folder list/);
+});

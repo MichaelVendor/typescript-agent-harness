@@ -37,7 +37,11 @@ export function createWorkspaces(opts: {
 }): Workspaces {
   let current = { cwd: path.resolve(opts.cwd), host: opts.host };
   let switching = false;
-  addWorkspace(opts.home, current.cwd);
+  try {
+    addWorkspace(opts.home, current.cwd);
+  } catch (err) {
+    console.error(`[tah] could not save the folder list: ${message(err)}`);
+  }
 
   const listed = (dir: string): string => {
     const target = path.resolve(dir);
