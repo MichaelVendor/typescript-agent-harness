@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CliFlags } from "../args.js";
 import { createChatHost } from "../host.js";
@@ -37,7 +38,7 @@ function openBrowser(url: string): void {
 export async function startServe(
   flags: CliFlags,
   opts: { homeDir?: string } = {},
-): Promise<{ url: string; readonly sessionId: string; stop(): Promise<void> }> {
+): Promise<{ url: string; readonly sessionId: string; readonly cwd: string; stop(): Promise<void> }> {
   const home = opts.homeDir ?? os.homedir();
   const hostFor = (cwd: string) =>
     createChatHost({ ...flags, cwd, session: "" }, { historyTurns: Infinity, homeDir: home });
@@ -78,6 +79,9 @@ export async function startServe(
     get sessionId() {
       return workspaces.host.sessionId;
     },
+    get cwd() {
+      return workspaces.cwd;
+    },
     async stop() {
       workspaces.host.cancel();
       closeAll();
@@ -98,6 +102,7 @@ export async function runServe(flags: CliFlags): Promise<void> {
   console.log("\n[tah] stopping…");
   await serve.stop();
   if (flags.persist && !flags.quiet) {
-    console.log(`[tah] session ${serve.sessionId} saved — continue with: tah chat --session ${serve.sessionId}`);
+    const cwdArg = serve.cwd === path.resolve(flags.cwd) ? "" : ` --cwd ${JSON.stringify(serve.cwd)}`;
+    console.log(`[tah] session ${serve.sessionId} saved — continue with: tah chat${cwdArg} --session ${serve.sessionId}`);
   }
 }
