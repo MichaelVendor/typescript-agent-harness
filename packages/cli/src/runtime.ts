@@ -35,7 +35,7 @@ import { buildSkillsCatalogSection } from "./skills/catalog.js";
 import { discoverSkills } from "./skills/discover.js";
 import { createSkillTool } from "./skills/tool.js";
 import type { SkillSummary } from "./skills/types.js";
-import { formatSessions, resolveSessionRef, toRows } from "./sessions.js";
+import { formatSessions, resolveSessionRef, toRows, type SessionRow } from "./sessions.js";
 
 /**
  * `midLine`: streamed text did not end with a newline, so log lines must break first.
@@ -300,19 +300,26 @@ export async function describeSessions(
   return formatSessions(toRows(rows, cwd), currentId);
 }
 
-/** For `tah sessions`: reads `<cwd>/.tah/cli.db` without an LLM or API key. */
-export async function listSavedSessions(cwd: string): Promise<string> {
+/** Rows of `<cwd>/.tah/cli.db` without an LLM or API key; `[]` when there is no db. */
+export async function readSavedSessions(cwd: string): Promise<SessionRow[]> {
   const dbPath = path.join(cwd, ".tah/cli.db");
-  if (!existsSync(dbPath)) return `[tah] no saved sessions (${dbPath} does not exist)`;
+  if (!existsSync(dbPath)) return [];
   const { storagePlugin } = await import("@typescript-agent-harness/storage");
   const runtime = new Runtime({ id: "tah-sessions" });
   runtime.use(storagePlugin({ driver: "sqlite", path: dbPath }));
   await runtime.start();
   try {
-    return await describeSessions(runtime, undefined, cwd);
+    return toRows(await (await storageOf(runtime)).listSessions(), cwd);
   } finally {
     await runtime.stop();
   }
+}
+
+/** For `tah sessions`: reads `<cwd>/.tah/cli.db` without an LLM or API key. */
+export async function listSavedSessions(cwd: string): Promise<string> {
+  const dbPath = path.join(cwd, ".tah/cli.db");
+  if (!existsSync(dbPath)) return `[tah] no saved sessions (${dbPath} does not exist)`;
+  return formatSessions(await readSavedSessions(cwd));
 }
 
 export async function runOnce(
