@@ -84,13 +84,23 @@ export function App() {
         current={state.sessionId}
         busy={state.busy}
         onNew={() => run(api.reset())}
-        onFork={() => run(api.fork())}
+        onFork={(id) =>
+          run((id === state.sessionId ? Promise.resolve() : api.resume({ ref: id })).then(() => api.fork()))
+        }
         onPick={(id) => run(api.resume({ ref: id }))}
         onRename={async (id, title) => {
           await api.rename({ id, title });
           const rows = await api.sessions();
           setSessions(rows);
         }}
+        onFlag={(id, flag, on) =>
+          run(
+            api
+              .sessionFlag({ id, flag, on })
+              .then(() => api.sessions())
+              .then(setSessions),
+          )
+        }
       />
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}

@@ -60,6 +60,7 @@ export const api = {
   fork: (body: ServeRequest["fork"] = {}) => post("/api/fork", body),
   rename: async (body: ServeRequest["rename"]) =>
     (await (await call("POST", "/api/rename", body)).json()) as { id: string; title: string | null },
+  sessionFlag: (body: ServeRequest["sessionFlag"]) => post("/api/session-flag", body),
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";

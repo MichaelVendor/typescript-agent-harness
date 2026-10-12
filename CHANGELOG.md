@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+Web (`tah serve`): Cursor-style session sidebar — a Pinned section, one-line rows with relative times (`now` / `5m` / `21h` / `2d`), pin and archive buttons that replace the time on hover, and a right-click menu (Pin / Rename / Fork / Copy ID / Archive). Pinned and archived ids live in `.tah/session-flags.json` (new `POST /api/session-flag`); archived sessions are hidden from the web list only — `tah sessions` and `/sessions` still show them.
+
 ## 0.29.0 — 2026-10-12
 
 CLI: **Skills** — discover local `SKILL.md` packages (and flat `.md`) under `skills/`, `.agents/skills/`, `.cursor/skills/`, and `~/.tah/skills/`; merge by priority when names collide. Model-invocable skills appear as a catalog in the system prompt; load full instructions via the built-in `skill` tool or user `/kebab-name` in `tah chat` / `tah serve`. Hot reload covers the same skill directories. Reserved tool name `skill`. Design: `docs/design/skills`. `tah init` scaffolds `skills/hello/SKILL.md`.

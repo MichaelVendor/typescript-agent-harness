@@ -109,14 +109,25 @@ pre {
   color: var(--muted);
 }
 .sessions {
-  list-style: none;
-  margin: 0;
   padding: 0 8px 12px;
   overflow-y: auto;
+}
+.sessions ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sessions-heading {
+  padding: 8px 8px 4px;
+  font-size: 12px;
+  color: var(--muted);
 }
 .session-item {
   margin-bottom: 2px;
   border-radius: 6px;
+}
+.session-item:hover {
+  background: var(--bg);
 }
 .session-item.current {
   background: var(--bg);
@@ -124,21 +135,15 @@ pre {
 }
 .session {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   width: 100%;
-  text-align: left;
-  padding: 4px 4px 4px 8px;
-}
-.preview-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 2px;
+  padding: 2px 4px 2px 8px;
 }
 .session-pick {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
   text-align: left;
   border: none;
   background: transparent;
@@ -151,28 +156,59 @@ pre {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.session .meta {
+.session-time {
+  flex: none;
   font-size: 12px;
   color: var(--muted);
 }
-.session-rename-btn {
+.session-tools {
   flex: none;
+  display: none;
+  gap: 2px;
+}
+.session-item:hover .session-time {
+  display: none;
+}
+.session-item:hover .session-tools {
+  display: flex;
+}
+.session-tools button {
+  display: flex;
   border: none;
   background: transparent;
   color: var(--muted);
-  padding: 2px 6px;
+  padding: 3px;
   border-radius: 4px;
-  line-height: 1.2;
-  opacity: 0;
 }
-.session-item:hover .session-rename-btn,
-.session-item.current .session-rename-btn,
-.session-rename-btn:focus-visible {
-  opacity: 1;
+.session-tools button:hover,
+.session-tools button.on {
+  color: var(--text);
 }
-.session-rename-btn:hover {
+.session-tools button:hover {
   background: var(--panel);
-  color: var(--fg);
+}
+.context-menu {
+  position: fixed;
+  z-index: 10;
+  min-width: 160px;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
+}
+.context-menu button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 14px;
+}
+.context-menu button:not(:disabled):hover {
+  background: var(--panel);
 }
 .session-rename {
   width: 100%;
