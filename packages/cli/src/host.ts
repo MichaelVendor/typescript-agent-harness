@@ -1,6 +1,4 @@
-import { existsSync } from "node:fs";
 import os from "node:os";
-import path from "node:path";
 import { SESSION, type RunResult, type Session, type SessionService } from "@typescript-agent-harness/agent";
 import type { Runtime } from "@typescript-agent-harness/core";
 import type { ChatMessage } from "@typescript-agent-harness/llm";
@@ -374,18 +372,19 @@ export async function createChatHost(
     while (reloading) await reloading;
   };
   let stopWatching = () => {};
+  let reloadedAt = 0;
   const watch = () => {
     if (!flags.watch) return;
-    const homeSkillsExist = existsSync(path.join(homeDir, ".tah", "skills"));
-    if (!project && !homeSkillsExist) return;
     stopWatching = watchProject(flags.cwd, (files) => {
+      // The watcher reports a write ~debounce ms late; an explicit reload just before already read it.
+      if (Date.now() - reloadedAt < 1000) return;
       if (!flags.persist) {
         emit({ type: "notice", text: `[tah] ${files.join(", ")} changed — restart to apply (persist is off)` });
         return;
       }
       for (const file of files) changed.add(file);
       reloadWhenIdle();
-    }, 200, { homeSkillsDir: homeDir });
+    }, 200, { homeSkillsDir: homeDir, skillsOnly: !project });
   };
   const sessionEvent = (resumed: boolean): SessionEvent => ({
     type: "session",
@@ -541,6 +540,8 @@ export async function createChatHost(
         idle();
         if (!flags.persist) throw new Error("restart tah to apply (persist is off)");
         await reload();
+        changed.clear();
+        reloadedAt = Date.now();
       }),
     async close() {
       stopWatching();

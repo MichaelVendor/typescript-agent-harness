@@ -9,6 +9,8 @@ const SKILL_PARENTS = [".agents", ".cursor"] as const;
 export type WatchProjectOptions = {
   /** Home directory. When set, also watch `<homeSkillsDir>/.tah/skills` (reported as `.tah/skills/...`). */
   homeSkillsDir?: string;
+  /** A plain folder (not a tah project): only skill folders count, so edits to its `lib/` etc. never reload. */
+  skillsOnly?: boolean;
 };
 
 /**
@@ -23,6 +25,8 @@ export function watchProject(
   debounceMs = 200,
   opts: WatchProjectOptions = {},
 ): () => void {
+  const dirs = opts.skillsOnly ? ["skills"] : DIRS;
+  const rootFiles = opts.skillsOnly ? new Set<string>() : ROOT_FILES;
   const changed = new Set<string>();
   let timer: NodeJS.Timeout | undefined;
   const report = (file: string) => {
@@ -87,18 +91,18 @@ export function watchProject(
 
   const root = watch(cwd, (_event, file) => {
     if (!file) return;
-    if (DIRS.includes(file)) {
+    if (dirs.includes(file)) {
       syncTree(file, path.join(cwd, file));
       report(file);
     } else if (file === ".agents" || file === ".cursor") {
       syncSkillParent(file);
       if (existsSync(path.join(cwd, file, "skills"))) report(`${file}/skills`);
-    } else if (ROOT_FILES.has(file)) {
+    } else if (rootFiles.has(file)) {
       report(file);
     }
   });
   root.on("error", () => root.close());
-  for (const name of DIRS) syncTree(name, path.join(cwd, name));
+  for (const name of dirs) syncTree(name, path.join(cwd, name));
   for (const name of SKILL_PARENTS) syncSkillParent(name);
 
   if (opts.homeSkillsDir && existsSync(opts.homeSkillsDir)) {

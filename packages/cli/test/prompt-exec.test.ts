@@ -15,6 +15,15 @@ test("buildSystemPrompt: custom role replaces only the role line", () => {
   assert.match(prompt, /execute_command/);
 });
 
+test("buildSystemPrompt says it is tah and how skills install; a project's own role does not", () => {
+  const prompt = buildSystemPrompt({ exec: true, mcp: false });
+  assert.match(prompt, /You run inside tah/);
+  assert.match(prompt, /skills\/<name>\/SKILL\.md/);
+  assert.match(prompt, /~\/\.tah\/skills\//);
+  const own = buildSystemPrompt({ exec: false, mcp: false, builtinTools: false, role: "You are a docs bot." });
+  assert.equal(own, "You are a docs bot.");
+});
+
 test("buildSystemPrompt with exec mentions execute_command", () => {
   const prompt = buildSystemPrompt({ exec: true, mcp: false });
   assert.match(prompt, /execute_command/);

@@ -55,6 +55,26 @@ test("AGENTS.md, tools/, helpers in tool subdirectories and lib/ are watched", a
   }
 });
 
+test("skillsOnly: a plain folder reloads for skills/, not for lib/ or AGENTS.md", async () => {
+  const cwd = project();
+  mkdirSync(path.join(cwd, "lib"));
+  mkdirSync(path.join(cwd, "skills"));
+  const w = collect(cwd, { skillsOnly: true });
+  try {
+    await w.settle();
+    writeFileSync(path.join(cwd, "lib", "orders.ts"), "2");
+    writeFileSync(path.join(cwd, "AGENTS.md"), "v2");
+    writeFileSync(path.join(cwd, "tools", "a.ts"), "2");
+    mkdirSync(path.join(cwd, "skills", "x"));
+    writeFileSync(path.join(cwd, "skills", "x", "SKILL.md"), "---\nname: x\n---\n");
+    const files = await w.until("skills/x/SKILL.md");
+    assert.ok(files.includes("skills/x/SKILL.md"));
+    assert.deepEqual(files.filter((f) => !f.startsWith("skills")), []);
+  } finally {
+    w.stop();
+  }
+});
+
 test("plugins/ created after startup is picked up", async () => {
   const cwd = project();
   const w = collect(cwd);

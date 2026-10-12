@@ -30,8 +30,17 @@ export function buildSystemPrompt(opts: {
   if (opts.mcp) {
     systemPrompt += " MCP tools from --mcp are also available.";
   }
+  systemPrompt += `\n\n${ABOUT_TAH}`;
   return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
 }
+
+/** Without this the model guesses it runs in Cursor or Claude Code and gives their instructions. */
+export const ABOUT_TAH = [
+  "You run inside tah (typescript-agent-harness), not Cursor or Claude Code.",
+  "Skills are folders with a SKILL.md whose YAML frontmatter has `name` (kebab-case, the same as the folder name) and `description` (when to use it).",
+  "tah loads skills from `skills/`, `.agents/skills/` and `.cursor/skills/` in the working folder, and from `~/.tah/skills/` for every folder; a new or changed skill is available from the next message.",
+  "To install a skill here, write `skills/<name>/SKILL.md` with write_file. The user can also import skill folders in the web app under Settings → Skills.",
+].join(" ");
 
 function appendSkillsCatalog(systemPrompt: string, skillsCatalog?: string): string {
   if (!skillsCatalog) return systemPrompt;

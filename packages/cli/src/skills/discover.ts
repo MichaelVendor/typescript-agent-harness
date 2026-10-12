@@ -5,25 +5,19 @@ import type { SkillSource, SkillSummary } from "./types.js";
 
 export type DiscoverSkillsOpts = {
   cwd: string;
-  isProject: boolean;
   homeDir: string;
 };
 
 type RootSpec = { root: string; source: SkillSource; label: string };
 
 function skillRoots(opts: DiscoverSkillsOpts): RootSpec[] {
-  const { cwd, isProject, homeDir } = opts;
-  const roots: RootSpec[] = [
+  const { cwd, homeDir } = opts;
+  return [
     { root: path.join(homeDir, ".tah", "skills"), source: "home", label: ".tah/skills" },
+    { root: path.join(cwd, ".cursor", "skills"), source: "cursor", label: ".cursor/skills" },
+    { root: path.join(cwd, ".agents", "skills"), source: "agents", label: ".agents/skills" },
+    { root: path.join(cwd, "skills"), source: "skills", label: "skills" },
   ];
-  if (isProject) {
-    roots.push(
-      { root: path.join(cwd, ".cursor", "skills"), source: "cursor", label: ".cursor/skills" },
-      { root: path.join(cwd, ".agents", "skills"), source: "agents", label: ".agents/skills" },
-      { root: path.join(cwd, "skills"), source: "skills", label: "skills" },
-    );
-  }
-  return roots;
 }
 
 function ingestFile(

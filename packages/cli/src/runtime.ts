@@ -30,7 +30,7 @@ import {
   type ResolvedCapabilities,
 } from "./config.js";
 import { createMarkdownStream, dim, renderMarkdown, useColor } from "./markdown.js";
-import { isProject, loadProject, ProjectError, type Project } from "./project.js";
+import { loadProject, ProjectError, type Project } from "./project.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { buildSkillsCatalogSection } from "./skills/catalog.js";
 import { discoverSkills } from "./skills/discover.js";
@@ -143,11 +143,7 @@ export async function bootRuntime(
     console.log(color ? dim(line) : line);
   };
 
-  const discovered = discoverSkills({
-    cwd: flags.cwd,
-    isProject: Boolean(project) || isProject(flags.cwd),
-    homeDir: opts.homeDir ?? os.homedir(),
-  });
+  const discovered = discoverSkills({ cwd: flags.cwd, homeDir: opts.homeDir ?? os.homedir() });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
   const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;

@@ -14,6 +14,8 @@ export type {
   ServeInfo,
   ServeRequest,
   SettingsView,
+  SkillsImport,
+  SkillsView,
   WorkspaceView,
 } from "./serve/protocol.js";
 

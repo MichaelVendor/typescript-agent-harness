@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -534,6 +534,53 @@ test("settings: add / switch / remove models; keys never come back; the host rel
 
     await api.post("/api/send", { text: "hi" });
     assert.equal((await api.post("/api/settings/active", { id: two.models[0].id })).status, 409);
+    s.finish();
+  } finally {
+    await s.close();
+  }
+});
+
+test("skills: list home + folder skills; import one or a folder of them (symlinks copied); remove home ones", async () => {
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  const skill = (dir: string, name: string) => {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "SKILL.md"), `---\nname: ${name}\ndescription: Does ${name}.\n---\nbody\n`);
+  };
+  try {
+    skill(path.join(s.cwd, "skills", "local"), "local");
+    const from = path.join(s.home, "cursor-skills");
+    skill(path.join(from, "good"), "good");
+    skill(path.join(s.home, "real", "linked"), "linked");
+    symlinkSync(path.join(s.home, "real", "linked"), path.join(from, "linked"));
+    mkdirSync(path.join(from, "bad"));
+    writeFileSync(path.join(from, "bad", "SKILL.md"), "no frontmatter\n");
+    mkdirSync(path.join(from, "not-a-skill"));
+
+    const all = await api.post("/api/skills/import", { path: from });
+    assert.equal(all.status, 200);
+    const body = JSON.parse(all.body);
+    assert.deepEqual(body.imported.sort(), ["good", "linked"]);
+    assert.deepEqual(body.skipped, ["bad: missing YAML frontmatter"]);
+    assert.equal(s.reloads(), 1);
+    assert.ok(lstatSync(path.join(s.home, ".tah", "skills", "linked")).isDirectory());
+
+    const again = JSON.parse((await api.post("/api/skills/import", { path: path.join(from, "good") })).body);
+    assert.deepEqual([again.imported, again.skipped], [[], ["good: already installed"]]);
+    assert.equal(s.reloads(), 1);
+    assert.equal((await api.post("/api/skills/import", { path: path.join(from, "not-a-skill") })).status, 400);
+
+    const listed = JSON.parse((await api.get("/api/skills")).body).skills.map((k: { name: string; source: string }) => [k.name, k.source]);
+    assert.deepEqual(listed, [["good", "home"], ["linked", "home"], ["local", "folder"]]);
+
+    assert.equal((await api.post("/api/skills/remove", { name: "good" })).status, 200);
+    assert.equal(s.reloads(), 2);
+    assert.equal(existsSync(path.join(s.home, ".tah", "skills", "good")), false);
+    assert.equal((await api.post("/api/skills/remove", { name: "local" })).status, 400);
+    assert.equal((await api.post("/api/skills/remove", { name: "../x" })).status, 400);
+
+    await api.post("/api/send", { text: "hi" });
+    assert.equal((await api.post("/api/skills/remove", { name: "linked" })).status, 409);
     s.finish();
   } finally {
     await s.close();

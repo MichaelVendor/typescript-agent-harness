@@ -23,6 +23,10 @@ export type ServeRequest = {
   removeModel: { id: string };
   /** `null` goes back to `.env`. */
   activeModel: { id: string | null };
+  /** A skill folder, or a folder of skill folders (e.g. `~/.cursor/skills`), copied into `~/.tah/skills`. */
+  importSkills: { path: string };
+  /** Only skills in `~/.tah/skills` can be removed here. */
+  removeSkill: { name: string };
   /** System folder dialog starting at `start`; answers `{ path: string | null }` (null = cancelled), 501 when unavailable. */
   choose: { start?: string };
 };
@@ -49,6 +53,14 @@ export type SettingsView = {
   models: { id: string; model: string; baseURL: string; keyHint: string }[];
   activeModel: string | null;
 };
+
+/** `GET /api/skills`: what the open folder loads. `home` = `~/.tah/skills` (every folder); `folder` = inside the open folder. */
+export type SkillsView = {
+  skills: { name: string; description: string; source: "home" | "folder"; path: string }[];
+};
+
+/** `POST /api/skills/import`; `skipped` entries read `<name>: <reason>`. */
+export type SkillsImport = SkillsView & { imported: string[]; skipped: string[] };
 
 /** `GET /api/workspaces/recent`. */
 export type RecentFolder = { path: string; name: string };

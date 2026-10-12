@@ -10,7 +10,9 @@ import { chooseFolder, UnsupportedError } from "./choose.js";
 import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
 import { activeModel, addModel, defaultBaseURL, keyHint, loadSettings, removeModel, setActiveModel } from "../settings.js";
-import type { ServeInfo, SettingsView } from "./protocol.js";
+import { discoverSkills } from "../skills/discover.js";
+import { importSkills, removeSkill } from "../skills/install.js";
+import type { ServeInfo, SettingsView, SkillsView } from "./protocol.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
 
 const COOKIE = "tah_token";
@@ -132,6 +134,14 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       activeModel: s.activeModel ?? null,
     };
   };
+  const skillsView = (): SkillsView => ({
+    skills: discoverSkills({ cwd: workspaces.cwd, homeDir: opts.home }).skills.map((s) => ({
+      name: s.name,
+      description: s.description,
+      source: s.source === "home" ? "home" : "folder",
+      path: s.skillFile,
+    })),
+  });
   /** The open folder rebuilds its LLM when the active model changed; other folders read settings when opened. */
   const changeModels = async (change: () => void, res: ServerResponse) => {
     hub.assertIdle();
@@ -327,6 +337,22 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         if (body.id !== null && typeof body.id !== "string") throw new HttpError(400, '"id" must be a string or null');
         const id = body.id;
         return changeModels(() => setActiveModel(opts.home, id), res);
+      }
+      case "GET /api/skills":
+        return json(res, 200, skillsView());
+      case "POST /api/skills/import": {
+        const from = str(await readBody(req), "path");
+        hub.assertIdle();
+        const result = importSkills(opts.home, from);
+        if (result.imported.length) await host().reload();
+        return json(res, 200, { ...skillsView(), ...result });
+      }
+      case "POST /api/skills/remove": {
+        const name = str(await readBody(req), "name");
+        hub.assertIdle();
+        removeSkill(opts.home, name);
+        await host().reload();
+        return json(res, 200, skillsView());
       }
       case "POST /api/fs/choose": {
         const start = optStr(await readBody(req), "start");
