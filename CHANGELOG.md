@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.30.0 — 2026-10-12
 
 Web (`tah serve`): **work folders** — the sidebar groups sessions by folder (Pinned stays on top, across folders); a Cursor-style "Workspaces" header with a folder button offers "Open project…" (recently removed folders first, or browse) and "New folder…" (created on the Desktop by default, location changeable, then opened); opening a session in another folder makes it the agent's working directory (one current session at a time). The folder list lives in `~/.tah/workspaces.json`. New endpoints: `GET /api/workspaces`, `GET /api/workspaces/recent`, `POST /api/workspaces/add|remove`, `GET /api/fs`, `POST /api/fs/mkdir`; `reset` / `resume` / `fork` / `rename` / `session-flag` accept an optional `cwd`. Design: `docs/design/workspaces`. Picking a folder ("Choose folder…", "Change…") opens the system folder dialog on macOS and Windows (`POST /api/fs/choose`); elsewhere the in-page browser is used. Folder groups use icon buttons and indent their sessions.
 
 Web (`tah serve`): **Settings** — the bottom of the sidebar shows the computer user name with a gear button that opens Settings, where you add LLM models (name, API key, optional base URL; `deepseek*` defaults to the DeepSeek URL, anything else to OpenAI) and pick the active one. Models live in `~/.tah/settings.json` (mode 0600); the active model takes priority over `.env` for `tah serve`, `tah chat`, and `tah run`. Keys are never sent back to the page (only a hint like `sk-…abcd`). Switching models reloads the current folder and keeps the session. `tah serve` now starts without any key and reports "no model configured" when you send. New endpoints: `GET /api/settings`, `POST /api/settings/models`, `POST /api/settings/models/remove`, `POST /api/settings/active`.
+
+Web (`tah serve`): consecutive tool calls (and the `[ctx] trimmed` notices between them) fold into one block — while running it shows "Working N steps" with per-tool counts and only the latest three steps; once the turn moves on it collapses to one summary line ("Ran N steps · read_file ×18 · grep ×5 · 1 failed") that expands on click.
 
 ## 0.29.1 — 2026-10-12
 
