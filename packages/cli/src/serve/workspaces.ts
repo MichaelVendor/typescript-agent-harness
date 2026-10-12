@@ -107,10 +107,19 @@ export function createWorkspaces(opts: {
           throw err;
         }
         off();
-        opts.hub.swap(next, buffered);
-        const previous = current.host;
+        try {
+          opts.hub.swap(next, buffered);
+        } catch (err) {
+          await next.close().catch(() => {});
+          throw err;
+        }
+        const previous = current;
         current = { cwd: target, host: next };
-        await previous.close();
+        try {
+          await previous.host.close();
+        } catch (err) {
+          console.error(`[tah] closing ${previous.cwd} failed: ${message(err)}`);
+        }
         return true;
       } finally {
         switching = false;

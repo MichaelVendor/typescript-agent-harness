@@ -30,8 +30,11 @@ test("listDirs: folders only, hidden skipped, sorted; makeDir validates names", 
   for (const bad of ["", ".", "..", "x/y", "x\\y", "a"]) assert.throws(() => makeDir(root, bad));
 });
 
-/** Fake hosts: `open()` emits a notice and a session; `close()` is recorded. */
-function hostFactory() {
+/**
+ * Fake hosts: `open()` emits a notice and a session; `close()` is recorded.
+ * `gate(cwd)` is awaited first inside `open()`; `failClose` makes that folder's `close()` reject.
+ */
+function hostFactory(opts: { gate?: (cwd: string) => Promise<void> | undefined; failClose?: string } = {}) {
   const closed: string[] = [];
   const make = async (cwd: string): Promise<ChatHost> => {
     if (cwd.endsWith("broken")) throw new Error("tah: tah.config.json: bad");
@@ -45,6 +48,7 @@ function hostFactory() {
         return () => listeners.delete(l);
       },
       async open() {
+        await opts.gate?.(cwd);
         for (const l of listeners) l({ type: "notice", text: `boot ${cwd}` });
         for (const l of listeners) l(snap);
       },
@@ -54,6 +58,7 @@ function hostFactory() {
       setSessionFlag: async () => {},
       async close() {
         closed.push(cwd);
+        if (cwd === opts.failClose) throw new Error("close failed");
       },
     } as unknown as ChatHost;
   };
@@ -142,4 +147,57 @@ test("rename / flag on a non-active folder write that folder's files", async () 
   const { loadSessionFlags } = await import("../dist/session-flags.js");
   assert.deepEqual(loadSessionFlags(b).pinned, ["old-b"]);
   await assert.rejects(ws.renameSession(b, "nope", "x"), /no session/);
+});
+
+/** Folders `a` (active) and `b` (listed); `fake` is read lazily, so tests set its fields after setup. */
+async function twoFolders() {
+  const home = tmp("tah-ws-home-");
+  const a = tmp("tah-ws-a-");
+  const b = tmp("tah-ws-b-");
+  const fake: NonNullable<Parameters<typeof hostFactory>[0]> = {};
+  const { make, closed } = hostFactory(fake);
+  const first = await make(a);
+  const hub = createHub(first);
+  await first.open();
+  const ws = createWorkspaces({ cwd: a, home, host: first, hub, createHost: make, readSessions: async () => [] });
+  ws.add(b);
+  return { a, b, first, hub, ws, closed, fake };
+}
+
+test("activate: a new host whose open() rejects is closed; the old folder stays", async () => {
+  const { a, b, first, ws, closed, fake } = await twoFolders();
+  fake.gate = () => Promise.reject(new Error("open failed"));
+  await assert.rejects(ws.activate(b), /open failed/);
+  assert.deepEqual(closed, [b]);
+  assert.equal(ws.cwd, a);
+  assert.equal(ws.host, first);
+});
+
+test("activate: a turn started while the new host opens rejects and closes the new host", async () => {
+  const { a, b, first, hub, ws, closed, fake } = await twoFolders();
+  let release!: () => void;
+  const opening = new Promise<void>((resolve) => (release = resolve));
+  fake.gate = () => opening;
+  const switching = ws.activate(b);
+  hub.start(() => new Promise(() => {}));
+  release();
+  await assert.rejects(switching, /a turn is running/);
+  assert.deepEqual(closed, [b]);
+  assert.equal(ws.cwd, a);
+  assert.equal(ws.host, first);
+});
+
+test("activate: the old host's close() rejecting still switches and is logged", async () => {
+  const { a, b, ws, fake } = await twoFolders();
+  fake.failClose = a;
+  const errors: unknown[] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => void errors.push(args.join(" "));
+  try {
+    assert.equal(await ws.activate(b), true);
+  } finally {
+    console.error = original;
+  }
+  assert.equal(ws.cwd, b);
+  assert.deepEqual(errors, [`[tah] closing ${a} failed: close failed`]);
 });
