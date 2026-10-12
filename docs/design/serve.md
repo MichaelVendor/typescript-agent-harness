@@ -22,7 +22,7 @@ v0.24 定义了会话接口 `ChatHost`，TUI 在进程内调用它（见 [TUI �
 ## 非目标
 
 - 不对外公开：只监听 `127.0.0.1`，没有账号体系、限流、HTTPS。远程使用走 SSH 端口转发。
-- 不做多会话并行（下一版再议）；同一时间只有一个当前会话，和 TUI 一样。
+- 不做多会话并行；同一时间只有一个当前会话，和 TUI 一样。多个文件夹见 [工作文件夹](./workspaces.md)（v0.30），仍然只有一个当前会话。
 - 不做文件树、diff 查看、设置面板、主题切换、网页里切换审批模式（仍用 `--yes`）。
 - 附件（选择 / 拖拽 / 粘贴文件与图片）见 [附件](./attachments.md)，不在本文件展开。
 - 不引入服务端框架和 WebSocket：`node:http` + SSE。
@@ -121,6 +121,7 @@ hub 维护：
 - 终端打印 `http://127.0.0.1:<port>/?token=<token>`。网页读到 `?token=` 后调 `POST /api/auth`，服务端设置 cookie `tah_token_<port>=<token>; HttpOnly; SameSite=Strict; Path=/`（cookie 不区分端口，名字带上端口，两个项目同时 `tah serve` 才不会互相顶掉登录）；网页用 `history.replaceState` 去掉地址栏里的令牌。换 cookie 走 API 而不是静态页，所以 Vite 开发服务器代理时也能用。
 - 所有请求校验 `Host` 头为 `127.0.0.1:<port>` 或 `localhost:<port>`（防 DNS 重绑定）。
 - 所有 POST 校验 `Origin` 为同一地址，且 `Content-Type: application/json`（防跨站请求伪造）。
+- 文件夹选择器（`GET /api/fs`）能列出当前用户可读的任意目录下的文件夹名（不列文件），同样受上面的令牌保护。
 
 ## 命令
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+Web (`tah serve`): **work folders** — the sidebar groups sessions by folder (Pinned stays on top, across folders); "Add folder" opens an in-page folder browser that can also create a folder; opening a session in another folder makes it the agent's working directory (one current session at a time). The folder list lives in `~/.tah/workspaces.json`. New endpoints: `GET /api/workspaces`, `POST /api/workspaces/add|remove`, `GET /api/fs`, `POST /api/fs/mkdir`; `reset` / `resume` / `fork` / `rename` / `session-flag` accept an optional `cwd`. Design: `docs/design/workspaces`.
+
 ## 0.29.1 — 2026-10-12
 
 Web (`tah serve`): Cursor-style session sidebar — a Pinned section, one-line rows with relative times (`now` / `5m` / `21h` / `2d`), pin and archive buttons that replace the time on hover, and a right-click menu (Pin / Rename / Fork / Copy ID / Archive). Pinned and archived ids live in `.tah/session-flags.json` (new `POST /api/session-flag`); archived sessions are hidden from the web list only — `tah sessions` and `/sessions` still show them.

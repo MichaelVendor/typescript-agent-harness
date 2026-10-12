@@ -77,6 +77,7 @@ function sidebarDesign() {
         { text: "Skills", link: "/design/skills" },
         { text: "TUI 与会话接口", link: "/design/tui" },
         { text: "tah serve", link: "/design/serve" },
+        { text: "工作文件夹", link: "/design/workspaces" },
         { text: "附件", link: "/design/attachments" },
       ],
     },
