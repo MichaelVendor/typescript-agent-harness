@@ -1,10 +1,11 @@
 import type {
   AttachmentMeta,
+  DirListing,
   HostEvent,
   ServeError,
   ServeInfo,
   ServeRequest,
-  SessionRow,
+  WorkspaceView,
 } from "@typescript-agent-harness/cli";
 
 export class ApiError extends Error {
@@ -34,7 +35,6 @@ const post = (path: string, body?: unknown) => call("POST", path, body).then(() 
 export const api = {
   auth: (body: ServeRequest["auth"]) => post("/api/auth", body),
   info: async () => (await (await call("GET", "/api/info")).json()) as ServeInfo,
-  sessions: async () => (await (await call("GET", "/api/sessions")).json()) as SessionRow[],
   send: (body: ServeRequest["send"]) => post("/api/send", body),
   async upload(file: File): Promise<AttachmentMeta> {
     const res = await fetch("/api/attachments", {
@@ -55,7 +55,13 @@ export const api = {
   continueTurn: () => post("/api/continue"),
   cancel: () => post("/api/cancel"),
   answer: (body: ServeRequest["answer"]) => post("/api/answer", body),
-  reset: () => post("/api/reset"),
+  reset: (body: ServeRequest["reset"] = {}) => post("/api/reset", body),
+  workspaces: async () => (await (await call("GET", "/api/workspaces")).json()) as WorkspaceView[],
+  addWorkspace: (body: ServeRequest["workspace"]) => post("/api/workspaces/add", body),
+  removeWorkspace: (body: ServeRequest["workspace"]) => post("/api/workspaces/remove", body),
+  fs: async (path?: string) =>
+    (await (await call("GET", `/api/fs${path ? `?path=${encodeURIComponent(path)}` : ""}`)).json()) as DirListing,
+  mkdir: async (body: ServeRequest["mkdir"]) => (await (await call("POST", "/api/fs/mkdir", body)).json()) as { path: string },
   resume: (body: ServeRequest["resume"]) => post("/api/resume", body),
   fork: (body: ServeRequest["fork"] = {}) => post("/api/fork", body),
   rename: async (body: ServeRequest["rename"]) =>

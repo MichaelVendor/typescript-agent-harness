@@ -1,8 +1,9 @@
-import type { ServeInfo, SessionRow } from "@typescript-agent-harness/cli";
+import type { ServeInfo, WorkspaceView } from "@typescript-agent-harness/cli";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { api, connect, type Connection } from "./api";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { Composer } from "./components/Composer";
+import { FolderPicker } from "./components/FolderPicker";
 import { Messages } from "./components/Messages";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
@@ -12,8 +13,10 @@ export function App() {
   const [state, dispatch] = useReducer(applyEvent, initialState);
   const [info, setInfo] = useState<ServeInfo>();
   const [connection, setConnection] = useState<Connection>("connecting");
-  const [sessions, setSessions] = useState<SessionRow[]>();
+  const [workspaces, setWorkspaces] = useState<WorkspaceView[]>();
   const [sessionsError, setSessionsError] = useState<string>();
+  const [picking, setPicking] = useState(false);
+  const closePicker = useCallback(() => setPicking(false), []);
 
   // Streamed deltas arrive far faster than the screen refreshes: render at most once per frame.
   const queue = useRef<Action[]>([]);
@@ -50,16 +53,22 @@ export function App() {
     };
   }, [enqueue]);
 
+  const refresh = useCallback(
+    () =>
+      api.workspaces().then(
+        (rows) => {
+          setWorkspaces(rows);
+          setSessionsError(undefined);
+        },
+        (err: unknown) => setSessionsError(err instanceof Error ? err.message : String(err)),
+      ),
+    [],
+  );
+
   useEffect(() => {
     if (connection !== "open" || state.busy) return;
-    api.sessions().then(
-      (rows) => {
-        setSessions(rows);
-        setSessionsError(undefined);
-      },
-      (err: unknown) => setSessionsError(err instanceof Error ? err.message : String(err)),
-    );
-  }, [connection, state.busy, state.sessionId, state.turnsEnded]);
+    void refresh();
+  }, [connection, state.busy, state.sessionId, state.turnsEnded, refresh]);
 
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
@@ -79,29 +88,32 @@ export function App() {
   return (
     <div className="app">
       <Sidebar
-        sessions={sessions}
+        workspaces={workspaces}
         unavailable={sessionsError}
         current={state.sessionId}
         busy={state.busy}
-        onNew={() => run(api.reset())}
-        onFork={(id) =>
-          run((id === state.sessionId ? Promise.resolve() : api.resume({ ref: id })).then(() => api.fork()))
-        }
-        onPick={(id) => run(api.resume({ ref: id }))}
-        onRename={async (id, title) => {
-          await api.rename({ id, title });
-          const rows = await api.sessions();
-          setSessions(rows);
+        onNew={(cwd) => run(api.reset(cwd ? { cwd } : {}))}
+        onFork={(id, cwd) => run(api.fork({ id, ...(cwd ? { cwd } : {}) }))}
+        onPick={(id, cwd) => run(api.resume({ ref: id, cwd }))}
+        onRename={async (id, title, cwd) => {
+          await api.rename({ id, title, cwd });
+          await refresh();
         }}
-        onFlag={(id, flag, on) =>
-          run(
-            api
-              .sessionFlag({ id, flag, on })
-              .then(() => api.sessions())
-              .then(setSessions),
-          )
-        }
+        onFlag={(id, flag, on, cwd) => run(api.sessionFlag({ id, flag, on, cwd }).then(refresh))}
+        onAddFolder={() => setPicking(true)}
+        onRemoveFolder={(path) => run(api.removeWorkspace({ path }).then(refresh))}
       />
+      {picking ? (
+        <FolderPicker
+          onClose={closePicker}
+          onOpen={async (path) => {
+            await api.addWorkspace({ path });
+            await api.reset({ cwd: path });
+            setPicking(false);
+            await refresh();
+          }}
+        />
+      ) : null}
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
         <Messages entries={state.entries}>
@@ -142,7 +154,7 @@ export function App() {
           onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}
           onStop={() => run(api.cancel())}
         />
-        <StatusBar model={state.model} sessionId={state.sessionId} rounds={state.rounds} approve={info?.approve ?? true} />
+        <StatusBar cwd={workspaces?.find((w) => w.active)?.path} model={state.model} sessionId={state.sessionId} rounds={state.rounds} approve={info?.approve ?? true} />
       </main>
     </div>
   );

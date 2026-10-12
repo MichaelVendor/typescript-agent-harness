@@ -210,6 +210,128 @@ pre {
 .context-menu button:not(:disabled):hover {
   background: var(--panel);
 }
+.ws-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px 2px 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ws-head.active .ws-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.ws-head.missing {
+  opacity: 0.6;
+}
+.ws-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0 4px;
+  color: inherit;
+  font-size: 12px;
+  text-align: left;
+}
+.ws-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-note {
+  flex: none;
+}
+.ws-tools {
+  flex: none;
+  display: none;
+  gap: 2px;
+}
+.ws-head:hover .ws-tools {
+  display: flex;
+}
+.ws-tools button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 6px;
+  line-height: 1.4;
+}
+.ws-tools button:hover {
+  background: var(--panel);
+  color: var(--text);
+}
+.session-folder {
+  flex: none;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.session-item:hover .session-folder {
+  display: none;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.3);
+}
+.modal {
+  width: min(520px, 90vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+}
+.crumbs button,
+.dirs button {
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  text-align: left;
+}
+.dirs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-height: 160px;
+}
+.dirs button {
+  width: 100%;
+  padding: 4px 8px;
+}
+.dirs button:hover,
+.crumbs button:hover {
+  background: var(--panel);
+}
+.modal-error {
+  color: var(--fail);
+  font-size: 13px;
+}
+.spacer {
+  flex: 1;
+}
 .session-rename {
   width: 100%;
   border: 1px solid var(--border);
