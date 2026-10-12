@@ -13,10 +13,13 @@ export type Hub = {
   assertIdle(): void;
   /** Starts a turn (`send` / `continueTurn`) without waiting for it; throws `BusyError` while one runs. */
   start(run: () => Promise<void>): void;
+  /** Moves every tab to `host`; `buffered` are the events it emitted while opening. Throws `BusyError` while a turn runs. */
+  swap(host: ChatHost, buffered: HostEvent[]): void;
 };
 
 /** One `ChatHost` shared by every browser tab; subscribe before `host.open()`. */
-export function createHub(host: ChatHost): Hub {
+export function createHub(first: ChatHost): Hub {
+  let host = first;
   const listeners = new Set<(event: HostEvent) => void>();
   const startup: HostEvent[] = [];
   let base: SessionEvent | undefined;
@@ -54,10 +57,11 @@ export function createHub(host: ChatHost): Hub {
     turn.push(event);
   };
 
-  host.on((event) => {
+  const forward = (event: HostEvent) => {
     record(event);
     for (const listener of listeners) listener(event);
-  });
+  };
+  let unsubscribe = host.on(forward);
 
   const assertIdle = () => {
     if (busy) throw new BusyError();
@@ -79,6 +83,17 @@ export function createHub(host: ChatHost): Hub {
       run().catch(() => {
         busy = false;
       });
+    },
+    swap(next, buffered) {
+      assertIdle();
+      unsubscribe();
+      startup.length = 0;
+      base = undefined;
+      lastEnd = undefined;
+      turn = [];
+      host = next;
+      for (const event of buffered) forward(event);
+      unsubscribe = host.on(forward);
     },
   };
 }
