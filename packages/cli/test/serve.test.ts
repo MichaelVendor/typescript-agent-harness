@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { parseArgv } from "../dist/args.js";
 import { createAttachmentStore } from "../dist/attachments/store.js";
 import type { ChatHost, HostEvent, SessionEvent } from "../dist/host.js";
+import { chooseFolder, UnsupportedError } from "../dist/serve/choose.js";
 import { createServeHandler } from "../dist/serve/http.js";
 import { createHub } from "../dist/serve/hub.js";
 import { startServe } from "../dist/serve/run.js";
@@ -92,6 +93,7 @@ function fakeHost() {
   };
   const store = createAttachmentStore(mkdtempSync(path.join(tmpdir(), "tah-serve-att-")));
   let finish = () => {};
+  let reloads = 0;
   const host: ChatHost = {
     sessionId: "s1",
     approve: true,
@@ -142,12 +144,18 @@ function fakeHost() {
     listSessions: async () => [],
     renameSession: async () => undefined,
     setSessionFlag: async () => {},
+    reload: async () => {
+      reloads++;
+    },
     close: async () => {},
   };
-  return { host, emit, finish: () => finish() };
+  return { host, emit, finish: () => finish(), reloads: () => reloads };
 }
 
-async function fakeServer(webDir = path.join(tmpdir(), "tah-no-web")) {
+async function fakeServer(
+  webDir = path.join(tmpdir(), "tah-no-web"),
+  chooseFolder: (start?: string) => Promise<string | null> = async () => null,
+) {
   const fake = fakeHost();
   const hub = createHub(fake.host);
   await fake.host.open();
@@ -169,6 +177,7 @@ async function fakeServer(webDir = path.join(tmpdir(), "tah-no-web")) {
     webDir,
     persist: true,
     home,
+    chooseFolder,
   });
   const server = createServer(handle);
   const base = await listen(server);
@@ -409,6 +418,123 @@ test("folder browser lists sub-folders only and creates folders", async () => {
     assert.equal(JSON.parse(made.body).path, path.join(s.home, "fresh"));
     assert.equal((await api.post("/api/fs/mkdir", { path: s.home, name: "../x" })).status, 400);
     assert.equal((await api.post("/api/fs/mkdir", { path: s.home, name: "fresh" })).status, 400);
+  } finally {
+    await s.close();
+  }
+});
+
+test("native folder chooser: picked path, cancel, unsupported, one at a time", async () => {
+  let answer: () => Promise<string | null> = async () => "/picked/dir";
+  const starts: (string | undefined)[] = [];
+  const s = await fakeServer(undefined, async (start) => {
+    starts.push(start);
+    return answer();
+  });
+  const api = client(s.base, s.cookie);
+  try {
+    const picked = await api.post("/api/fs/choose", { start: "/from" });
+    assert.equal(picked.status, 200);
+    assert.deepEqual(JSON.parse(picked.body), { path: "/picked/dir" });
+    assert.deepEqual(starts, ["/from"]);
+
+    answer = async () => null;
+    assert.deepEqual(JSON.parse((await api.post("/api/fs/choose", {})).body), { path: null });
+
+    answer = async () => {
+      throw new UnsupportedError("no native folder dialog on this platform");
+    };
+    assert.equal((await api.post("/api/fs/choose", {})).status, 501);
+
+    let release!: (v: string | null) => void;
+    answer = () => new Promise((r) => (release = r));
+    const first = api.post("/api/fs/choose", {});
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal((await api.post("/api/fs/choose", {})).status, 409);
+    release(null);
+    assert.equal((await first).status, 200);
+  } finally {
+    await s.close();
+  }
+});
+
+test("chooseFolder: Windows FolderBrowserDialog via PowerShell; empty output is cancel", async () => {
+  const calls: string[][] = [];
+  const run = (stdout: string) => async (cmd: string, args: string[]) => {
+    calls.push([cmd, ...args]);
+    return { code: 0, stdout, stderr: "" };
+  };
+  assert.equal(await chooseFolder("C:\\Users\\o'neil", { platform: "win32", run: run("C:\\Users\\me\\项目\r\n") }), "C:\\Users\\me\\项目");
+  const [cmd, ...args] = calls[0] ?? [];
+  assert.equal(cmd, "powershell.exe");
+  assert.deepEqual(args.slice(0, 4), ["-NoProfile", "-NonInteractive", "-STA", "-EncodedCommand"]);
+  const script = Buffer.from(args[4] ?? "", "base64").toString("utf16le");
+  assert.match(script, /FolderBrowserDialog/);
+  assert.match(script, /ShowNewFolderButton = \$true/);
+  assert.match(script, /SelectedPath = 'C:\\Users\\o''neil'/);
+  assert.equal(await chooseFolder(undefined, { platform: "win32", run: run("") }), null);
+});
+
+test("chooseFolder: macOS choose folder dialog; cancel is null; other platforms unsupported", async () => {
+  const calls: string[][] = [];
+  const run = (result: { code: number; stdout: string; stderr: string }) => async (cmd: string, args: string[]) => {
+    calls.push([cmd, ...args]);
+    return result;
+  };
+  assert.equal(
+    await chooseFolder('/Users/me/"x"', { platform: "darwin", run: run({ code: 0, stdout: "/Users/me/picked/\n", stderr: "" }) }),
+    "/Users/me/picked",
+  );
+  assert.equal(calls[0]?.[0], "osascript");
+  assert.match(calls[0]?.join(" ") ?? "", /choose folder .*default location \(POSIX file "\/Users\/me\/\\"x\\""\)/);
+  assert.equal(
+    await chooseFolder(undefined, { platform: "darwin", run: run({ code: 1, stdout: "", stderr: "execution error: User canceled. (-128)" }) }),
+    null,
+  );
+  await assert.rejects(
+    chooseFolder(undefined, { platform: "darwin", run: run({ code: 1, stdout: "", stderr: "boom" }) }),
+    /boom/,
+  );
+  await assert.rejects(chooseFolder(undefined, { platform: "linux", run: run({ code: 0, stdout: "", stderr: "" }) }), UnsupportedError);
+});
+
+test("settings: add / switch / remove models; keys never come back; the host reloads when the active model changes", async () => {
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  const view = async () => JSON.parse((await api.get("/api/settings")).body);
+  try {
+    const empty = await view();
+    assert.equal(typeof empty.user, "string");
+    assert.deepEqual([empty.models, empty.activeModel], [[], null]);
+
+    const first = await api.post("/api/settings/models", { model: "deepseek-chat", apiKey: "sk-first-1234" });
+    assert.equal(first.status, 200);
+    assert.equal(s.reloads(), 1);
+    await api.post("/api/settings/models", { model: "gpt-4o", apiKey: "sk-second-5678", baseURL: "https://example.com/v1" });
+    assert.equal(s.reloads(), 1);
+
+    const two = await view();
+    assert.deepEqual(
+      two.models.map((m: { model: string; baseURL: string; keyHint: string }) => [m.model, m.baseURL, m.keyHint]),
+      [
+        ["deepseek-chat", "https://api.deepseek.com/v1", "sk-…1234"],
+        ["gpt-4o", "https://example.com/v1", "sk-…5678"],
+      ],
+    );
+    assert.doesNotMatch(JSON.stringify(two), /sk-first|sk-second/);
+    assert.equal(two.activeModel, two.models[0].id);
+
+    assert.equal((await api.post("/api/settings/active", { id: two.models[1].id })).status, 200);
+    assert.equal(s.reloads(), 2);
+    assert.equal((await api.post("/api/settings/active", { id: "nope" })).status, 400);
+    assert.equal((await api.post("/api/settings/models", { model: "x", apiKey: "" })).status, 400);
+
+    assert.equal((await api.post("/api/settings/models/remove", { id: two.models[1].id })).status, 200);
+    assert.equal(s.reloads(), 3);
+    assert.equal((await view()).activeModel, null);
+
+    await api.post("/api/send", { text: "hi" });
+    assert.equal((await api.post("/api/settings/active", { id: two.models[0].id })).status, 409);
+    s.finish();
   } finally {
     await s.close();
   }

@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { agentPlugin, SESSION, type Session } from "@typescript-agent-harness/agent";
-import { Runtime } from "@typescript-agent-harness/core";
-import { llmPlugin } from "@typescript-agent-harness/llm";
+import { Runtime, type Plugin } from "@typescript-agent-harness/core";
+import { LLM, llmPlugin } from "@typescript-agent-harness/llm";
 import {
   approvalPlugin,
   permissionsPlugin,
@@ -22,6 +22,7 @@ import {
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
+import { activeModel, defaultBaseURL } from "./settings.js";
 import {
   assertWebImplemented,
   loadTahConfig,
@@ -53,6 +54,23 @@ export function describeProject(project: Project, systemFile: boolean): string {
   }
   parts.push(`tools+${project.tools.length}`, `plugins+${project.plugins.length}`);
   return parts.join(" ");
+}
+
+function noModelPlugin(): Plugin {
+  const fail = () => new Error("no model configured — add one in Settings, or set DEEPSEEK_API_KEY / OPENAI_API_KEY in .env");
+  return {
+    name: "llm",
+    setup(ctx) {
+      ctx.provide(LLM, {
+        generate: async () => {
+          throw fail();
+        },
+        stream: async function* () {
+          throw fail();
+        },
+      });
+    },
+  };
 }
 
 /**
@@ -89,15 +107,15 @@ export async function bootRuntime(
   const builtin = caps.coding;
   const exec = caps.exec;
   const mcpOn = Boolean(caps.mcp);
-  const hasKey = Boolean(
-    process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY,
-  );
-  if (!flags.mock && !hasKey) {
+  const chosen = flags.mock ? undefined : activeModel(opts.homeDir ?? os.homedir());
+  const hasKey = Boolean(chosen) || Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY);
+  // `tah serve` starts anyway so a model can be added in its Settings; turns fail until then.
+  if (!flags.mock && !hasKey && flags.command !== "serve") {
     throw new Error(
       "tah: no DEEPSEEK_API_KEY or OPENAI_API_KEY. Set one in <cwd>/.env or pass --mock.",
     );
   }
-  const provider = flags.mock ? "mock" : "openai-compatible";
+  const provider = flags.mock ? "mock" : hasKey ? "openai-compatible" : "none";
   const runtime = new Runtime({ id: "tah-cli" });
 
   const color = useColor();
@@ -132,7 +150,7 @@ export async function bootRuntime(
   });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -214,7 +232,17 @@ export async function bootRuntime(
     );
   }
 
-  runtime.use(llmPlugin({ provider })).use(toolsPlugin({ tools }));
+  runtime
+    .use(
+      provider === "none"
+        ? noModelPlugin()
+        : llmPlugin(
+            chosen
+              ? { provider, apiKey: chosen.apiKey, baseURL: chosen.baseURL ?? defaultBaseURL(chosen.model), defaultModel: chosen.model }
+              : { provider },
+          ),
+    )
+    .use(toolsPlugin({ tools }));
 
   if (caps.mcp) {
     const { mcpPlugin, stdioMcpBackend } = await import("@typescript-agent-harness/mcp");

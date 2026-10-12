@@ -2,12 +2,15 @@ import { timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import type { IncomingMessage, RequestListener, ServerResponse } from "node:http";
+import os from "node:os";
 import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import { AttachmentError, MAX_FILE_BYTES } from "../attachments/store.js";
+import { chooseFolder, UnsupportedError } from "./choose.js";
 import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
-import type { ServeInfo } from "./protocol.js";
+import { activeModel, addModel, defaultBaseURL, keyHint, loadSettings, removeModel, setActiveModel } from "../settings.js";
+import type { ServeInfo, SettingsView } from "./protocol.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
 
 const COOKIE = "tah_token";
@@ -38,6 +41,8 @@ export type ServeOptions = {
   persist: boolean;
   /** Starting point of the folder picker. */
   home: string;
+  /** System folder dialog; defaults to the real one (tests inject a fake). */
+  chooseFolder?: (start?: string) => Promise<string | null>;
 };
 
 class HttpError extends Error {
@@ -117,6 +122,24 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const host = () => workspaces.host;
   const streams = new Set<ServerResponse>();
   const webDir = path.resolve(opts.webDir);
+  let choosing = false;
+
+  const settingsView = (): SettingsView => {
+    const s = loadSettings(opts.home);
+    return {
+      user: os.userInfo().username,
+      models: s.models.map((m) => ({ id: m.id, model: m.model, baseURL: m.baseURL ?? defaultBaseURL(m.model), keyHint: keyHint(m.apiKey) })),
+      activeModel: s.activeModel ?? null,
+    };
+  };
+  /** The open folder rebuilds its LLM when the active model changed; other folders read settings when opened. */
+  const changeModels = async (change: () => void, res: ServerResponse) => {
+    hub.assertIdle();
+    const before = activeModel(opts.home)?.id;
+    change();
+    if (activeModel(opts.home)?.id !== before) await host().reload();
+    return json(res, 200, settingsView());
+  };
 
   const needPersist = () => {
     if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
@@ -287,6 +310,34 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         const body = await readBody(req);
         return json(res, 201, { path: makeDir(str(body, "path"), str(body, "name")) });
       }
+      case "GET /api/settings":
+        return json(res, 200, settingsView());
+      case "POST /api/settings/models": {
+        const body = await readBody(req);
+        const input = { model: str(body, "model"), apiKey: typeof body.apiKey === "string" ? body.apiKey : "" };
+        const baseURL = optStr(body, "baseURL");
+        return changeModels(() => void addModel(opts.home, baseURL ? { ...input, baseURL } : input), res);
+      }
+      case "POST /api/settings/models/remove": {
+        const id = str(await readBody(req), "id");
+        return changeModels(() => removeModel(opts.home, id), res);
+      }
+      case "POST /api/settings/active": {
+        const body = await readBody(req);
+        if (body.id !== null && typeof body.id !== "string") throw new HttpError(400, '"id" must be a string or null');
+        const id = body.id;
+        return changeModels(() => setActiveModel(opts.home, id), res);
+      }
+      case "POST /api/fs/choose": {
+        const start = optStr(await readBody(req), "start");
+        if (choosing) throw new HttpError(409, "a folder dialog is already open");
+        choosing = true;
+        try {
+          return json(res, 200, { path: await (opts.chooseFolder ?? chooseFolder)(start) });
+        } finally {
+          choosing = false;
+        }
+      }
     }
     throw new HttpError(404, `no such endpoint: ${key}`);
   };
@@ -332,6 +383,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       if (err instanceof BusyError) return json(res, 409, { error: err.message });
       if (err instanceof AttachmentError) return json(res, 400, { error: err.message });
       if (err instanceof ConflictError) return json(res, 409, { error: err.message });
+      if (err instanceof UnsupportedError) return json(res, 501, { error: err.message });
       json(res, 400, { error: err instanceof Error ? err.message : String(err) });
     });
   };

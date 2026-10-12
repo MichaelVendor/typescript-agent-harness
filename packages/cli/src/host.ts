@@ -79,6 +79,8 @@ export type ChatHost = {
   renameSession(id: string, title: string): Promise<string | undefined>;
   /** Pin / archive a session in the sidebar; archiving also unpins. */
   setSessionFlag(id: string, flag: SessionFlag, on: boolean): Promise<void>;
+  /** Rebuilds the runtime (e.g. after the model in settings changed) and keeps the session; needs persist. */
+  reload(): Promise<void>;
   close(): Promise<void>;
 };
 
@@ -533,6 +535,12 @@ export async function createChatHost(
         const row = await (await storageOf(runtime)).getSession(id);
         if (!row) throw new Error(`no session "${id}"`);
         setSessionFlag(flags.cwd, id, flag, on);
+      }),
+    reload: () =>
+      ready(async () => {
+        idle();
+        if (!flags.persist) throw new Error("restart tah to apply (persist is off)");
+        await reload();
       }),
     async close() {
       stopWatching();

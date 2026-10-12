@@ -19,6 +19,12 @@ export type ServeRequest = {
   sessionFlag: { id: string; flag: "pinned" | "archived"; on: boolean; cwd?: string };
   workspace: { path: string };
   mkdir: { path: string; name: string };
+  addModel: { model: string; apiKey: string; baseURL?: string };
+  removeModel: { id: string };
+  /** `null` goes back to `.env`. */
+  activeModel: { id: string | null };
+  /** System folder dialog starting at `start`; answers `{ path: string | null }` (null = cancelled), 501 when unavailable. */
+  choose: { start?: string };
 };
 
 export type { AttachmentMeta };
@@ -35,6 +41,13 @@ export type WorkspaceView = {
   /** Why this folder's sessions could not be read. */
   error?: string;
   sessions: SessionRow[];
+};
+
+/** `GET /api/settings`; API keys only ever leave the server as `keyHint`. `baseURL` is the effective one. */
+export type SettingsView = {
+  user: string;
+  models: { id: string; model: string; baseURL: string; keyHint: string }[];
+  activeModel: string | null;
 };
 
 /** `GET /api/workspaces/recent`. */

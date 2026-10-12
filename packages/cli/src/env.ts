@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { activeModel } from "./settings.js";
 
 export function loadDotEnv(file: string): void {
   let raw: string;
@@ -31,6 +33,6 @@ export function loadCliEnv(cwd: string): void {
   loadDotEnv(path.join(cwd, "examples/basic-agent/.env"));
 }
 
-export function hasLlmKey(): boolean {
-  return Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY);
+export function hasLlmKey(home = os.homedir()): boolean {
+  return Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY) || activeModel(home) !== undefined;
 }
