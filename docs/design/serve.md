@@ -90,11 +90,13 @@ type HostEvent =
 | `POST /api/resume` `{ref}` | 切到会话（id 或列表序号） | 204 |
 | `POST /api/fork` `{turns?}` | 从当前会话分叉 | 204 |
 
+工作文件夹（v0.30）另加 `GET /api/workspaces`、`POST /api/workspaces/add|remove`、`GET /api/fs`、`POST /api/fs/mkdir`，`reset` / `resume` / `fork` / `rename` / `session-flag` 可带 `cwd`，见 [工作文件夹](./workspaces.md)。
+
 规则：
 
 - `send` / `continue` 返回 202 即结束，结果全走事件流。网页只有一个数据来源。
 - 一轮进行中调 `send` / `continue` / `reset` / `resume` / `fork` 返回 409。忙闲由 hub 记录：hub 调 `send` / `continueTurn` 时置忙，收到 `turn.end` / `turn.error` 时置闲。
-- 请求体格式错误 400；未登录 401；`Host` / `Origin` 不符 403；`--no-persist` 下 `/api/sessions` 409；`ChatHost` 命令抛出的其他错误（如 `resume` 找不到会话）400，`error` 为原错误信息。
+- 请求体格式错误 400；未登录 401；`Host` / `Origin` 不符 403；`--no-persist` 下会话列表、改名、置顶 / 归档、`/api/workspaces` 与带 `cwd` 的请求 409；切换文件夹进行中再切换 409；`ChatHost` 命令抛出的其他错误（如 `resume` 找不到会话）400，`error` 为原错误信息。
 - 未知路径：`/api/*` 返回 404 JSON；其他路径按静态文件处理（见下）。
 
 ### 静态文件
@@ -121,7 +123,8 @@ hub 维护：
 - 终端打印 `http://127.0.0.1:<port>/?token=<token>`。网页读到 `?token=` 后调 `POST /api/auth`，服务端设置 cookie `tah_token_<port>=<token>; HttpOnly; SameSite=Strict; Path=/`（cookie 不区分端口，名字带上端口，两个项目同时 `tah serve` 才不会互相顶掉登录）；网页用 `history.replaceState` 去掉地址栏里的令牌。换 cookie 走 API 而不是静态页，所以 Vite 开发服务器代理时也能用。
 - 所有请求校验 `Host` 头为 `127.0.0.1:<port>` 或 `localhost:<port>`（防 DNS 重绑定）。
 - 所有 POST 校验 `Origin` 为同一地址，且 `Content-Type: application/json`（防跨站请求伪造）。
-- 文件夹选择器（`GET /api/fs`）能列出当前用户可读的任意目录下的文件夹名（不列文件），同样受上面的令牌保护。
+- 文件夹选择器（`GET /api/fs`）能列出当前用户可读的任意目录下的文件夹名（不列文件），`POST /api/fs/mkdir` 能在可写目录下新建文件夹，同样受上面的令牌保护。
+- 打开一个文件夹会加载它的 `tools/`、`plugins/`、`skills/` 与 `tah.config.json`，和在那里跑 `tah chat` 一样会执行其中代码；只添加信任的文件夹。
 
 ## 命令
 
