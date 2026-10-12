@@ -3,11 +3,14 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import type { CliFlags } from "../args.js";
 import { createChatHost } from "../host.js";
+import { readSavedSessions } from "../runtime.js";
 import { createServeHandler } from "./http.js";
 import { createHub } from "./hub.js";
+import { createWorkspaces, type Workspaces } from "./workspaces.js";
 
 function listen(server: Server, port: number): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -33,28 +36,38 @@ function openBrowser(url: string): void {
 /** Starts the server and resolves once it is listening; `stop()` shuts everything down. */
 export async function startServe(
   flags: CliFlags,
+  opts: { homeDir?: string } = {},
 ): Promise<{ url: string; readonly sessionId: string; stop(): Promise<void> }> {
-  const host = await createChatHost(flags, { historyTurns: Infinity });
+  const home = opts.homeDir ?? os.homedir();
+  const hostFor = (cwd: string) =>
+    createChatHost({ ...flags, cwd, session: "" }, { historyTurns: Infinity, homeDir: home });
+  const host = await createChatHost(flags, { historyTurns: Infinity, homeDir: home });
   const hub = createHub(host);
   const token = randomBytes(32).toString("base64url");
   const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string };
-  const { handle, closeAll } = createServeHandler({
-    host,
-    hub,
-    token,
-    info: {
-      approve: host.approve,
-      maxSteps: Number.isFinite(flags.maxSteps) ? flags.maxSteps : null,
-      version: pkg.version,
-      vision: flags.vision,
-    },
-    webDir: fileURLToPath(new URL("../web/", import.meta.url)),
-    persist: flags.persist,
-  });
-  const server = createServer(handle);
+  let workspaces: Workspaces;
+  let closeAll: () => void;
+  let server: Server;
   let port: number;
   try {
     await host.open();
+    workspaces = createWorkspaces({ cwd: flags.cwd, home, host, hub, createHost: hostFor, readSessions: readSavedSessions });
+    const handler = createServeHandler({
+      workspaces,
+      hub,
+      token,
+      info: {
+        approve: host.approve,
+        maxSteps: Number.isFinite(flags.maxSteps) ? flags.maxSteps : null,
+        version: pkg.version,
+        vision: flags.vision,
+      },
+      webDir: fileURLToPath(new URL("../web/", import.meta.url)),
+      persist: flags.persist,
+      home,
+    });
+    closeAll = handler.closeAll;
+    server = createServer(handler.handle);
     port = await listen(server, flags.port);
   } catch (err) {
     await host.close();
@@ -63,14 +76,14 @@ export async function startServe(
   return {
     url: `http://127.0.0.1:${port}/?token=${token}`,
     get sessionId() {
-      return host.sessionId;
+      return workspaces.host.sessionId;
     },
     async stop() {
-      host.cancel();
+      workspaces.host.cancel();
       closeAll();
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
-      await host.close();
+      await workspaces.close();
     },
   };
 }

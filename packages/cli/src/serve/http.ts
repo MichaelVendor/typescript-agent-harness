@@ -5,9 +5,10 @@ import type { IncomingMessage, RequestListener, ServerResponse } from "node:http
 import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import { AttachmentError, MAX_FILE_BYTES } from "../attachments/store.js";
-import type { ChatHost } from "../host.js";
+import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
 import type { ServeInfo } from "./protocol.js";
+import { ConflictError, type Workspaces } from "./workspaces.js";
 
 const COOKIE = "tah_token";
 const MAX_BODY = 1_000_000;
@@ -28,13 +29,15 @@ const TYPES: Record<string, string> = {
 const CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'";
 
 export type ServeOptions = {
-  host: ChatHost;
+  workspaces: Workspaces;
   hub: Hub;
   token: string;
   info: ServeInfo;
   /** Built web UI; may not exist in a source checkout. */
   webDir: string;
   persist: boolean;
+  /** Starting point of the folder picker. */
+  home: string;
 };
 
 class HttpError extends Error {
@@ -104,11 +107,26 @@ function str(body: Record<string, unknown>, key: string): string {
   return value;
 }
 
+function optStr(body: Record<string, unknown>, key: string): string | undefined {
+  return body[key] === undefined ? undefined : str(body, key);
+}
+
 /** Request handler plus `closeAll()` to end the event streams on shutdown. */
 export function createServeHandler(opts: ServeOptions): { handle: RequestListener; closeAll(): void } {
-  const { host, hub } = opts;
+  const { workspaces, hub } = opts;
+  const host = () => workspaces.host;
   const streams = new Set<ServerResponse>();
   const webDir = path.resolve(opts.webDir);
+
+  const needPersist = () => {
+    if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
+  };
+  /** Switches folder when the body names one; true when it switched. */
+  const enter = async (cwd: string | undefined): Promise<boolean> => {
+    if (cwd === undefined) return false;
+    needPersist();
+    return workspaces.activate(cwd);
+  };
 
   const events = (req: IncomingMessage, res: ServerResponse) => {
     res.writeHead(200, {
@@ -156,8 +174,8 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "GET /api/events":
         return events(req, res);
       case "GET /api/sessions":
-        if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
-        return json(res, 200, await host.listSessions());
+        needPersist();
+        return json(res, 200, await host().listSessions());
       case "POST /api/attachments": {
         const nameHeader = req.headers["x-tah-filename"];
         const mimeHeader = req.headers["x-tah-mime"];
@@ -166,7 +184,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         const data = await readRaw(req, MAX_UPLOAD);
         if (data.length === 0) throw new HttpError(400, "empty upload");
         try {
-          const ref = host.saveAttachment({ name, mime, data });
+          const ref = host().saveAttachment({ name, mime, data });
           const { path: _path, ...meta } = ref;
           return json(res, 201, meta);
         } catch (err) {
@@ -185,60 +203,87 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
             })
           : [];
         if (!text.trim() && attachmentIds.length === 0) throw new HttpError(400, "text or attachmentIds required");
-        hub.start(() => host.send(text, attachmentIds));
+        hub.start(() => host().send(text, attachmentIds));
         return json(res, 202);
       }
       case "POST /api/continue":
-        hub.start(() => host.continueTurn());
+        hub.start(() => host().continueTurn());
         return json(res, 202);
       case "POST /api/cancel":
-        host.cancel();
+        host().cancel();
         return json(res, 204);
       case "POST /api/answer": {
         const body = await readBody(req);
         const answer = body.answer as ApprovalAnswer;
         if (!ANSWERS.includes(answer)) throw new HttpError(400, `"answer" must be one of ${ANSWERS.join(", ")}`);
-        host.answer(str(body, "id"), answer);
+        host().answer(str(body, "id"), answer);
         return json(res, 204);
       }
-      case "POST /api/reset":
+      case "POST /api/reset": {
+        const cwd = optStr(await readBody(req), "cwd");
         hub.assertIdle();
-        await host.reset();
+        // Opening a folder already lands on its latest session; reuse it when that one is still empty.
+        const switched = await enter(cwd);
+        if (!(switched && host().snapshot().history.length === 0)) await host().reset();
         return json(res, 204);
+      }
       case "POST /api/resume": {
-        const ref = str(await readBody(req), "ref");
+        const body = await readBody(req);
+        const ref = str(body, "ref");
         hub.assertIdle();
-        await host.resume(ref);
+        await enter(optStr(body, "cwd"));
+        await host().resume(ref);
         return json(res, 204);
       }
       case "POST /api/fork": {
-        const turns = (await readBody(req)).turns;
+        const body = await readBody(req);
+        const turns = body.turns;
         if (turns !== undefined && !(Number.isInteger(turns) && (turns as number) >= 0)) {
           throw new HttpError(400, '"turns" must be a non-negative integer');
         }
+        const id = optStr(body, "id");
         hub.assertIdle();
-        await host.fork(turns as number | undefined);
+        await enter(optStr(body, "cwd"));
+        if (id !== undefined && id !== host().sessionId) await host().resume(id);
+        await host().fork(turns as number | undefined);
         return json(res, 204);
       }
       case "POST /api/rename": {
-        if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
+        needPersist();
         const body = await readBody(req);
         const id = str(body, "id");
         if (typeof body.title !== "string") throw new HttpError(400, '"title" must be a string');
         hub.assertIdle();
-        const title = await host.renameSession(id, body.title);
+        const title = await workspaces.renameSession(optStr(body, "cwd"), id, body.title);
         return json(res, 200, { id, title: title ?? null });
       }
       case "POST /api/session-flag": {
-        if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
+        needPersist();
         const body = await readBody(req);
         const id = str(body, "id");
         if (body.flag !== "pinned" && body.flag !== "archived") {
           throw new HttpError(400, '"flag" must be "pinned" or "archived"');
         }
         if (typeof body.on !== "boolean") throw new HttpError(400, '"on" must be a boolean');
-        await host.setSessionFlag(id, body.flag, body.on);
+        await workspaces.setSessionFlag(optStr(body, "cwd"), id, body.flag, body.on);
         return json(res, 204);
+      }
+      case "GET /api/workspaces":
+        needPersist();
+        return json(res, 200, await workspaces.list());
+      case "POST /api/workspaces/add":
+        workspaces.add(str(await readBody(req), "path"));
+        return json(res, 204);
+      case "POST /api/workspaces/remove":
+        workspaces.remove(str(await readBody(req), "path"));
+        return json(res, 204);
+      case "GET /api/fs": {
+        const dir = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("path") ?? undefined;
+        return json(res, 200, listDirs(dir, opts.home));
+      }
+      case "POST /api/fs/mkdir": {
+        const body = await readBody(req);
+        return json(res, 201, { path: makeDir(str(body, "path"), str(body, "name")) });
       }
     }
     throw new HttpError(404, `no such endpoint: ${key}`);
@@ -284,6 +329,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       if (err instanceof HttpError) return json(res, err.status, { error: err.message });
       if (err instanceof BusyError) return json(res, 409, { error: err.message });
       if (err instanceof AttachmentError) return json(res, 400, { error: err.message });
+      if (err instanceof ConflictError) return json(res, 409, { error: err.message });
       json(res, 400, { error: err instanceof Error ? err.message : String(err) });
     });
   };

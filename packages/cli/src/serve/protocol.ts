@@ -10,10 +10,15 @@ export type ServeRequest = {
   auth: { token: string };
   send: { text?: string; attachmentIds?: string[] };
   answer: { id: string; answer: ApprovalAnswer };
-  resume: { ref: string };
-  fork: { turns?: number };
-  rename: { id: string; title: string };
-  sessionFlag: { id: string; flag: "pinned" | "archived"; on: boolean };
+  /** `cwd`: start the session in that folder (switching to it first). */
+  reset: { cwd?: string };
+  resume: { ref: string; cwd?: string };
+  /** `id`: fork that session (switching folder / session first) instead of the current one. */
+  fork: { turns?: number; id?: string; cwd?: string };
+  rename: { id: string; title: string; cwd?: string };
+  sessionFlag: { id: string; flag: "pinned" | "archived"; on: boolean; cwd?: string };
+  workspace: { path: string };
+  mkdir: { path: string; name: string };
 };
 
 export type { AttachmentMeta };

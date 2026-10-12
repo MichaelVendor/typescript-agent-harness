@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -11,6 +11,7 @@ import type { ChatHost, HostEvent, SessionEvent } from "../dist/host.js";
 import { createServeHandler } from "../dist/serve/http.js";
 import { createHub } from "../dist/serve/hub.js";
 import { startServe } from "../dist/serve/run.js";
+import { createWorkspaces } from "../dist/serve/workspaces.js";
 
 const TOKEN = "t".repeat(43);
 
@@ -150,19 +151,32 @@ async function fakeServer(webDir = path.join(tmpdir(), "tah-no-web")) {
   const fake = fakeHost();
   const hub = createHub(fake.host);
   await fake.host.open();
-  const { handle, closeAll } = createServeHandler({
+  const home = mkdtempSync(path.join(tmpdir(), "tah-serve-home-"));
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-serve-cwd-"));
+  const workspaces = createWorkspaces({
+    cwd,
+    home,
     host: fake.host,
+    hub,
+    createHost: async () => fakeHost().host,
+    readSessions: async () => [],
+  });
+  const { handle, closeAll } = createServeHandler({
+    workspaces,
     hub,
     token: TOKEN,
     info: { approve: true, maxSteps: null, version: "0.0.0", vision: false },
     webDir,
     persist: true,
+    home,
   });
   const server = createServer(handle);
   const base = await listen(server);
   return {
     ...fake,
     base,
+    home,
+    cwd,
     cookie: `tah_token_${new URL(base).port}=${TOKEN}`,
     async close() {
       closeAll();
@@ -175,7 +189,11 @@ async function fakeServer(webDir = path.join(tmpdir(), "tah-no-web")) {
 test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab", async () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-serve-"));
   writeFileSync(path.join(cwd, "a.txt"), "x");
-  const serve = await startServe({ ...parseArgv(["--mock", "--no-exec", "--quiet", "--port", "0", "serve"]), cwd });
+  const home = mkdtempSync(path.join(tmpdir(), "tah-serve-home-"));
+  const serve = await startServe(
+    { ...parseArgv(["--mock", "--no-exec", "--quiet", "--port", "0", "serve"]), cwd },
+    { homeDir: home },
+  );
   const base = serve.url.replace(/\?.*$/, "");
   const token = new URL(serve.url).searchParams.get("token") ?? "";
   try {
@@ -217,6 +235,34 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
     assert.equal((await api.post("/api/session-flag", { id: serve.sessionId, flag: "pinned", on: true })).status, 204);
     const pinned = JSON.parse((await api.get("/api/sessions")).body).find((r: { id: string }) => r.id === serve.sessionId);
     assert.equal(pinned.pinned, true);
+
+    const aId = serve.sessionId;
+    const b = mkdtempSync(path.join(tmpdir(), "tah-serve-b-"));
+    assert.equal((await api.post("/api/workspaces/add", { path: b })).status, 204);
+    const from = tab.events.length;
+    assert.equal((await api.post("/api/reset", { cwd: b })).status, 204);
+    const inB = (await tab.until("session", from)).at(-1) as SessionEvent;
+    assert.notEqual(inB.id, aId);
+    assert.equal(serve.sessionId, inB.id);
+    const views = JSON.parse((await api.get("/api/workspaces")).body) as Array<{ path: string; active: boolean; sessions: Array<{ id: string }> }>;
+    assert.deepEqual(views.map((v) => [v.path, v.active]), [
+      [path.resolve(cwd), false],
+      [path.resolve(b), true],
+    ]);
+    assert.ok(views[0]?.sessions.some((s) => s.id === aId));
+    assert.equal(views[1]?.sessions.length, 1, "switching reuses the empty session it opened");
+    assert.ok(existsSync(path.join(b, ".tah", "cli.db")));
+
+    assert.equal((await api.post("/api/resume", { ref: aId, cwd })).status, 204);
+    assert.equal(serve.sessionId, aId);
+    assert.equal(JSON.parse((await api.get("/api/workspaces")).body)[0].active, true);
+
+    writeFileSync(path.join(b, "package.json"), JSON.stringify({ devDependencies: { "@typescript-agent-harness/cli": "*" } }));
+    writeFileSync(path.join(b, "tah.config.json"), "{");
+    assert.equal((await api.post("/api/reset", { cwd: b })).status, 400);
+    assert.equal(JSON.parse((await api.get("/api/workspaces")).body)[0].active, true);
+    assert.equal((await api.post("/api/workspaces/remove", { path: cwd })).status, 409);
+    assert.equal((await api.post("/api/workspaces/remove", { path: b })).status, 204);
     tab.close();
     late.close();
   } finally {
@@ -339,6 +385,29 @@ test("upload attachment then send with attachmentIds", async () => {
     s.finish();
     await tab.until("turn.end");
     tab.close();
+  } finally {
+    await s.close();
+  }
+});
+
+test("folder browser lists sub-folders only and creates folders", async () => {
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  try {
+    mkdirSync(path.join(s.home, "proj"));
+    mkdirSync(path.join(s.home, ".hidden"));
+    writeFileSync(path.join(s.home, "note.txt"), "x");
+    const listing = JSON.parse((await api.get("/api/fs")).body);
+    assert.equal(listing.path, s.home);
+    assert.deepEqual(listing.dirs, ["proj"]);
+    const inner = JSON.parse((await api.get(`/api/fs?path=${encodeURIComponent(path.join(s.home, "proj"))}`)).body);
+    assert.deepEqual(inner.dirs, []);
+    assert.equal((await api.get(`/api/fs?path=${encodeURIComponent(path.join(s.home, "nope"))}`)).status, 400);
+    const made = await api.post("/api/fs/mkdir", { path: s.home, name: "fresh" });
+    assert.equal(made.status, 201);
+    assert.equal(JSON.parse(made.body).path, path.join(s.home, "fresh"));
+    assert.equal((await api.post("/api/fs/mkdir", { path: s.home, name: "../x" })).status, 400);
+    assert.equal((await api.post("/api/fs/mkdir", { path: s.home, name: "fresh" })).status, 400);
   } finally {
     await s.close();
   }
