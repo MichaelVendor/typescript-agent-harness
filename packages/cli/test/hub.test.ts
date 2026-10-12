@@ -16,7 +16,7 @@ function stubHost(id: string) {
   return { host, snap, emit: (e: HostEvent) => listeners.forEach((l) => l(e)), count: () => listeners.size };
 }
 
-test("swap replays only the new host and stops listening to the old one", () => {
+test("swap replays only the new host (session before its startup notices) and stops listening to the old one", () => {
   const a = stubHost("a");
   const b = stubHost("b");
   const hub = createHub(a.host);
@@ -28,7 +28,7 @@ test("swap replays only the new host and stops listening to the old one", () => 
   live.length = 0;
 
   hub.swap(b.host, [{ type: "notice", text: "boot b" }, b.snap]);
-  assert.deepEqual(live, [{ type: "notice", text: "boot b" }, b.snap]);
+  assert.deepEqual(live, [b.snap, { type: "notice", text: "boot b" }]);
   assert.equal(a.count(), 0);
 
   a.emit({ type: "text", delta: "stale" });

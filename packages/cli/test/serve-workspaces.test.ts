@@ -107,7 +107,7 @@ test("activate swaps hosts; failure keeps the old folder; list covers every fold
   assert.equal(await ws.activate(b), false);
   assert.equal(ws.cwd, b);
   assert.deepEqual(closed, [a]);
-  assert.deepEqual(seen.map((e) => e.type), ["notice", "session"]);
+  assert.deepEqual(seen.map((e) => e.type), ["session", "notice"]);
 
   const views = await ws.list();
   assert.deepEqual(

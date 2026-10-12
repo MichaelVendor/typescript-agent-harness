@@ -92,7 +92,11 @@ export function createHub(first: ChatHost): Hub {
       lastEnd = undefined;
       turn = [];
       host = next;
-      for (const event of buffered) forward(event);
+      // Open tabs clear their view on `session`, so the new folder's startup notices go after it.
+      const notices = buffered.filter((event) => event.type === "notice");
+      for (const event of buffered) if (event.type !== "notice") forward(event);
+      startup.push(...notices);
+      for (const event of notices) for (const listener of listeners) listener(event);
       unsubscribe = host.on(forward);
     },
   };
