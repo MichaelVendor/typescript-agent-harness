@@ -50,7 +50,7 @@
 - `active`：当前 `{ cwd, host }`。
 - `activate(dir)`：
   1. `hub.assertIdle()`；`dir` 已是当前 → 什么都不做。
-  2. `createChatHost({ ...flags, cwd: dir })`，暂存它的事件后 `open()`；失败 → 关掉新 host，抛错（HTTP 400），**旧文件夹保持当前、不受影响**。
+  2. `createChatHost({ ...flags, cwd: dir, session: "" })`（`--session` 只属于启动目录），暂存它的事件后 `open()`；失败 → 关掉新 host，抛错（HTTP 400），**旧文件夹保持当前、不受影响**。
   3. 成功 → `hub.swap(newHost, buffered)`，关闭旧 host，`active` 指向新的。
 - `list()`：遍历 `workspaces.json`：
   - 当前文件夹 → `host.listSessions()`；
@@ -84,7 +84,7 @@
 
 | 接口 | 新行为 |
 | --- | --- |
-| `POST /api/reset { cwd? }` | 先 `activate(cwd)`，再新建 session |
+| `POST /api/reset { cwd? }` | 先 `activate(cwd)`，再新建 session；若刚切过去且打开的 session 还是空的，直接用它，不再多建一个 |
 | `POST /api/resume { ref, cwd? }` | 先 `activate(cwd)`，再 resume |
 | `POST /api/fork { turns?, cwd?, id? }` | 带 `id` 时先切到该文件夹并 resume 它，再 fork |
 | `POST /api/rename { id, title, cwd? }` | 非当前文件夹直接写文件 |
