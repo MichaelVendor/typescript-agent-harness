@@ -6,11 +6,12 @@ const text = (err: unknown) => (err instanceof Error ? err.message : String(err)
 const join = (dir: string, name: string) => `${dir.replace(/[\\/]$/, "")}/${name}`;
 
 /** Browse sub-folders from home, optionally create one, then open it as a workspace. */
-export function FolderPicker(props: { onOpen(path: string): Promise<void>; onClose(): void }) {
+export function FolderPicker(props: { busy: boolean; onOpen(path: string): Promise<void>; onClose(): void }) {
   const [listing, setListing] = useState<DirListing>();
   const [error, setError] = useState<string>();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
+  const [opening, setOpening] = useState(false);
   const { onClose } = props;
 
   const go = (path?: string) =>
@@ -101,8 +102,15 @@ export function FolderPicker(props: { onOpen(path: string): Promise<void>; onClo
           <button
             type="button"
             className="primary"
-            disabled={!listing}
-            onClick={() => listing && props.onOpen(listing.path).catch((err: unknown) => setError(text(err)))}
+            disabled={!listing || props.busy || opening}
+            onClick={() => {
+              if (!listing) return;
+              setOpening(true);
+              props.onOpen(listing.path).catch((err: unknown) => {
+                setOpening(false);
+                setError(text(err));
+              });
+            }}
           >
             Open this folder
           </button>

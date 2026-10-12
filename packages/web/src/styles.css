@@ -100,8 +100,13 @@ pre {
 }
 .sidebar-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   padding: 12px;
+}
+.sidebar-actions button {
+  white-space: nowrap;
+  padding: 4px 8px;
+  font-size: 13px;
 }
 .sidebar-note {
   padding: 0 12px 8px;

@@ -209,7 +209,7 @@ export function Sidebar(props: {
         <button type="button" onClick={() => props.onFork(props.current)} disabled={props.busy || !props.current}>
           Fork
         </button>
-        <button type="button" onClick={props.onAddFolder} title="Add folder">
+        <button type="button" onClick={props.onAddFolder} disabled={props.busy} title="Add folder">
           Add folder
         </button>
       </div>

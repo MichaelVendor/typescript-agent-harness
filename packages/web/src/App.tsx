@@ -105,6 +105,7 @@ export function App() {
       />
       {picking ? (
         <FolderPicker
+          busy={state.busy}
           onClose={closePicker}
           onOpen={async (path) => {
             await api.addWorkspace({ path });
