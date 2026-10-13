@@ -75,21 +75,29 @@ Host 在调用 `Session.run` 前把说明追加到 user 文本，例如：
 
 [attachments]
 - file report.log → /abs/.../.tah/attachments/objects/<sha>/report.log (text/plain, 12KB)
-- image shot.png → /abs/.../.tah/attachments/objects/<sha>/shot.png (image/png, 200KB). Use tools to inspect; this model may not see pixels.
+- image shot.png → /abs/.../.tah/attachments/objects/<sha>/shot.png (image/png, 200KB). This model cannot see images; call read_image_text with this path to read the text in it.
 ```
+
+图片那行的提示随模型变（v0.33）：模型能看图时是「The image is attached to this message.」；不能看图但有 `read_image_text`（macOS）时如上；都没有时让模型请用户描述。
 
 网页历史用结构化 `attachments` 字段展示卡片，不把上述整段路径块当作唯一 UI。
 
 ## Vision（可选）
 
-- 标志：`tah serve --vision` 或环境变量 `TAH_VISION=1`。
+- 谁决定（v0.33）：Settings 里选中的模型看它自己的「Can read images」（`~/.tah/settings.json` 里的 `vision: true`）；用 `.env` 模型时看 `tah serve --vision` / `TAH_VISION=1` / `tah.config.json` 的 `capabilities.vision`。
 - 开启后：图片以 `image_url`（data URL 或可读投影）进入 LLM 请求；DB 仍只存 ref，请求前从 store 读取。
-- 未开启：永远走路径投影，不猜模型名。
+- 未开启：永远走路径投影，不猜模型名；会话里之前发过的图片在请求里换成 `[image omitted]` 文字（换到不能看图的模型时不会被接口拒）。
+
+## 读图里的字（OCR，v0.33，仅 macOS）
+
+- 内置工具 `read_image_text {path}`：用系统 Vision 框架（`osascript -l JavaScript`）在本机识别中英文，返回识别出的行；没字时返回「(no text found in the image)」，不是图片时报「not a readable image」。不描述图片内容。
+- 跟内置文件工具一起挂（`capabilities.coding`），只读、不用审批，路径限制在工作目录内（附件就在 `<cwd>/.tah/attachments/`）；30 秒超时。
+- Windows / Linux 不挂这个工具。
 
 ## 与 DeepSeek Harness 的差异
 
 - 无独立 `attachment` / `attachment-local` 产品包；实现放在 CLI 应用层。
-- v1 无视觉旁路；纯文本模型靠路径 + 工具。
+- 无视觉旁路模型；纯文本模型靠路径 + 工具（macOS 上可用 `read_image_text` 读图中文字）。
 - 通用文件有 32 MiB 上限（dsh 文档写「不设类型与大小限制」），避免本机工作台被撑满。
 
 ## 验收

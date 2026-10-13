@@ -49,7 +49,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--port <n>` | `tah serve` 的端口（默认 7420；被占用时报错，不自动换，v0.25） |
 | `--no-open` | `tah serve` 不自动打开浏览器（v0.25） |
 | `--no-watch` | 约定式项目里不热更新（终端 `tah chat` / `tah serve`，v0.26） |
-| `--vision` | `tah serve`：图片附件以多模态 parts 发给模型（也可用 `TAH_VISION=1`，v0.27） |
+| `--vision` | `tah serve`：图片附件以多模态 parts 发给模型（也可用 `TAH_VISION=1`，v0.27）；只管 `.env` 的模型，Settings 里的模型看各自的「Images」（v0.33） |
 
 不加 `--mock` 时必须有 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`（`<cwd>/.env`，以及仓库内 `examples/basic-agent/.env`）。没有 key 不会再静默 mock。只有 `OPENAI_API_KEY` 时连 OpenAI 官方（`https://api.openai.com/v1`，模型 `gpt-4o-mini`，v0.26.3）；其他厂商走 OpenAI 兼容接口，还要设 `OPENAI_BASE_URL` 和 `OPENAI_MODEL`（`DEEPSEEK_MODEL` 可换 DeepSeek 的模型）。`.env` 里值为空的行（如 `DEEPSEEK_API_KEY=`）等于没写（v0.26.3）。也可以在 `tah serve` 网页左下角的 Settings 里添加模型（存在 `~/.tah/settings.json`，选中的模型优先于 `.env`，`tah chat` / `tah run` 也会用它）；`tah serve` 没有 key 也能启动，再去 Settings 里加（v0.30）。各家地址见 [教程 · 接上真模型](/guide/tutorial-docs-agent#_5-接上真模型-边改边试)。
 
@@ -261,12 +261,14 @@ tah serve --yes --port 8000 --no-open
 
 切换模型（v0.32）：输入框右下角、发送按钮左边是模型按钮，点开按服务商列出 Settings 里存的模型（有 `.env` key 时还有「From .env」），选一个就换，对所有会话的下一轮生效；回复进行中不能换。「Manage models…」打开 Settings 添加或删除。
 
+看图（v0.33）：Settings 里每个模型有「Images」勾选（添加时是「Can read images」），勾上的模型直接收到图片附件，菜单里模型名旁标「images」；没勾的模型只拿到图片路径。在 macOS 上，内置工具 `read_image_text` 用系统自带的 OCR 识别图里的中英文，不能看图的模型（如 `deepseek-chat`）会用它读截图里的字；它只读字，不描述画面。Windows / Linux 没有这个工具。用 `.env` 模型时仍看 `--vision`。
+
 它是本机工作台，不是对外服务：
 
 - 只监听 `127.0.0.1`。要远程用，走 SSH 端口转发（`ssh -L 7420:127.0.0.1:7420 …`）。
 - 每次启动生成一次性令牌，只有终端打印的链接能登录；网页拿令牌换成 HttpOnly cookie 后从地址栏去掉令牌。
 - 校验 `Host` / `Origin` 头，挡住其他网页伪造请求。
-- 可附加文件与图片（选择 / 拖拽 / 粘贴）：存到 `<cwd>/.tah/attachments/`，默认把只读路径写进 user 文本供工具读取；`--vision` 时图片进多模态请求。见 [附件设计](/design/attachments)。
+- 可附加文件与图片（选择 / 拖拽 / 粘贴）：存到 `<cwd>/.tah/attachments/`，默认把只读路径写进 user 文本供工具读取；模型能看图时图片进多模态请求。见 [附件设计](/design/attachments)。
 
 Ctrl+C 停止服务并打印续聊命令（`tah chat --session …`），再按一次强制退出。
 

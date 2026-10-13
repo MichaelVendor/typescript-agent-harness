@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+Images: each saved model has a **"can read images"** setting (Settings → Models: "Can read images" when adding, an "Images" checkbox on each model; the composer's model menu tags them "images"). Image attachments go to a model as pictures only when it is marked; the `.env` model still follows `--vision` / `TAH_VISION=1` / `capabilities.vision`. When the model in use can't read images, images already in the conversation are sent as `[image omitted]` text, so switching from a vision model to a text-only one no longer breaks the request. New endpoint `POST /api/settings/models/vision` `{ id, vision }`; `POST /api/settings/models` accepts `vision`; `GET /api/settings` models carry `vision`. LLM package: `images: false` option.
+
+Tools: **`read_image_text`** (macOS only) reads the text in an image — screenshots, scanned pages — with the system's on-device OCR (Vision framework, English and Chinese). It is mounted with the built-in coding tools, needs no approval, is limited to the workspace, and times out after 30 seconds. It returns the recognized lines, "(no text found in the image)", or "not a readable image"; it does not describe pictures. The attachment note tells a model that can't read images to use it. Not available on Windows or Linux.
+
 ## 0.32.0 — 2026-10-13
 
 Web (`tah serve`): the sidebar is laid out like DeepSeek Harness — a tah header with a collapse button, a full-width **New session** row, and search / view options / add folder next to "Workspaces". **Search** finds sessions by title or folder name across folders and highlights the match. **View options** switch between grouping by folder and **One list** (every folder's sessions, newest first). Each folder shows its first 5 sessions, with "Show N more" for the rest (the current session always stays visible); hovering a folder shows `+` (new session there) and `⋯` (remove from list). The current session shows a spinner while a turn runs and an orange dot with "needs approval" while waiting for you. The collapse button shrinks the sidebar to a 56px icon rail (expand, new session, search, add folder, settings). Fork moved to the session right-click menu. The collapsed state and grouping are remembered in the browser.

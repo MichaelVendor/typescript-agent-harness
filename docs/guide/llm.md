@@ -75,6 +75,8 @@ runtime.use(
 
 一次 Runtime 挂一个 provider。默认模型写进 `llm.request` 事件。
 
+`images: false`（v0.33，openai-compatible）：模型不能看图时用。`ContentPart[]` 的 user 消息按文字发出，图片换成 `[image omitted]`；默认 `true` 原样发。
+
 ### 重试（v0.22，openai-compatible）
 
 `maxRetries`（默认 3）：网络错误、408 / 429 / 5xx 时指数退避重试（1s、2s、4s…，单次最多 20s；有 `Retry-After` 就按它）。400 / 401 等不重试。

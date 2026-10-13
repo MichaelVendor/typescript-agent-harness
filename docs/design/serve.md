@@ -98,15 +98,16 @@ type HostEvent =
 
 | 接口 | 作用 |
 | --- | --- |
-| `GET /api/settings` | `{ user, models: [{ id, model, baseURL, keyHint }], activeModel, env, search }`；`user` 是电脑用户名；`env` 是 `.env` / 环境变量给出的 `{ model, key }`（`key` 是变量名 `DEEPSEEK_API_KEY` / `OPENAI_API_KEY`，不是 key 本身），没有 key 时为 `null`（v0.32）；`search` 是 `{ source: "settings" \| "env", keyHint }` 或 `null` |
-| `POST /api/settings/models` `{model, apiKey, baseURL?}` | 添加模型；第一个自动选中 |
+| `GET /api/settings` | `{ user, models: [{ id, model, baseURL, keyHint, vision }], activeModel, env, search }`；`vision` 表示模型能看图（v0.33）；`user` 是电脑用户名；`env` 是 `.env` / 环境变量给出的 `{ model, key }`（`key` 是变量名 `DEEPSEEK_API_KEY` / `OPENAI_API_KEY`，不是 key 本身），没有 key 时为 `null`（v0.32）；`search` 是 `{ source: "settings" \| "env", keyHint }` 或 `null` |
+| `POST /api/settings/models` `{model, apiKey, baseURL?, vision?}` | 添加模型；第一个自动选中 |
 | `POST /api/settings/models/remove` `{id}` | 删除；删的是选中的就退回 `.env` |
+| `POST /api/settings/models/vision` `{id, vision}` | 标记模型能不能看图（v0.33）；`vision` 必须是布尔值 |
 | `POST /api/settings/active` `{id \| null}` | 选中模型；`null` 用 `.env` |
 | `POST /api/settings/search` `{apiKey \| null}` | 保存 Tavily key（开 `web_search`，v0.31）；`null` 删除，退回 `.env` 的 `TAVILY_API_KEY`；host 重新加载 |
 
 Skills（v0.30.1）：`GET /api/skills` 列出当前文件夹加载的 skill（`source`: `home` / `folder`）；`POST /api/skills/import` `{path}` 把一个 skill 文件夹（或一层子文件夹里的全部 skill）复制进 `~/.tah/skills`，返回列表加 `imported` / `skipped`；`POST /api/skills/remove` `{name}` 只删 `~/.tah/skills` 里的。导入 / 删除后 host 重新加载；一轮进行中返回 409。见 [Skills](./skills.md#网页导入-v0-30-1)。
 
-上面设置的四个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
+上面设置的五个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型（或它的 `vision`）变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
 
 规则：
 
