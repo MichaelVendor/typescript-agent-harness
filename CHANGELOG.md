@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.31.0 — 2026-10-13
 
 Tools: **`edit_file`** replaces exact text in an existing file instead of rewriting it — `old_string` must match exactly once (the error says how many times it matched), or set `replace_all`. It needs approval like `write_file`; the terminal and web approval cards preview the change as `-` old / `+` new lines. The default prompt now steers the model to `edit_file` for changes and `write_file` for new files.
 
