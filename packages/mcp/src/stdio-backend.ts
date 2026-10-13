@@ -17,10 +17,12 @@ type JsonRpc = {
   error?: { code: number; message: string };
 };
 
+/** MCP stdio transport: one JSON-RPC message per line in each direction. */
 export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
   let child: ChildProcessWithoutNullStreams | undefined;
   let nextId = 1;
-  let stdoutBuf = Buffer.alloc(0);
+  let stdoutBuf = "";
+  let stderrTail = "";
   const pending = new Map<
     number,
     { resolve: (value: unknown) => void; reject: (err: Error) => void }
@@ -29,41 +31,37 @@ export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
 
   function write(msg: JsonRpc) {
     if (!child) throw new Error("MCP stdio process is not running");
-    const json = JSON.stringify(msg);
-    const body = Buffer.from(json, "utf8");
-    child.stdin.write(`Content-Length: ${body.length}\r\n\r\n`);
-    child.stdin.write(body);
+    child.stdin.write(`${JSON.stringify(msg)}\n`);
+  }
+
+  function failAll(err: Error) {
+    for (const waiter of pending.values()) waiter.reject(err);
+    pending.clear();
   }
 
   function onMessage(msg: JsonRpc) {
-    if (msg.id === undefined) return;
+    if (msg.method !== undefined || msg.id === undefined) return;
     const waiter = pending.get(msg.id);
     if (!waiter) return;
     pending.delete(msg.id);
-    if (msg.error) {
-      waiter.reject(new Error(msg.error.message));
-      return;
-    }
-    waiter.resolve(msg.result);
+    if (msg.error) waiter.reject(new Error(msg.error.message));
+    else waiter.resolve(msg.result);
   }
 
-  function ingest(chunk: Buffer) {
-    stdoutBuf = Buffer.concat([stdoutBuf, chunk]);
-    while (true) {
-      const headerEnd = stdoutBuf.indexOf("\r\n\r\n");
-      if (headerEnd === -1) break;
-      const header = stdoutBuf.subarray(0, headerEnd).toString("utf8");
-      const match = /Content-Length:\s*(\d+)/i.exec(header);
-      if (!match) {
-        stdoutBuf = stdoutBuf.subarray(headerEnd + 4);
+  function ingest(chunk: string) {
+    stdoutBuf += chunk;
+    let nl: number;
+    while ((nl = stdoutBuf.indexOf("\n")) !== -1) {
+      const line = stdoutBuf.slice(0, nl).trim();
+      stdoutBuf = stdoutBuf.slice(nl + 1);
+      if (!line) continue;
+      let msg: JsonRpc;
+      try {
+        msg = JSON.parse(line) as JsonRpc;
+      } catch {
         continue;
       }
-      const len = Number(match[1]);
-      const start = headerEnd + 4;
-      if (stdoutBuf.length < start + len) break;
-      const body = stdoutBuf.subarray(start, start + len).toString("utf8");
-      stdoutBuf = stdoutBuf.subarray(start + len);
-      onMessage(JSON.parse(body) as JsonRpc);
+      onMessage(msg);
     }
   }
 
@@ -74,7 +72,12 @@ export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
       pending.set(id, { resolve, reject });
       const msg: JsonRpc = { jsonrpc: "2.0", id, method };
       if (params !== undefined) msg.params = params;
-      write(msg);
+      try {
+        write(msg);
+      } catch (err) {
+        pending.delete(id);
+        reject(err as Error);
+      }
     });
   }
 
@@ -88,11 +91,17 @@ export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
     if (options.env) spawnOpts.env = { ...process.env, ...options.env };
 
     child = spawn(options.command, options.args ?? [], spawnOpts);
-    child.stdout.on("data", (chunk: Buffer) => ingest(chunk));
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => ingest(chunk));
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk: string) => {
+      stderrTail = (stderrTail + chunk).slice(-2000);
+    });
+    child.stdin.on("error", () => {});
+    child.on("error", (err) => failAll(err));
     child.on("exit", (code) => {
-      const err = new Error(`MCP stdio process exited (${code ?? "null"})`);
-      for (const waiter of pending.values()) waiter.reject(err);
-      pending.clear();
+      const tail = stderrTail.trim();
+      failAll(new Error(`MCP stdio process exited (${code ?? "null"})${tail ? `: ${tail}` : ""}`));
     });
 
     await request("initialize", {
@@ -120,10 +129,7 @@ export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
     },
     async close() {
       if (!child) return;
-      for (const waiter of pending.values()) {
-        waiter.reject(new Error("MCP stdio backend closed"));
-      }
-      pending.clear();
+      failAll(new Error("MCP stdio backend closed"));
       child.stdin.end();
       child.kill();
       child = undefined;
