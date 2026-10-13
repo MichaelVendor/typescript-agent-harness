@@ -1,4 +1,4 @@
-import type { AttachmentMeta, HistoryItem, HostEvent } from "@typescript-agent-harness/cli";
+import type { AttachmentMeta, HistoryItem, HostEvent, Todo } from "@typescript-agent-harness/cli";
 
 export type Entry =
   | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
@@ -12,6 +12,8 @@ export type State = {
   sessionId: string;
   entries: Entry[];
   approval: Approval | undefined;
+  /** The latest `todo_write` list of this session. */
+  todos: Todo[];
   /** The last turn hit the step limit; the page offers to continue it. */
   stepLimit: boolean;
   busy: boolean;
@@ -35,6 +37,7 @@ export const initialState: State = {
   sessionId: "",
   entries: [],
   approval: undefined,
+  todos: [],
   stepLimit: false,
   busy: false,
   turnsEnded: 0,
@@ -84,7 +87,7 @@ export function applyEvent(state: State, action: Action): State {
       // Notices before the first session are startup lines; a session switch starts a clean view.
       const kept = state.sessionId ? { ...state, entries: [] } : state;
       return push(
-        { ...kept, sessionId: action.id, busy: false, approval: undefined, stepLimit: false, rounds: 0 },
+        { ...kept, sessionId: action.id, busy: false, approval: undefined, stepLimit: false, rounds: 0, todos: action.todos ?? [] },
         ...action.history.map(fromHistory),
       );
     }
@@ -126,6 +129,8 @@ export function applyEvent(state: State, action: Action): State {
       return { ...running(state), approval: { id: action.id, tool: action.tool, input: action.input } };
     case "approval.end":
       return state.approval?.id === action.id ? { ...state, approval: undefined } : state;
+    case "todos":
+      return { ...state, todos: action.todos };
     case "notice":
       return push(state, { kind: "notice", text: action.text, error: action.error ?? false });
     case "turn.end":

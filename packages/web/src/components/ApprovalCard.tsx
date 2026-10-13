@@ -18,6 +18,17 @@ function describe(approval: Approval): { title: string; body: string } {
       body: lines.slice(0, PREVIEW_LINES).join("\n") + more,
     };
   }
+  if (approval.tool === "edit_file") {
+    const preview = (text: unknown, prefix: string) => {
+      const lines = String(text ?? "").split("\n");
+      const more = lines.length > PREVIEW_LINES ? [`${prefix}… ${lines.length - PREVIEW_LINES} more lines`] : [];
+      return [...lines.slice(0, PREVIEW_LINES).map((l) => prefix + l), ...more];
+    };
+    return {
+      title: `Edit file ${String(a.path ?? "")}${a.replace_all ? " (all matches)" : ""}`,
+      body: [...preview(a.old_string, "- "), ...preview(a.new_string, "+ ")].join("\n"),
+    };
+  }
   return { title: `Call ${approval.tool}`, body: JSON.stringify(approval.input, null, 2) };
 }
 

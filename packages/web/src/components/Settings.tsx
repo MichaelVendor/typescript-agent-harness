@@ -26,7 +26,7 @@ const CloseIcon = () => (
   </svg>
 );
 
-const SECTIONS = { models: "Models", skills: "Skills" } as const;
+const SECTIONS = { models: "Models", web: "Web search", skills: "Skills" } as const;
 type Section = keyof typeof SECTIONS;
 
 /** Cursor-style settings: section nav on the left, the chosen page on the right. */
@@ -67,12 +67,99 @@ export function Settings(props: {
           </header>
           {section === "models" ? (
             <ModelsSettings busy={props.busy} view={props.view} onChange={props.onChange} />
+          ) : section === "web" ? (
+            <WebSettings busy={props.busy} view={props.view} onChange={props.onChange} />
           ) : (
             <SkillsSettings busy={props.busy} />
           )}
         </section>
       </div>
     </div>
+  );
+}
+
+/** The Tavily key behind web_search; web_fetch needs no key. */
+function WebSettings(props: { busy: boolean; view: SettingsView; onChange(view: SettingsView): void }) {
+  const [apiKey, setApiKey] = useState("");
+  const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+  const { search } = props.view;
+  const locked = props.busy || pending;
+
+  const save = async (key: string | null) => {
+    setPending(true);
+    setError(undefined);
+    try {
+      props.onChange(await api.searchKey({ apiKey: key }));
+      setApiKey("");
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <>
+      <p className="settings-desc">
+        The agent reads web pages with web_fetch out of the box. To let it search the web too, add a{" "}
+        <a href="https://app.tavily.com" target="_blank" rel="noreferrer">
+          Tavily
+        </a>{" "}
+        API key (free tier available). It applies to every folder.
+      </p>
+
+      {search ? (
+        <ul className="model-cards">
+          <li className="model-card in-use">
+            <div className="model-main">
+              <div className="model-name">Tavily</div>
+              <div className="model-meta">
+                {search.keyHint} · {search.source === "env" ? "from TAVILY_API_KEY in .env" : "saved in settings"}
+              </div>
+            </div>
+            <span className="badge">On</span>
+            {search.source === "settings" ? (
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Remove Tavily key"
+                title="Remove"
+                disabled={locked}
+                onClick={() => void save(null)}
+              >
+                <TrashIcon />
+              </button>
+            ) : null}
+          </li>
+        </ul>
+      ) : (
+        <div className="settings-empty">Web search is off — no key yet.</div>
+      )}
+
+      <form
+        className="model-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save(apiKey);
+        }}
+      >
+        <label>
+          <span>{search ? "Replace API key" : "Tavily API key"}</span>
+          <input type="password" autoComplete="off" value={apiKey} placeholder="tvly-…" onChange={(e) => setApiKey(e.target.value)} />
+          <small>Stored only on this computer, in ~/.tah/settings.json.</small>
+        </label>
+        <div className="card-actions">
+          <span className="spacer" />
+          <button type="submit" className="primary" disabled={locked || !apiKey.trim()}>
+            Save key
+          </button>
+        </div>
+      </form>
+
+      {error ? <div className="modal-error">{error}</div> : null}
+      {props.busy ? <div className="settings-note">Wait for the current reply to finish to change the key.</div> : null}
+    </>
   );
 }
 

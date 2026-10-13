@@ -57,6 +57,7 @@ export const api = {
     return (await res.json()) as AttachmentMeta;
   },
   continueTurn: () => post("/api/continue"),
+  compact: () => post("/api/compact"),
   cancel: () => post("/api/cancel"),
   answer: (body: ServeRequest["answer"]) => post("/api/answer", body),
   reset: (body: ServeRequest["reset"] = {}) => post("/api/reset", body),
@@ -81,6 +82,8 @@ export const api = {
     (await (await call("POST", "/api/settings/models/remove", body)).json()) as SettingsView,
   activeModel: async (body: ServeRequest["activeModel"]) =>
     (await (await call("POST", "/api/settings/active", body)).json()) as SettingsView,
+  searchKey: async (body: ServeRequest["searchKey"]) =>
+    (await (await call("POST", "/api/settings/search", body)).json()) as SettingsView,
   skills: async () => (await (await call("GET", "/api/skills")).json()) as SkillsView,
   importSkills: async (body: ServeRequest["importSkills"]) =>
     (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,

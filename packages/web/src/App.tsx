@@ -3,6 +3,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { api, connect, type Connection } from "./api";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { Composer } from "./components/Composer";
+import { TodoPanel } from "./components/TodoPanel";
 import { Messages } from "./components/Messages";
 import { NewFolder } from "./components/NewFolder";
 import { OpenProject } from "./components/OpenProject";
@@ -158,6 +159,7 @@ export function App() {
             </div>
           ) : null}
         </Messages>
+        <TodoPanel todos={state.todos} />
         <Composer
           cwd={workspaces?.find((w) => w.active)?.path}
           busy={state.busy}
@@ -165,7 +167,21 @@ export function App() {
           onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}
           onStop={() => run(api.cancel())}
         />
-        <StatusBar cwd={workspaces?.find((w) => w.active)?.path} model={state.model} sessionId={state.sessionId} rounds={state.rounds} approve={info?.approve ?? true} />
+        <StatusBar
+          cwd={workspaces?.find((w) => w.active)?.path}
+          model={state.model}
+          sessionId={state.sessionId}
+          rounds={state.rounds}
+          approve={info?.approve ?? true}
+          onCompact={
+            connection === "open" && !state.busy && !state.stepLimit
+              ? () => {
+                  enqueue({ type: "local.continue" });
+                  run(api.compact());
+                }
+              : undefined
+          }
+        />
       </main>
     </div>
   );

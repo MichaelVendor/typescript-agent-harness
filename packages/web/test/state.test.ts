@@ -22,6 +22,15 @@ test("startup notices survive the first session; a session switch starts a clean
   assert.equal(second.sessionId, "s2");
 });
 
+test("todos come from the session event and are replaced by todos events", () => {
+  const list = [{ content: "fix bug", status: "in_progress" as const }];
+  const resumed = run([{ ...session("s1"), todos: list } as Action]);
+  assert.deepEqual(resumed.todos, list);
+  const updated = run([{ type: "todos", todos: [{ content: "fix bug", status: "completed" }] }], resumed);
+  assert.equal(updated.todos[0]?.status, "completed");
+  assert.deepEqual(run([session("s2")], updated).todos, []);
+});
+
 test("a turn: user, merged text, tool lines, then turn.end", () => {
   const s = run([
     session("s1"),
