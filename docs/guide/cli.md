@@ -257,6 +257,10 @@ tah serve --yes --port 8000 --no-open
 
 工作文件夹（v0.30）：侧栏按文件夹分组列出会话（Pinned 跨文件夹置顶）；「Workspaces」标题旁的文件夹图标有两项：「Open project…」先列最近移除过的项目，「Choose folder…」弹系统的选文件夹对话框（macOS / Windows；其他系统用网页里的目录浏览器），「New folder…」默认在桌面新建（可换位置）并直接打开。左下角齿轮打开 Settings：Models 管理模型，Web search 填 Tavily key 打开 `web_search`（v0.31），Skills 列出已加载的 skill，并可把 `~/.cursor/skills` 这类文件夹里的 skill 导入 `~/.tah/skills`（v0.30.1，见 [Skills](/design/skills#网页导入-v0-30-1)）。文件夹列表存在 `~/.tah/workspaces.json`。打开另一个文件夹里的会话（或点该组的 `+`）时，Agent 的工作目录随之切换；运行中的一轮结束前不能切换。`.env` 始终用启动时那个目录的。见 [工作文件夹设计](/design/workspaces)。
 
+侧栏（v0.32）：标题旁的放大镜按标题和文件夹名搜索会话；视图选项可以改成「One list」，所有文件夹的会话按时间平铺；每个文件夹先显示 5 个会话，其余点「Show N more」；当前会话在跑时显示转圈，等你审批时显示「needs approval」。侧栏顶部 tah 右边的按钮把侧栏收成一列图标，再点展开。
+
+切换模型（v0.32）：输入框右下角、发送按钮左边是模型按钮，点开按服务商列出 Settings 里存的模型（有 `.env` key 时还有「From .env」），选一个就换，对所有会话的下一轮生效；回复进行中不能换。「Manage models…」打开 Settings 添加或删除。
+
 它是本机工作台，不是对外服务：
 
 - 只监听 `127.0.0.1`。要远程用，走 SSH 端口转发（`ssh -L 7420:127.0.0.1:7420 …`）。

@@ -98,7 +98,7 @@ type HostEvent =
 
 | 接口 | 作用 |
 | --- | --- |
-| `GET /api/settings` | `{ user, models: [{ id, model, baseURL, keyHint }], activeModel, search }`；`user` 是电脑用户名；`search` 是 `{ source: "settings" \| "env", keyHint }` 或 `null` |
+| `GET /api/settings` | `{ user, models: [{ id, model, baseURL, keyHint }], activeModel, env, search }`；`user` 是电脑用户名；`env` 是 `.env` / 环境变量给出的 `{ model, key }`（`key` 是变量名 `DEEPSEEK_API_KEY` / `OPENAI_API_KEY`，不是 key 本身），没有 key 时为 `null`（v0.32）；`search` 是 `{ source: "settings" \| "env", keyHint }` 或 `null` |
 | `POST /api/settings/models` `{model, apiKey, baseURL?}` | 添加模型；第一个自动选中 |
 | `POST /api/settings/models/remove` `{id}` | 删除；删的是选中的就退回 `.env` |
 | `POST /api/settings/active` `{id \| null}` | 选中模型；`null` 用 `.env` |
@@ -158,8 +158,9 @@ tah serve [--port <n>] [--no-open] [chat 的现有参数：--yes --max-steps --n
 
 ### 布局
 
-- 左侧栏：会话列表（第一句话、轮数、时间；当前会话高亮），顶部"新会话""分叉"按钮。
-- 主区域：消息流 + 底部输入框 + 状态栏（模型、会话 id、本轮轮数，`--yes` 时显示 `approve=off`）。
+- 左侧栏（v0.32 起参考 DeepSeek Harness）：顶部 tah 标志和收起按钮；「New session」；「Workspaces」标题旁是搜索、视图选项（按文件夹分组 / 平铺成一个列表）、添加文件夹。按文件夹分组时每组先显示 5 个会话，其余点「Show N more」，当前会话总会显示；悬停文件夹行出现 `+`（在该文件夹新建会话）和 `⋯`（从列表移除）。当前会话一轮进行中显示转圈，等审批时显示橙点和「needs approval」。搜索匹配会话标题和文件夹名，跨文件夹列出，命中处高亮。收起后是 56px 图标栏（展开、新建、搜索、添加文件夹、设置）；收起状态和分组方式存在浏览器 `localStorage`。分叉在会话右键菜单里。
+- 主区域：消息流 + 底部输入框 + 状态栏（文件夹、会话 id、本轮轮数，`--yes` 时显示 `approve=off`）。
+- 输入框（v0.32 起参考 DeepSeek Harness）：卡片式，上面是文字，下面一行左边 `+` 附件，右边模型按钮和圆形发送（一轮进行中变停止）。模型按钮显示在用的模型（没选时显示 `.env` 的模型加「· .env」，都没有时「No model」）；点开按服务商分组列出已存模型（官方地址显示 DeepSeek / OpenAI，其他显示域名），有 `.env` key 时多一组「From .env」，底部「Manage models…」打开设置。选中即 `POST /api/settings/active`，对所有会话生效；一轮进行中按钮置灰。
 - 颜色跟随系统亮 / 暗色；一个 CSS 文件，不用 UI 组件库。
 
 ### 状态
@@ -186,7 +187,7 @@ tah serve [--port <n>] [--no-open] [chat 的现有参数：--yes --max-steps --n
 
 ### 文件与依赖
 
-- `src/main.tsx`、`App.tsx`、`api.ts`、`state.ts`、`styles.css`；`src/components/`：`Sidebar`、`Messages`、`ToolLine`、`ApprovalCard`、`Composer`、`StatusBar`。
+- `src/main.tsx`、`App.tsx`、`api.ts`、`state.ts`、`styles.css`；`src/components/`：`Sidebar`、`Messages`、`ToolLine`、`ApprovalCard`、`Composer`、`ModelPicker`、`StatusBar`。
 - 依赖：`react`、`react-dom`、`react-markdown`、`remark-gfm`、`rehype-highlight`；开发依赖：`vite`、`@vitejs/plugin-react`、`typescript`、`@types/react`、`@types/react-dom`。全部打进静态产物，CLI 用户不安装。
 - 开发：`tah serve --no-open` 起服务，`packages/web` 里 `pnpm dev`，Vite 把 `/api` 代理到 `127.0.0.1:7420`。
 

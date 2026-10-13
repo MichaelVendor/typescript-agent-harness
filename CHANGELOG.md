@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+Web (`tah serve`): the sidebar is laid out like DeepSeek Harness — a tah header with a collapse button, a full-width **New session** row, and search / view options / add folder next to "Workspaces". **Search** finds sessions by title or folder name across folders and highlights the match. **View options** switch between grouping by folder and **One list** (every folder's sessions, newest first). Each folder shows its first 5 sessions, with "Show N more" for the rest (the current session always stays visible); hovering a folder shows `+` (new session there) and `⋯` (remove from list). The current session shows a spinner while a turn runs and an orange dot with "needs approval" while waiting for you. The collapse button shrinks the sidebar to a 56px icon rail (expand, new session, search, add folder, settings). Fork moved to the session right-click menu. The collapsed state and grouping are remembered in the browser.
+
+Web (`tah serve`): **model picker** in the composer, like DeepSeek Harness — the composer is now a card with the text on top and a toolbar below: `+` (attach) on the left, the model button and a round send button (stop while a turn runs) on the right. The model button shows the model in use; its menu lists saved models grouped by provider (DeepSeek, OpenAI, or the host for other endpoints), plus "From .env" when `.env` has a key, and "Manage models…" opens Settings. Picking one is the same as **Use** in Settings: every session uses it from the next turn; the button is disabled while a turn runs. The model name moved out of the status bar. `GET /api/settings` adds `env` (`{ model, key }` with the variable name, never the key itself, or `null`).
+
 ## 0.31.0 — 2026-10-13
 
 Tools: **`edit_file`** replaces exact text in an existing file instead of rewriting it — `old_string` must match exactly once (the error says how many times it matched), or set `replace_all`. It needs approval like `write_file`; the terminal and web approval cards preview the change as `-` old / `+` new lines. The default prompt now steers the model to `edit_file` for changes and `write_file` for new files.
