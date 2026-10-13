@@ -56,16 +56,15 @@
 | --- | --- |
 | `capabilities.coding` | `true` / `false`，或 `{ "exec": boolean }`（默认 `exec: true`）。挂 `list_files` / `read_file` / `grep` / `write_file` / `edit_file`，以及可选的 `execute_command` |
 | `capabilities.web` | 官方 `web_fetch`（读网页）与 `web_search`（Tavily 搜索，有 key 才挂）。省略时跟随 `coding`；写 `false` 关掉（v0.31） |
+| `capabilities.browser` | 内置浏览器（Playwright MCP）：先只挂 `browser_open`，调用并经用户批准后才启动 Chrome、挂上 18 个浏览器工具。省略时跟随 `web`；写 `false` 关掉；`--mock` 时不挂（v0.31，见 [内置浏览器](/design/browser)） |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |
-| `extensions.mcp` | `{ "command": string, "args"?: string[] }`，stdio MCP（同 `--mcp` / `--mcp-arg`）。**当前推荐**用来接搜索、抓取、浏览器类第三方 MCP |
+| `extensions.mcp` | `{ "command": string, "args"?: string[] }`，stdio MCP（同 `--mcp` / `--mcp-arg`），用来接其他搜索、抓取等第三方 MCP |
 
 规则：
 
 - 省略的键 = 用「该项目形态下的内置默认」，不是强制 `false`。
 - 未知顶层键、未知 capability、未知 extension → 启动失败（防拼写静默失效）。
 - `capabilities` / `extensions` 本身可省略。
-- 无内置浏览器自动化工具；完整点选 / 截图等靠 MCP 或自写 `tools/`。
-
 ### 与 `tools/` 的默认交互
 
 | 场景 | 无 config 时 coding | `"coding": true` |
@@ -116,7 +115,9 @@ npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.e
 
 `web_fetch` 只读公网 http(s)：解析域名后拒绝回环、内网、链路本地等地址（每次重定向都重新检查，最多 5 次），20 秒超时、最多读 2MB，HTML 转成带标题 / 列表 / 链接的纯文本，默认返回前 3 万字符。
 
-需要换搜索服务或浏览器（点选、截图）时，用 MCP：
+`browser` 默认随 `web` 打开，需要本机装有 Chrome。`tah serve` / `tah chat` 弹出 Chrome 窗口，`tah run` 无界面；登录状态存在 `~/.tah/browser-profile`，所有文件夹共用，同一时间只能被一个 tah 使用。打开浏览器前问一次（`--yes` 跳过），上传本机文件每次都问。
+
+需要换搜索服务时，用 MCP：
 
 ```json
 {
@@ -139,7 +140,7 @@ npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.e
 ## 演进
 
 - v0.31 落地官方 `capabilities.web`（`web_search` / `web_fetch`），去掉「web: true 即报错」的守卫。
-- 内置浏览器自动化不在本阶段范围。
+- v0.31 落地 `capabilities.browser`（内置 Playwright MCP，按需加载）。
 - 若需要用户级默认，再另开设计；不在本文件静默扩展加载路径。
 - v0.28 热更新只盯 `AGENTS.md` / `tools/` / `plugins/` / `lib/`；改 `tah.config.json` 需重启进程（或再开一轮设计把它纳入 watch）。
 

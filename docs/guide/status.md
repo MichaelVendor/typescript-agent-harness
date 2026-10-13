@@ -22,6 +22,6 @@
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
 | `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包 · **Skills**（`skill` 工具 + `/name`，v0.29，见 [设计说明](/design/skills)） |
 
-未做：内置浏览器自动化、官方 MCP SDK 封装、shell/sandbox、插件市场。上网用官方 `web_fetch` / `web_search`（v0.31，见 [tah.config.json](/design/config)）；浏览器自动化用 `extensions.mcp` / `--mcp`（见 [CLI](/guide/cli.md)）。
+未做：官方 MCP SDK 封装、shell/sandbox、插件市场。上网用官方 `web_fetch` / `web_search`；需要点击、填表、登录时用内置浏览器 `browser_open`（v0.31，见 [内置浏览器](/design/browser)）。
 
 各版本「踩了什么坑、为何改、怎么改」见 [版本踩坑与改动](/guide/lessons)。

@@ -90,6 +90,8 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 | `execute_command` | 命令行 | 退出码 / 错误信息 |
 | `todo_write` | 进行中的那一项（没有则"N tasks"） | `完成数/总数 done` / 错误信息；另发 `todos` 事件，TUI 在对话里打印整份清单，`--plain` / `tah run` 打印 `[x]` / `[>]` / `[ ]` 行 |
 | `web_search` / `web_fetch` | 查询词 / 网址 | 结果条数 / 字符数（截断时标 truncated）/ 错误信息 |
+| `browser_open` / `browser_navigate` | 网址 | `opened` / `already open` / 页面标题 / 错误信息 |
+| 其他 `browser_*` | 元素描述（`element` 参数），没有则参数 JSON | 页面标题，没有标题时显示字符数 / 错误信息 |
 | 其他（项目工具、MCP 工具） | 参数 JSON，截到 60 字符 | `done` / 错误信息 |
 
 ### `bootRuntime` 的拆分

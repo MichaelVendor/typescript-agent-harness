@@ -175,7 +175,7 @@ my-agent/
 }
 ```
 
-合并顺序：内置默认 → config → CLI / 环境变量。键位、与 `tools/` 的关系、上网（`capabilities.web`：`web_fetch` 默认开，`web_search` 填 Tavily key 后开；浏览器自动化用 MCP）见配置参考：**[tah.config.json](/design/config)**。
+合并顺序：内置默认 → config → CLI / 环境变量。键位、与 `tools/` 的关系、上网（`capabilities.web`：`web_fetch` 默认开，`web_search` 填 Tavily key 后开；`capabilities.browser`：内置浏览器，`browser_open` 批准后弹出 Chrome）见配置参考：**[tah.config.json](/design/config)**。
 
 工具文件：
 

@@ -1,6 +1,6 @@
 # Tools 与 Runnable
 
-状态：✅ registry + `list_files` / `read_file` / `write_file` / `edit_file` / `grep` / `execute_command` / `todo_write` / `web_fetch` / `web_search`
+状态：✅ registry + `list_files` / `read_file` / `write_file` / `edit_file` / `grep` / `execute_command` / `todo_write` / `web_fetch` / `web_search` / `browser_open`（内置浏览器）
 MCP / Subagent / 权限见 [生态](./ecosystem.md)（Phase 4）
 
 ## Tool 接口
@@ -111,6 +111,7 @@ Main Agent
 | `todo_write` | 0.31 | 任务清单：每次传整份 `todos`（`content` + `pending` / `in_progress` / `completed`，最多 50 项），全量替换；不需要审批。提示词要求 3 步以上的任务使用 |
 | `web_fetch` | 0.31 | 读公网网页（拒绝内网 / 回环地址，重定向逐跳检查），HTML 转纯文本，默认 3 万字符、`max_chars` 最多 10 万；不需要审批。见 [tah.config.json](/design/config) |
 | `web_search` | 0.31 | Tavily 搜索，返回标题 / 链接 / 摘要（`max_results` 1–10，默认 5）；有 Tavily key 才挂 |
+| `browser_open` | 0.31 | 启动内置浏览器（Playwright MCP + 本机 Chrome），可带 `url`；浏览器没开时需要审批，已开时直接放行。打开后挂上 18 个 `browser_*` 工具（`browser_navigate` / `browser_snapshot` / `browser_find` / `browser_click` / `browser_type` / `browser_fill_form` / `browser_take_screenshot` / `browser_close` 等），结果超过 3 万字符截断，截图不回传给模型；`browser_file_upload` 每次审批，`browser_close` 后撤下这些工具。见 [内置浏览器](/design/browser) |
 | `execute_command` | 9 | 工作区 cwd 起进程（非 shell；无 sandbox）；默认 30 秒超时，模型可按次传 `timeoutMs`（最长 10 分钟） |
 | `grep` | 11 | 工作区正则搜索（跳过 `node_modules` / `dist` / 点文件） |
 | MCP ping | 4 | `inProcessPingBackend` |

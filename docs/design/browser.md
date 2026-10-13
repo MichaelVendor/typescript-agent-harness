@@ -1,6 +1,6 @@
 # 设计说明：内置浏览器（Playwright MCP）
 
-状态：🧭 设计已定，待实现（计划随 **`v0.31`** 发布）
+状态：✅ 已实现（随 **`v0.31`** 发布）
 
 `web_fetch` 只拿服务器返回的 HTML，不跑 JS，也不能点击、登录。本设计内置 [Playwright MCP](https://github.com/microsoft/playwright-mcp)，让 Agent 像 Cursor 的浏览器工具那样操作一个真的 Chrome。
 
@@ -30,7 +30,7 @@
 
 `@playwright/mcp` 作为 `packages/cli` 的依赖，锁定版本（0.0.83），解压后约 19MB（含 `playwright` / `playwright-core`）。用本机已装的 Chrome（`--browser chrome`），不另外下载浏览器。启动时用 `node <require.resolve("@playwright/mcp/cli.js")>`，不走 npx，离线可用。
 
-本机没有 Chrome 时，`browser_open` 报错并提示安装 Chrome。
+本机没有 Chrome 时，`browser_open` 报错，Playwright 的错误原文交给模型。
 
 ## 一、MCP 客户端修复（`packages/mcp`）
 
@@ -89,7 +89,7 @@
 - 一个 tah 进程（`tah serve` 里是一个文件夹的 host）只有一个浏览器。
 - `browser_close` 关掉页面后，浏览器工具从工具表里撤下，下次需要再调用 `browser_open`（会再问一次）。用户手动关掉 Chrome 窗口不特别处理：下一次浏览器工具调用的结果（Playwright MCP 重新打开窗口或报错）原样交给模型。
 - runtime 停止（退出、热更新、`tah serve` 切换文件夹）时结束 Playwright MCP 进程，浏览器随之关闭。
-- `~/.tah/browser-profile` 被另一个 tah 进程占用时启动失败，报错说明「浏览器登录目录正被另一个 tah 使用」。
+- `~/.tah/browser-profile` 被另一个 tah 进程占用时，`browser_open` 关掉刚启动的 Playwright MCP、撤下工具，报错 `the browser profile … is in use by another tah — close that tah (or its browser) and try again`。
 
 ## 三、审批
 
@@ -117,9 +117,9 @@
 
 | 工具 | `summary` | `result` |
 | --- | --- | --- |
-| `browser_open` / `browser_navigate` | 网址 | `opened` / 页面标题 |
-| `browser_click` / `browser_type` / `browser_hover` / `browser_select_option` | 元素描述（`element` 参数） | `done` |
-| 其他 `browser_*` | 参数 JSON，截到 60 字符 | `done` / 字符数 |
+| `browser_open` | 网址 | `opened` / `already open` |
+| `browser_navigate` | 网址 | 页面标题 |
+| 其他 `browser_*` | 有 `element` 参数时显示元素描述，否则参数 JSON（截到 60 字符） | 页面标题，没有标题时显示字符数 |
 
 ## 测试
 
