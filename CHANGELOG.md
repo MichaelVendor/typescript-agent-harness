@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.33.0 — 2026-10-13
 
 Images: each saved model has a **"can read images"** setting (Settings → Models: "Can read images" when adding, an "Images" checkbox on each model; the composer's model menu tags them "images"). Image attachments go to a model as pictures only when it is marked; the `.env` model still follows `--vision` / `TAH_VISION=1` / `capabilities.vision`. When the model in use can't read images, images already in the conversation are sent as `[image omitted]` text, so switching from a vision model to a text-only one no longer breaks the request. New endpoint `POST /api/settings/models/vision` `{ id, vision }`; `POST /api/settings/models` accepts `vision`; `GET /api/settings` models carry `vision`. LLM package: `images: false` option.
 
