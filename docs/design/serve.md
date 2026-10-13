@@ -58,11 +58,12 @@ TUI 改为使用 `user` / `approval.end` 事件，删掉 `Transcript.user()` 里
 
 ```ts
 type HostEvent =
-  | { type: "session"; id: string; resumed: boolean; history: HistoryItem[]; hiddenTurns: number }
+  | { type: "session"; id: string; resumed: boolean; history: HistoryItem[]; hiddenTurns: number; todos?: Todo[] }
   | { type: "user"; text: string }
   | { type: "text"; delta: string }
   | { type: "tool.start"; callId: string; tool: string; summary: string }
   | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string }
+  | { type: "todos"; todos: Todo[] }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "approval.end"; id: string; answer: ApprovalAnswer }
   | { type: "notice"; text: string }
@@ -84,6 +85,7 @@ type HostEvent =
 | `GET /api/sessions` | `SessionRow[]` | 200 |
 | `POST /api/send` `{text}` | 发消息 | 202 |
 | `POST /api/continue` | 步数上限后继续同一轮 | 202 |
+| `POST /api/compact` | 把到目前为止的对话压缩成摘要；按一轮处理（忙时 409，`/api/cancel` 可中止，结束发 `turn.end`） | 202 |
 | `POST /api/cancel` | 停止当前轮 | 204 |
 | `POST /api/answer` `{id, answer}` | `answer`：`yes` / `always` / `no` | 204 |
 | `POST /api/reset` | 新会话 | 204 |
@@ -96,14 +98,15 @@ type HostEvent =
 
 | 接口 | 作用 |
 | --- | --- |
-| `GET /api/settings` | `{ user, models: [{ id, model, baseURL, keyHint }], activeModel }`；`user` 是电脑用户名 |
+| `GET /api/settings` | `{ user, models: [{ id, model, baseURL, keyHint }], activeModel, search }`；`user` 是电脑用户名；`search` 是 `{ source: "settings" \| "env", keyHint }` 或 `null` |
 | `POST /api/settings/models` `{model, apiKey, baseURL?}` | 添加模型；第一个自动选中 |
 | `POST /api/settings/models/remove` `{id}` | 删除；删的是选中的就退回 `.env` |
 | `POST /api/settings/active` `{id \| null}` | 选中模型；`null` 用 `.env` |
+| `POST /api/settings/search` `{apiKey \| null}` | 保存 Tavily key（开 `web_search`，v0.31）；`null` 删除，退回 `.env` 的 `TAVILY_API_KEY`；host 重新加载 |
 
 Skills（v0.30.1）：`GET /api/skills` 列出当前文件夹加载的 skill（`source`: `home` / `folder`）；`POST /api/skills/import` `{path}` 把一个 skill 文件夹（或一层子文件夹里的全部 skill）复制进 `~/.tah/skills`，返回列表加 `imported` / `skipped`；`POST /api/skills/remove` `{name}` 只删 `~/.tah/skills` 里的。导入 / 删除后 host 重新加载；一轮进行中返回 409。见 [Skills](./skills.md#网页导入-v0-30-1)。
 
-上面模型设置的三个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
+上面设置的四个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
 
 规则：
 
@@ -175,8 +178,9 @@ tah serve [--port <n>] [--no-open] [chat 的现有参数：--yes --max-steps --n
 
 - 输入框自动增高；Enter 发送，Shift+Enter 换行；输入法组字中（`isComposing`）Enter 不发送。
 - 运行中发送按钮变成"停止"（`/api/cancel`）。
-- 审批卡片由网页按 `approval.input` 渲染：`execute_command` 显示命令行，`write_file` 显示路径和前 8 行预览，其他工具显示参数 JSON。按钮：允许一次 / 总是允许 / 拒绝。
+- 审批卡片由网页按 `approval.input` 渲染：`execute_command` 显示命令行，`write_file` 显示路径和前 8 行预览，`edit_file` 显示路径和 `-` 原文 / `+` 新文本，其他工具显示参数 JSON。按钮：允许一次 / 总是允许 / 拒绝。
 - 步数上限：`turn.end` 的 `finishReason` 为 `max_steps` 时显示"继续""停止"。
+- 任务清单：`todo_write` 成功后 host 发 `todos`（整份清单）；`session` 事件带上整个会话里最后一次成功的清单（从消息里推出来，不另存状态），所以刷新、恢复会话后清单还在。网页在输入框上方显示"Tasks 完成数/总数"面板，可折叠（折叠时显示进行中的那一项），全部完成后隐藏。
 - 断线时顶部提示"重新连接中…"；未登录（401）时提示"请打开 tah serve 在终端里打印的链接"。
 - 命令失败（4xx）在消息流里显示一条红色提示。
 

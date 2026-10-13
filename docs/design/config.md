@@ -54,8 +54,8 @@
 
 | 键 | 含义 |
 | --- | --- |
-| `capabilities.coding` | `true` / `false`，或 `{ "exec": boolean }`（默认 `exec: true`）。挂 `list_files` / `read_file` / `grep` / `write_file`，以及可选的 `execute_command` |
-| `capabilities.web` | 预留官方 `web_search` / `web_fetch`。**v0.28 未实现**：写 `true` 会启动失败。需要上网或浏览器时用 `extensions.mcp`（见下），不要开 `web` |
+| `capabilities.coding` | `true` / `false`，或 `{ "exec": boolean }`（默认 `exec: true`）。挂 `list_files` / `read_file` / `grep` / `write_file` / `edit_file`，以及可选的 `execute_command` |
+| `capabilities.web` | 官方 `web_fetch`（读网页）与 `web_search`（Tavily 搜索，有 key 才挂）。省略时跟随 `coding`；写 `false` 关掉（v0.31） |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |
 | `extensions.mcp` | `{ "command": string, "args"?: string[] }`，stdio MCP（同 `--mcp` / `--mcp-arg`）。**当前推荐**用来接搜索、抓取、浏览器类第三方 MCP |
 
@@ -112,7 +112,11 @@ npx tah serve          # 有 tools/ 时仍挂内置文件工具，且开启 visi
 npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.exec
 ```
 
-需要搜索或浏览器时，保持 `"web": false`（或省略），用 MCP：
+`web` 默认随 `coding` 打开：`web_fetch` 不需要 key；`web_search` 用 Tavily，key 在 `tah serve` 的 Settings → Web search 里填（存 `~/.tah/settings.json`），或写 `.env` 的 `TAVILY_API_KEY`，两者都有时 Settings 优先。没有 key 时只挂 `web_fetch`，启动行显示 `web=fetch`；有 key 显示 `web=on`。
+
+`web_fetch` 只读公网 http(s)：解析域名后拒绝回环、内网、链路本地等地址（每次重定向都重新检查，最多 5 次），20 秒超时、最多读 2MB，HTML 转成带标题 / 列表 / 链接的纯文本，默认返回前 3 万字符。
+
+需要换搜索服务或浏览器（点选、截图）时，用 MCP：
 
 ```json
 {
@@ -134,7 +138,7 @@ npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.e
 
 ## 演进
 
-- 官方 `capabilities.web`（`web_search` / `web_fetch`）落地后，去掉「web: true 即报错」的守卫；在此之前以 MCP 为准。
+- v0.31 落地官方 `capabilities.web`（`web_search` / `web_fetch`），去掉「web: true 即报错」的守卫。
 - 内置浏览器自动化不在本阶段范围。
 - 若需要用户级默认，再另开设计；不在本文件静默扩展加载路径。
 - v0.28 热更新只盯 `AGENTS.md` / `tools/` / `plugins/` / `lib/`；改 `tah.config.json` 需重启进程（或再开一轮设计把它纳入 watch）。

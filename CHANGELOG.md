@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+Tools: **`edit_file`** replaces exact text in an existing file instead of rewriting it — `old_string` must match exactly once (the error says how many times it matched), or set `replace_all`. It needs approval like `write_file`; the terminal and web approval cards preview the change as `-` old / `+` new lines. The default prompt now steers the model to `edit_file` for changes and `write_file` for new files.
+
+Tools: **`todo_write`** keeps a task list for multi-step work — the model sends the whole list each time (`pending` / `in_progress` / `completed`), and the prompt asks for it on tasks with 3 or more steps. No approval needed. The web app shows it above the composer as a collapsible "Tasks 2/5" panel (hidden once everything is done); the terminal UI prints the list in the conversation, and `--plain` / `tah run` print `[x]` / `[>]` / `[ ]` lines. The list is read back from the session messages, so it survives a page reload or a resumed session. New host event `todos`; `session` events carry `todos` when the session has a list.
+
+Tools: **`web_fetch`** and **`web_search`** — the agent can read web pages and search the web. `web_fetch` needs no key: it only fetches public http(s) addresses (loopback, private and link-local addresses are refused, re-checked on every redirect), with a 20-second timeout and a 2 MB cap, and turns HTML into text with headings, lists and links (30k characters by default). `web_search` uses Tavily and is mounted once a key is set in the web app (Settings → **Web search**, saved in `~/.tah/settings.json`, never sent back to the page) or as `TAVILY_API_KEY` in `.env`. Both are on wherever the built-in coding tools are; `tah.config.json` `"capabilities": { "web": false }` turns them off (`"web": true` no longer fails at startup). The startup line shows `web=on` or `web=fetch` (no search key). New endpoint `POST /api/settings/search`; `GET /api/settings` adds `search`.
+
+Context: **compaction** — when a request would go over the context budget, the earlier turns are first summarized by the model into one message, and later requests send that summary (inside the system prompt) instead of the old turns; trimming is now the fallback when summarizing fails. Compact any time with `/compact` (terminal UI and `--plain`) or **Compact** in the web status bar (`POST /api/compact`); it runs as a turn, so Stop / Ctrl+C cancels it. Full history is kept: the summary is a marked system message in the session, saved with it, so resumed and forked sessions keep it. Agent package: `session.compact()`, `applySummary`, `compactHistory`, events `agent.context.compacted` / `agent.context.compact-failed`.
+
 ## 0.30.1 — 2026-10-12
 
 CLI: the agent is told it runs inside tah and how Skills work (where they live, how to install one with `write_file`), so it no longer answers "install a skill" with Cursor instructions. Plain folders (not tah projects) now load `skills/`, `.agents/skills/` and `.cursor/skills/` too, and only those folders are watched for reloads there.

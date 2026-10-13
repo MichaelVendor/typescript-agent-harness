@@ -136,7 +136,16 @@ async function* defaultLoop(ctx: AgentContext): AsyncIterable<AgentEvent> {
 2. 从最早开始**整轮**丢弃（user 起到下一条 user 前），并在 system 末尾注明丢了几轮
 3. 仍超：省略当前轮里模型已经看过的工具输出；最新一批工具结果与当前轮始终保留
 
-整轮丢弃保证 `tool_calls` 与 tool 结果成对，不会触发 API 的配对校验错误。发生裁剪时发 `agent.context.trimmed`。不做 LLM 摘要。
+整轮丢弃保证 `tool_calls` 与 tool 结果成对，不会触发 API 的配对校验错误。发生裁剪时发 `agent.context.trimmed`。
+
+### 上下文压缩（0.31）
+
+摘要是插在历史里的一条 system 消息，内容以 `[Summary of the earlier conversation]` 开头。完整历史照旧保留（界面、`fork`、恢复会话都不受影响），摘要和其他消息一起存进 SQLite。
+
+- **发给模型时**：`applySummary(messages)` 把最近一条摘要并进开头的 system，摘要之前的消息不再发送；之后再按上面的规则裁剪。
+- **自动**：设了 `contextChars` 时，如果某一轮第一次请求前超出预算，就先用 `llm.generate` 把当前轮之前（上次摘要之后）的轮次总结成摘要，插在当前 user 消息前。每轮最多尝试一次。成功时发 `agent.context.compacted { sessionId, turns, chars, auto: true }`；失败时发 `agent.context.compact-failed { sessionId, error }`，退回裁剪。
+- **手动**：`session.compact()` 把到目前为止的所有轮次总结成摘要，追加在末尾，返回 `{ turns, chars }`；没有可压缩的轮次时返回 `undefined`。运行中调用会抛错；`cancel()` 可以中止。
+- **摘要输入**：用户消息、模型回复、工具调用和结果（每条截断，总长不超过 20 万字符），以及上一份摘要。提示词要求按目标、决定、文件改动、命令结果、未完成事项、关键事实来写，并用用户的语言。
 
 ## Session 服务
 

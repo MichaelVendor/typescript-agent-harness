@@ -16,7 +16,7 @@ npx @typescript-agent-harness/cli --mock chat
 | 命令 | 作用 |
 | --- | --- |
 | `tah run <prompt>` | 一次性 Session |
-| `tah chat` | 多轮；**默认续上一次持久化 Session**；终端里是 TUI（v0.24），管道或 `--plain` 仍是逐行模式；`/exit` / `/reset` / `/sessions` / `/resume` / `/fork` |
+| `tah chat` | 多轮；**默认续上一次持久化 Session**；终端里是 TUI（v0.24），管道或 `--plain` 仍是逐行模式；`/exit` / `/reset` / `/compact` / `/sessions` / `/resume` / `/fork` |
 | `tah serve` | 在本机起网页工作台，浏览器里操作当前目录的 Agent（v0.25，见下文「网页工作台」） |
 | `tah sessions` | 列出已保存的 Session（最新在前；不需要 API key，v0.22） |
 | `tah init` | 在当前目录生成约定式项目骨架并装好依赖（v0.23，见下文「约定式项目」） |
@@ -34,7 +34,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `--quiet` | 只打印模型回复；`tah run` 只在结束时输出最后一条回复，调工具前说的话不输出，适合脚本（v0.26.2） |
 | `--exec` | 挂上 `execute_command`（**默认开**） |
 | `--no-exec` | 关掉 `execute_command` |
-| `--yes` / `-y` | 跳过 `write_file` / `execute_command` 的审批 |
+| `--yes` / `-y` | 跳过 `write_file` / `edit_file` / `execute_command` 的审批 |
 | `--max-steps <n>` | 每轮 LLM 上限（**默认不限**，Ctrl+C 停） |
 | `--system-file <path>` | 用文件内容替换默认角色「workspace coding agent」（v0.22） |
 | `--session <id\|n>` | `tah chat` 续指定 Session，而不是最近一个（v0.22） |
@@ -70,7 +70,7 @@ tah --mock chat          # 应看到 resumed session …
 
 ## 默认挂上的能力
 
-LLM + `list_files` / `read_file` / `grep` / `write_file` + **`execute_command`** + Agent Loop + SQLite。  
+LLM + `list_files` / `read_file` / `grep` / `write_file` / `edit_file` + **`execute_command`** + Agent Loop + SQLite。  
 MCP / scheduler 仍默认关。
 
 `execute_command` 默认 30 秒超时；装依赖、构建、跑测试这类慢命令，模型会按次传 `timeoutMs`（最长 10 分钟）。`--max-steps` 对续上的旧 Session 同样生效。
@@ -81,7 +81,7 @@ pnpm tah -- --mock run "用 node 打印 1+1"
 
 ## 审批（v0.22）
 
-`write_file` 和 `execute_command` 每次执行前会弹一张卡片（写文件时预览前 8 行内容）。终端 TUI 里直接按 `y` / `a` / `n`（回车、Esc 也是拒绝），网页里点卡片上的按钮；`--plain` 逐行模式下输入字母后回车：
+`write_file`、`edit_file` 和 `execute_command` 每次执行前会弹一张卡片（写文件时预览前 8 行内容，改文件时用 `-` / `+` 预览被替换的原文和新文本）。终端 TUI 里直接按 `y` / `a` / `n`（回车、Esc 也是拒绝），网页里点卡片上的按钮；`--plain` 逐行模式下输入字母后回车：
 
 ```text
 ╭─ Run command
@@ -121,6 +121,7 @@ chat 里：
 | `/resume <id\|n>` | 切到另一个 Session |
 | `/fork` | 复制当前 Session 到新 Session 并切过去；原 Session 不变（想试另一条路时用） |
 | `/fork <n>` | 只保留前 n 轮再分叉（「回到第 n 轮重来」） |
+| `/compact` | 把到目前为止的对话压缩成摘要，之后只发摘要和新对话（0.31，见「长会话上下文」） |
 
 序号随最近更新时间变化，以最近一次 `tah sessions` / `/sessions` 为准。分叉不需要 persist；`--session` / `/resume` 需要（默认开）。
 
@@ -174,7 +175,7 @@ my-agent/
 }
 ```
 
-合并顺序：内置默认 → config → CLI / 环境变量。键位、与 `tools/` 的关系、上网 / 浏览器（用 MCP，不要开 `capabilities.web`）见配置参考：**[tah.config.json](/design/config)**。
+合并顺序：内置默认 → config → CLI / 环境变量。键位、与 `tools/` 的关系、上网（`capabilities.web`：`web_fetch` 默认开，`web_search` 填 Tavily key 后开；浏览器自动化用 MCP）见配置参考：**[tah.config.json](/design/config)**。
 
 工具文件：
 
@@ -201,7 +202,7 @@ export default defineTool({
 
 - **何时生效**：只有 `--cwd`（默认当前目录）的 `package.json` 在 `dependencies` 或 `devDependencies` 里有 `@typescript-agent-harness/cli` 时才算项目。普通代码仓库里的 `tools/`、`plugins/`、`AGENTS.md` 不会被加载。
 - **人设**：`AGENTS.md` 替换默认角色；`--system-file` 优先于 `AGENTS.md`。
-- **内置工具**：有 `tools/` 目录时，`list_files` / `read_file` / `grep` / `write_file` / `execute_command` 和对应的提示词规则都不挂；加 `--builtin-tools` 恢复。只有 `AGENTS.md` 没有 `tools/` 时，内置工具照常挂上。
+- **内置工具**：有 `tools/` 目录时，`list_files` / `read_file` / `grep` / `write_file` / `edit_file` / `execute_command` 和对应的提示词规则都不挂（`web_fetch` / `web_search` 也跟着不挂，除非 `tah.config.json` 写 `"web": true`）；加 `--builtin-tools` 恢复。只有 `AGENTS.md` 没有 `tools/` 时，内置工具照常挂上。
 - **工具名**：文件名去掉扩展名、`-` 换成 `_`；必须是小写字母开头的 `a-z0-9_`。`defineTool({ name })` 可以覆盖。
 - **扫描**：只扫 `tools/`、`plugins/` 第一层的 `.ts` / `.mts` / `.js` / `.mjs`；跳过 `_` 开头、`*.test.*`、`*.spec.*`、`.d.ts` 和子目录。按文件名排序加载，插件间有先后依赖时用 `01-` 前缀。
 - **注册顺序**：项目插件在所有内置插件之后注册，setup 时 LLM、Tools、Session 都已可用。
@@ -254,7 +255,7 @@ tah serve --yes --port 8000 --no-open
 
 `tah serve` 在本机起服务并打开浏览器，网页里操作的就是当前目录的 Agent：流式 Markdown、工具调用行、审批卡片（允许一次 / 总是允许 / 拒绝）、步数上限的「继续」、会话侧栏（切换 / 新建 / 分叉）、停止当前轮。和 TUI 一样同一时间只有一个当前会话；开多个标签页看到的是同一个会话，操作实时同步，刷新或断线重连后从服务端补齐。`tah chat` 的其他参数（`--yes`、`--max-steps`、`--no-persist`、`--session`、`--mock` …）照常可用。
 
-工作文件夹（v0.30）：侧栏按文件夹分组列出会话（Pinned 跨文件夹置顶）；「Workspaces」标题旁的文件夹图标有两项：「Open project…」先列最近移除过的项目，「Choose folder…」弹系统的选文件夹对话框（macOS / Windows；其他系统用网页里的目录浏览器），「New folder…」默认在桌面新建（可换位置）并直接打开。左下角齿轮打开 Settings：Models 管理模型，Skills 列出已加载的 skill，并可把 `~/.cursor/skills` 这类文件夹里的 skill 导入 `~/.tah/skills`（v0.30.1，见 [Skills](/design/skills#网页导入-v0-30-1)）。文件夹列表存在 `~/.tah/workspaces.json`。打开另一个文件夹里的会话（或点该组的 `+`）时，Agent 的工作目录随之切换；运行中的一轮结束前不能切换。`.env` 始终用启动时那个目录的。见 [工作文件夹设计](/design/workspaces)。
+工作文件夹（v0.30）：侧栏按文件夹分组列出会话（Pinned 跨文件夹置顶）；「Workspaces」标题旁的文件夹图标有两项：「Open project…」先列最近移除过的项目，「Choose folder…」弹系统的选文件夹对话框（macOS / Windows；其他系统用网页里的目录浏览器），「New folder…」默认在桌面新建（可换位置）并直接打开。左下角齿轮打开 Settings：Models 管理模型，Web search 填 Tavily key 打开 `web_search`（v0.31），Skills 列出已加载的 skill，并可把 `~/.cursor/skills` 这类文件夹里的 skill 导入 `~/.tah/skills`（v0.30.1，见 [Skills](/design/skills#网页导入-v0-30-1)）。文件夹列表存在 `~/.tah/workspaces.json`。打开另一个文件夹里的会话（或点该组的 `+`）时，Agent 的工作目录随之切换；运行中的一轮结束前不能切换。`.env` 始终用启动时那个目录的。见 [工作文件夹设计](/design/workspaces)。
 
 它是本机工作台，不是对外服务：
 
@@ -299,6 +300,14 @@ Ctrl+C 停止服务并打印续聊命令（`tah chat --session …`），再按�
 ```
 
 先省略旧的工具输出，再整轮丢最早的对话；当前这一轮始终完整。SQLite 里的完整历史不删。话题换了就 `/reset`，比靠裁剪更省 token。
+
+从 0.31 起，超出预算时会先尝试**压缩**：让模型把之前的轮次总结成一份摘要，之后的请求只发摘要和新的对话。压缩成功会打印：
+
+```text
+[ctx] compacted: 3 earlier turn(s) summarized in 1840 chars (full history kept)
+```
+
+压缩失败（例如模型报错）时退回上面的裁剪。也可以随时手动压缩：终端里输入 `/compact`，网页点状态栏右侧的 **Compact**。压缩过程中 Ctrl+C（网页上点停止）可以中止。
 
 关掉命令执行：
 

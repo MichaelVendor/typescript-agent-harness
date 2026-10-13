@@ -1,6 +1,6 @@
 # Tools 与 Runnable
 
-状态：✅ registry + `list_files` / `read_file` / `write_file` / `grep` / `execute_command`
+状态：✅ registry + `list_files` / `read_file` / `write_file` / `edit_file` / `grep` / `execute_command` / `todo_write` / `web_fetch` / `web_search`
 MCP / Subagent / 权限见 [生态](./ecosystem.md)（Phase 4）
 
 ## Tool 接口
@@ -107,6 +107,10 @@ Main Agent
 | `list_files` | 2 | 列目录 |
 | `read_file` | 2 | 读文件 |
 | `write_file` | 2 | 写文件（可配 permission deny） |
+| `edit_file` | 0.31 | 按原文替换片段：`old_string` 必须恰好出现一次，否则报出现次数；`replace_all: true` 全部替换；需要审批 |
+| `todo_write` | 0.31 | 任务清单：每次传整份 `todos`（`content` + `pending` / `in_progress` / `completed`，最多 50 项），全量替换；不需要审批。提示词要求 3 步以上的任务使用 |
+| `web_fetch` | 0.31 | 读公网网页（拒绝内网 / 回环地址，重定向逐跳检查），HTML 转纯文本，默认 3 万字符、`max_chars` 最多 10 万；不需要审批。见 [tah.config.json](/design/config) |
+| `web_search` | 0.31 | Tavily 搜索，返回标题 / 链接 / 摘要（`max_results` 1–10，默认 5）；有 Tavily key 才挂 |
 | `execute_command` | 9 | 工作区 cwd 起进程（非 shell；无 sandbox）；默认 30 秒超时，模型可按次传 `timeoutMs`（最长 10 分钟） |
 | `grep` | 11 | 工作区正则搜索（跳过 `node_modules` / `dist` / 点文件） |
 | MCP ping | 4 | `inProcessPingBackend` |

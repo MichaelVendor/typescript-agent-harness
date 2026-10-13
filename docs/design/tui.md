@@ -85,8 +85,11 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 | 工具 | `summary` | `result`（成功 / 失败） |
 | --- | --- | --- |
 | `read_file` / `write_file` / `list_files` | 路径 | 行数或条目数 / 错误信息 |
+| `edit_file` | 路径 | 替换次数 / 错误信息 |
 | `grep` | 模式（和路径） | 匹配数 / 错误信息 |
 | `execute_command` | 命令行 | 退出码 / 错误信息 |
+| `todo_write` | 进行中的那一项（没有则"N tasks"） | `完成数/总数 done` / 错误信息；另发 `todos` 事件，TUI 在对话里打印整份清单，`--plain` / `tah run` 打印 `[x]` / `[>]` / `[ ]` 行 |
+| `web_search` / `web_fetch` | 查询词 / 网址 | 结果条数 / 字符数（截断时标 truncated）/ 错误信息 |
 | 其他（项目工具、MCP 工具） | 参数 JSON，截到 60 字符 | `done` / 错误信息 |
 
 ### `bootRuntime` 的拆分
@@ -124,7 +127,7 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 | 编辑 | ←→↑↓ 移动光标（↑↓ 在多行之间移动）、Home/End、Ctrl+A/E、Backspace；中文等宽字符按显示宽度对齐 |
 | 行首输入 `/` | 弹出命令菜单，按输入过滤；↑↓ 选，Tab 补全，Enter 补全并执行（不需要参数的命令） |
 | `/resume`（不带参数）或 `/sessions` | 打开会话列表，↑↓ 选、Enter 切换、Esc 返回；`/resume <id\|n>` 照旧直接切 |
-| `/reset`、`/fork [n]`、`/exit` | 和逐行模式相同 |
+| `/reset`、`/compact`、`/fork [n]`、`/exit` | 和逐行模式相同 |
 | 审批卡片出现时 | 按 y / a / n 立即生效，不用回车；Ctrl+C 拒绝并停止本轮 |
 | 步数上限 | 提示行：Enter 继续同一轮，n 停下 |
 | Ctrl+C | 回复中：停止本轮；空闲且有输入：清空输入；空闲且为空：退出 |

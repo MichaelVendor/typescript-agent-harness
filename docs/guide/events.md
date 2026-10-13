@@ -36,6 +36,8 @@ runtime.on("llm.request", (e) => console.log("llm", e));
 | `agent.cancelled` | `{ sessionId }` |
 | `agent.assistant-stream` | `{ sessionId, text }` |
 | `agent.context.trimmed` | `{ sessionId, droppedTurns, elidedToolResults, chars }`（设了 `contextChars` 且本次请求被裁剪时，v0.22） |
+| `agent.context.compacted` | `{ sessionId, turns, chars, auto }`（之前的轮次被总结成摘要；`auto: false` 是 `session.compact()`，0.31） |
+| `agent.context.compact-failed` | `{ sessionId, error }`（自动压缩失败，本次退回裁剪，0.31） |
 | `storage.checkpoint` | `{ sessionId, checkpointId, stepId, stepType }` |
 
 `agent.finished` / `cancelled` / `failed` 在 `drive()` 结束时发出。checkpoint 在持久化写盘之后发出。

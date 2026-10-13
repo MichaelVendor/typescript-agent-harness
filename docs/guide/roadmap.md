@@ -208,7 +208,7 @@ pnpm demo:convention   # 另开终端改 examples/convention-agent/tools/ 里的
 
 - 约定式项目可选根目录 `tah.config.json`：`capabilities`（coding / web / vision）+ `extensions.mcp`
 - 合并顺序：内置默认 → config → CLI / 环境变量；无文件时行为与 v0.27 一致
-- `capabilities.web: true` 在官方联网工具落地前启动报错；**上网 / 浏览器现阶段用 MCP**（见 [CLI · 上网与浏览器](/guide/cli.md)）；`tah init` 写入示例 config（仅 coding）
+- `capabilities.web: true` 在官方联网工具落地前启动报错（v0.31 已落地 `web_fetch` / `web_search`）；浏览器自动化用 MCP（见 [CLI](/guide/cli.md)）；`tah init` 写入示例 config（仅 coding）
 
 ## Phase 14 — Skills ✅
 
