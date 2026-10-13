@@ -104,6 +104,7 @@ export function App() {
         unavailable={sessionsError}
         current={state.sessionId}
         busy={state.busy}
+        approval={Boolean(state.approval)}
         onNew={(cwd) => run(api.reset(cwd ? { cwd } : {}))}
         onFork={(id, cwd) => run(api.fork({ id, ...(cwd ? { cwd } : {}) }))}
         onPick={(id, cwd) => run(api.resume({ ref: id, cwd }))}
