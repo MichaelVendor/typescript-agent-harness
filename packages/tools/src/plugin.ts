@@ -82,6 +82,9 @@ function createToolService(ctx: Context, initial: Tool[]): ToolService {
       }
       registry.set(tool.name, tool);
     },
+    unregister(name) {
+      registry.delete(name);
+    },
     list() {
       const perms = ctx.tryGet(PERMISSIONS);
       const all = [...registry.values()];

@@ -29,6 +29,7 @@ export type ToolResult = {
 
 export type ToolService = {
   register(tool: Tool): void;
+  unregister(name: string): void;
   list(): Tool[];
   listSchemas(): Array<{ name: string; description: string; inputSchema: JSONSchema }>;
   execute(call: ToolCall, ctx: ToolContext): Promise<ToolResult>;

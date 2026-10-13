@@ -168,3 +168,18 @@ test("edit_file replaces a unique match, refuses ambiguous or missing text", asy
   assert.equal((await edit({ path: "../out.txt", old_string: "a", new_string: "b" })).ok, false);
   await runtime.stop();
 });
+
+test("unregister removes a tool; the name can be registered again", async () => {
+  const runtime = new Runtime({ id: "t" });
+  runtime.use(toolsPlugin({ tools: [] }));
+  await runtime.start();
+  const tools = runtime.get(TOOLS);
+  const echo = { name: "echo", description: "e", inputSchema: { type: "object" as const }, async execute() { return "x"; } };
+  tools.register(echo);
+  tools.unregister("echo");
+  tools.unregister("missing");
+  assert.deepEqual(tools.listSchemas().map((t) => t.name), []);
+  tools.register(echo);
+  assert.deepEqual(tools.listSchemas().map((t) => t.name), ["echo"]);
+  await runtime.stop();
+});
