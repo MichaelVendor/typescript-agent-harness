@@ -91,6 +91,43 @@ export function writeFileTool(
   };
 }
 
+export function editFileTool(
+  workspaceRoot: string,
+): Tool<{ path: string; old_string: string; new_string: string; replace_all?: boolean }, unknown> {
+  return {
+    name: "edit_file",
+    description:
+      "Replace exact text in an existing UTF-8 file (workspace-scoped). old_string must match exactly once unless replace_all is true; include enough surrounding lines to make it unique. Prefer this over write_file for changing existing files.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Relative file path" },
+        old_string: { type: "string", description: "Exact text to replace, including whitespace" },
+        new_string: { type: "string", description: "Replacement text" },
+        replace_all: { type: "boolean", description: "Replace every occurrence, default false" },
+      },
+      required: ["path", "old_string", "new_string"],
+      additionalProperties: false,
+    },
+    async execute(input) {
+      if (!input.old_string) throw new Error("old_string is empty; use write_file to create a file");
+      if (input.old_string === input.new_string) throw new Error("old_string and new_string are the same");
+      const filePath = resolveInRoot(workspaceRoot, input.path);
+      const content = await readFile(filePath, "utf8");
+      const parts = content.split(input.old_string);
+      const count = parts.length - 1;
+      if (count === 0) throw new Error(`old_string not found in ${input.path}`);
+      if (count > 1 && !input.replace_all) {
+        throw new Error(
+          `old_string matches ${count} times in ${input.path}; add surrounding lines to make it unique or set replace_all`,
+        );
+      }
+      await writeFile(filePath, parts.join(input.new_string), "utf8");
+      return { path: input.path, replacements: count };
+    },
+  };
+}
+
 const GREP_SKIP = new Set(["node_modules", "dist"]);
 const GREP_MAX_MATCHES = 50;
 const GREP_MAX_FILE = 32 * 1024;

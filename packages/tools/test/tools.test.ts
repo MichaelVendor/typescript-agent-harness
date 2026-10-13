@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -11,6 +11,8 @@ import {
 } from "@typescript-agent-harness/permissions";
 import {
   TOOLS,
+  editFileTool,
+  todoWriteTool,
   toolsPlugin,
   writeFileTool,
   type ToolContext,
@@ -115,5 +117,54 @@ test("approval asks for gated tools: no rejects, always stops asking", async () 
   );
   assert.equal(policyDenied.ok, false);
   assert.deepEqual(asked, ["write_file", "write_file"]);
+  await runtime.stop();
+});
+
+test("todo_write returns the trimmed list and rejects bad items", async () => {
+  const runtime = new Runtime({ id: "tools-todo" });
+  runtime.use(toolsPlugin({ tools: [todoWriteTool()] }));
+  await runtime.start();
+  const write = (todos: unknown) =>
+    runtime.get(TOOLS).execute({ id: "c1", name: "todo_write", arguments: { todos } }, toolCtx(runtime));
+
+  const ok = await write([
+    { content: " read code ", status: "completed" },
+    { content: "fix bug", status: "in_progress" },
+  ]);
+  assert.deepEqual(ok.output, {
+    todos: [
+      { content: "read code", status: "completed" },
+      { content: "fix bug", status: "in_progress" },
+    ],
+  });
+  assert.match(JSON.stringify((await write([{ content: " ", status: "pending" }])).output), /content must be/);
+  assert.match(JSON.stringify((await write([{ content: "x", status: "done" }])).output), /status must be/);
+  assert.match(JSON.stringify((await write("x")).output), /must be an array/);
+  await runtime.stop();
+});
+
+test("edit_file replaces a unique match, refuses ambiguous or missing text", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-edit-"));
+  const file = path.join(dir, "a.txt");
+  writeFileSync(file, "one $x\ntwo\none $x\n");
+  const runtime = new Runtime({ id: "tools-edit" });
+  runtime.use(toolsPlugin({ tools: [editFileTool(dir)] }));
+  await runtime.start();
+  const tools = runtime.get(TOOLS);
+  const edit = (args: Record<string, unknown>) =>
+    tools.execute({ id: "c1", name: "edit_file", arguments: { path: "a.txt", ...args } }, toolCtx(runtime));
+
+  const ambiguous = await edit({ old_string: "one $x", new_string: "1" });
+  assert.match(JSON.stringify(ambiguous.output), /matches 2 times/);
+  assert.match(JSON.stringify((await edit({ old_string: "three", new_string: "3" })).output), /not found/);
+  assert.match(JSON.stringify((await edit({ old_string: "", new_string: "3" })).output), /use write_file/);
+  assert.equal(readFileSync(file, "utf8"), "one $x\ntwo\none $x\n");
+
+  const one = await edit({ old_string: "two", new_string: "$& 2" });
+  assert.deepEqual(one.output, { path: "a.txt", replacements: 1 });
+  const all = await edit({ old_string: "one $x", new_string: "1", replace_all: true });
+  assert.deepEqual(all.output, { path: "a.txt", replacements: 2 });
+  assert.equal(readFileSync(file, "utf8"), "1\n$& 2\n1\n");
+  assert.equal((await edit({ path: "../out.txt", old_string: "a", new_string: "b" })).ok, false);
   await runtime.stop();
 });

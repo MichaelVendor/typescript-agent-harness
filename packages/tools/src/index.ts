@@ -1,6 +1,15 @@
 export { TOOL_EXECUTE, TOOLS } from "./contract.js";
 export { toolsPlugin, type ToolsPluginOptions } from "./plugin.js";
-export { listFilesTool, readFileTool, writeFileTool, grepTool } from "./fs-tools.js";
+export { listFilesTool, readFileTool, writeFileTool, editFileTool, grepTool } from "./fs-tools.js";
+export { todoWriteTool, type Todo, type TodoStatus } from "./todo-tool.js";
+export {
+  htmlToText,
+  webFetchTool,
+  webSearchTool,
+  type WebFetchOptions,
+  type WebSearchOptions,
+  type WebSearchResult,
+} from "./web-tools.js";
 export {
   executeCommandTool,
   type ExecuteCommandInput,

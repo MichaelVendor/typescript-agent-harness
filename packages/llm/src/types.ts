@@ -5,6 +5,7 @@ export type JSONSchema = {
   required?: string[];
   additionalProperties?: boolean;
   items?: JSONSchema;
+  enum?: string[];
 };
 
 export type ToolSchema = {
