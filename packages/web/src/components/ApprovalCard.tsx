@@ -29,6 +29,15 @@ function describe(approval: Approval): { title: string; body: string } {
       body: [...preview(a.old_string, "- "), ...preview(a.new_string, "+ ")].join("\n"),
     };
   }
+  if (approval.tool === "browser_open") {
+    return {
+      title: `Open browser ${typeof a.url === "string" && a.url ? a.url : "(blank page)"}`,
+      body: "Opens a Chrome window the agent can click and type in.",
+    };
+  }
+  if (approval.tool === "browser_file_upload") {
+    return { title: "Upload files", body: (Array.isArray(a.paths) ? a.paths.map(String) : []).join("\n") };
+  }
   return { title: `Call ${approval.tool}`, body: JSON.stringify(approval.input, null, 2) };
 }
 
