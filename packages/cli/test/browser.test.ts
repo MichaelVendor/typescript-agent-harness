@@ -80,6 +80,19 @@ test("a browser that cannot start fails browser_open and mounts nothing", async 
   await runtime.stop();
 });
 
+test("a profile held by another tah closes the browser again with a clear error", async () => {
+  const { browser, runtime, call, names } = await boot();
+  try {
+    const out = await call("browser_open", { url: "busy://profile" });
+    assert.equal(out.ok, false);
+    assert.match(String((out.output as { error: string }).error), /browser-profile is in use by another tah/);
+    assert.deepEqual(names(), ["browser_open"]);
+    assert.equal(browser.isOpen(), false);
+  } finally {
+    await runtime.stop();
+  }
+});
+
 test("playwrightServer runs the bundled Playwright MCP with Chrome, the tah profile, and no images", () => {
   const s = playwrightServer({ cwd: "/w", homeDir: "/h", headless: false });
   assert.equal(s.command, process.execPath);

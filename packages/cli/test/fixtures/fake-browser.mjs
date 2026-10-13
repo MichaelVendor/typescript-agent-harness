@@ -25,7 +25,9 @@ process.stdin.on("data", (chunk) => {
       reply(msg.id, { tools: TOOLS });
     } else if (msg.method === "tools/call") {
       const { name, arguments: args } = msg.params;
-      if (name === "browser_navigate") text(msg.id, `- Page URL: ${args.url}\n- Page Title: Title of ${args.url}`);
+      if (name === "browser_navigate" && args.url === "busy://profile") {
+        reply(msg.id, { content: [{ type: "text", text: "### Error\nError: Browser is already in use for /p, use --isolated to run multiple instances of the same browser" }], isError: true });
+      } else if (name === "browser_navigate") text(msg.id, `- Page URL: ${args.url}\n- Page Title: Title of ${args.url}`);
       else if (name === "browser_snapshot") text(msg.id, "x".repeat(40_000));
       else if (name === "browser_take_screenshot") {
         text(msg.id, "saved .tah/browser/page.png", [{ type: "image", data: "AAAA", mimeType: "image/png" }]);

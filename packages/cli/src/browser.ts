@@ -122,7 +122,18 @@ export function createBrowser(o: BrowserOptions): { plugin: Plugin; isOpen(): bo
       const b = backend ?? (await (opening ??= start().finally(() => (opening = undefined))));
       const url = (input as { url?: unknown } | undefined)?.url;
       const target = typeof url === "string" && url ? url : wasOpen ? undefined : "about:blank";
-      const page = target ? mcpResultText(await b.callTool("browser_navigate", { url: target })) : "";
+      let page: unknown = "";
+      if (target) {
+        try {
+          page = mcpResultText(await b.callTool("browser_navigate", { url: target }));
+        } catch (err) {
+          if (wasOpen || !/already in use/i.test(err instanceof Error ? err.message : String(err))) throw err;
+          await shut();
+          throw new Error(
+            `the browser profile ${path.join(o.homeDir, ".tah", "browser-profile")} is in use by another tah — close that tah (or its browser) and try again`,
+          );
+        }
+      }
       return { opened: !wasOpen, tools: [...mounted], page: clipResult(page) };
     },
   };
