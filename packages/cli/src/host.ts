@@ -3,6 +3,7 @@ import { SESSION, type RunResult, type Session, type SessionService } from "@typ
 import type { Runtime } from "@typescript-agent-harness/core";
 import type { ChatMessage } from "@typescript-agent-harness/llm";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
+import type { Todo } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
 import { composeAttachmentPrompt, parseUserContent, userContentForVision } from "./attachments/compose.js";
 import {
@@ -15,6 +16,8 @@ import {
 import { loadProject, type Project } from "./project.js";
 import {
   bootRuntime,
+  compactedNotice,
+  compactFailedNotice,
   describeProject,
   openChatSession,
   openSessionByRef,
@@ -39,6 +42,8 @@ export type SessionEvent = {
   resumed: boolean;
   history: HistoryItem[];
   hiddenTurns: number;
+  /** The latest `todo_write` list in the whole session, if any. */
+  todos?: Todo[];
 };
 
 /** Every event is plain JSON, so `tah serve` can stream them unchanged. */
@@ -48,6 +53,7 @@ export type HostEvent =
   | { type: "text"; delta: string }
   | { type: "tool.start"; callId: string; tool: string; summary: string }
   | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string }
+  | { type: "todos"; todos: Todo[] }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "approval.end"; id: string; answer: ApprovalAnswer }
   | { type: "notice"; text: string; error?: boolean }
@@ -67,6 +73,8 @@ export type ChatHost = {
   saveAttachment(input: { name: string; mime: string; data: Buffer }): AttachmentRef;
   /** After `turn.end` with `finishReason: "max_steps"`: run the same turn with a fresh step budget. */
   continueTurn(): Promise<void>;
+  /** Summarizes the conversation so far into one message the model sees instead; runs as a turn (cancel stops it). */
+  compact(): Promise<void>;
   cancel(): void;
   answer(id: string, answer: ApprovalAnswer): void;
   reset(): Promise<void>;
@@ -92,12 +100,18 @@ function clip(s: string, width = SUMMARY_WIDTH): string {
 
 export function toolSummary(tool: string, input: unknown): string {
   const a = (input ?? {}) as Record<string, unknown>;
-  if (tool === "read_file" || tool === "write_file") return clip(String(a.path ?? ""));
+  if (tool === "read_file" || tool === "write_file" || tool === "edit_file") return clip(String(a.path ?? ""));
   if (tool === "list_files") return clip(String(a.directory ?? "."));
   if (tool === "grep") return clip(`${String(a.pattern ?? "")}${a.directory ? ` in ${String(a.directory)}` : ""}`);
+  if (tool === "web_search") return clip(String(a.query ?? ""));
+  if (tool === "web_fetch") return clip(String(a.url ?? ""));
   if (tool === "execute_command") {
     const args = Array.isArray(a.args) ? a.args.map(String) : [];
     return clip([String(a.program ?? ""), ...args].join(" "));
+  }
+  if (tool === "todo_write" && Array.isArray(a.todos)) {
+    const current = (a.todos as Partial<Todo>[]).find((t) => t?.status === "in_progress");
+    return clip(current?.content ?? `${a.todos.length} tasks`);
   }
   return clip(JSON.stringify(input ?? {}));
 }
@@ -116,11 +130,38 @@ export function toolResult(tool: string, ok: boolean, output: unknown): string {
   }
   if (tool === "list_files" && Array.isArray(o.entries)) return `${o.entries.length} entries`;
   if (tool === "write_file" && typeof o.bytes === "number") return `${o.bytes} bytes`;
+  if (tool === "edit_file" && typeof o.replacements === "number") {
+    return `${o.replacements} replacement${o.replacements === 1 ? "" : "s"}`;
+  }
   if (tool === "grep" && Array.isArray(o.matches)) {
     return `${o.matches.length} matches${o.truncated ? " (truncated)" : ""}`;
   }
   if (tool === "execute_command") return o.timedOut ? "timed out" : `exit ${String(o.exitCode)}`;
+  if (tool === "web_search" && Array.isArray(o.results)) return `${o.results.length} results`;
+  if (tool === "web_fetch" && typeof o.content === "string") {
+    return `${o.content.length} chars${o.truncated ? " (truncated)" : ""}`;
+  }
+  if (tool === "todo_write" && Array.isArray(o.todos)) {
+    return `${(o.todos as Todo[]).filter((t) => t.status === "completed").length}/${o.todos.length} done`;
+  }
   return "done";
+}
+
+/** The list from the last successful `todo_write`; tool outputs are stored as JSON text. */
+export function todosOf(messages: ChatMessage[]): Todo[] | undefined {
+  const todoCalls = new Set<string>();
+  let todos: Todo[] | undefined;
+  for (const m of messages) {
+    if (m.role === "assistant") {
+      for (const call of m.toolCalls ?? []) if (call.name === "todo_write") todoCalls.add(call.id);
+    }
+    if (m.role !== "tool" || !todoCalls.has(m.toolCallId)) continue;
+    try {
+      const output = JSON.parse(String(m.content)) as { todos?: unknown };
+      if (Array.isArray(output.todos)) todos = output.todos as Todo[];
+    } catch {}
+  }
+  return todos;
 }
 
 /** The last `turns` user turns as display items; `hiddenTurns` counts the earlier ones. */
@@ -278,6 +319,8 @@ export async function createChatHost(
     runtime.on("tool.finished", (e) => {
       const p = e as { callId: string; tool: string; output: unknown };
       toolEnd(p.callId, p.tool, true, p.output);
+      const todos = (p.output as { todos?: unknown } | undefined)?.todos;
+      if (p.tool === "todo_write" && Array.isArray(todos)) emit({ type: "todos", todos: todos as Todo[] });
     });
     runtime.on("tool.failed", (e) => {
       const p = e as { callId: string; tool: string; error: unknown };
@@ -294,6 +337,12 @@ export async function createChatHost(
           type: "notice",
           text: `[ctx] trimmed: ${p.droppedTurns} old turn(s) dropped, ${p.elidedToolResults} tool output(s) omitted, ${p.chars} chars sent (full history kept; /reset for a fresh session)`,
         });
+      });
+      runtime.on("agent.context.compacted", (e) => {
+        emit({ type: "notice", text: compactedNotice(e as { turns: number; chars: number }) });
+      });
+      runtime.on("agent.context.compact-failed", (e) => {
+        emit({ type: "notice", text: compactFailedNotice(e as { error: string }), error: true });
       });
     }
   };
@@ -386,12 +435,16 @@ export async function createChatHost(
       reloadWhenIdle();
     }, 200, { homeSkillsDir: homeDir, skillsOnly: !project });
   };
-  const sessionEvent = (resumed: boolean): SessionEvent => ({
-    type: "session",
-    id: session.id,
-    resumed,
-    ...historyOf(session.messages, historyTurns),
-  });
+  const sessionEvent = (resumed: boolean): SessionEvent => {
+    const todos = todosOf(session.messages);
+    return {
+      type: "session",
+      id: session.id,
+      resumed,
+      ...historyOf(session.messages, historyTurns),
+      ...(todos ? { todos } : {}),
+    };
+  };
   const showSession = (resumed: boolean) => emit(sessionEvent(resumed));
 
   async function turn(
@@ -498,6 +551,14 @@ export async function createChatHost(
         return turn(run, { text: display, ...(meta.length ? { attachments: meta } : {}) });
       }),
     continueTurn: () => ready(() => turn(() => session.resume())),
+    compact: () =>
+      ready(() =>
+        turn(async () => {
+          emit({ type: "notice", text: "[ctx] summarizing the conversation so far…" });
+          if (!(await session.compact())) emit({ type: "notice", text: "[ctx] nothing to compact yet" });
+          return { sessionId: session.id, text: "", finishReason: "stop", steps: [] };
+        }),
+      ),
     cancel() {
       rejectPending();
       if (busy) void session.cancel();

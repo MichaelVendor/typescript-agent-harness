@@ -7,13 +7,12 @@ import { fileURLToPath } from "node:url";
 import { TOOLS } from "@typescript-agent-harness/tools";
 import { parseArgv } from "../dist/args.js";
 import {
-  assertWebImplemented,
   loadTahConfig,
   parseTahConfig,
   resolveCapabilities,
 } from "../dist/config.js";
-import { ProjectError } from "../dist/project.js";
 import { bootRuntime } from "../dist/runtime.js";
+import { setSearchKey } from "../dist/settings.js";
 
 const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
 const MARKER = JSON.stringify({
@@ -135,9 +134,12 @@ test("resolveCapabilities: vision from config; CLI/env visionSet wins", () => {
   );
 });
 
-test("assertWebImplemented rejects web true", () => {
-  const caps = resolveCapabilities({ capabilities: { web: true } }, flagBits(), undefined);
-  assert.throws(() => assertWebImplemented(caps), /web is not implemented/);
+test("resolveCapabilities: web follows coding unless the config sets it", () => {
+  const project = { tools: [], plugins: [], hasToolsDir: true };
+  assert.equal(resolveCapabilities(undefined, flagBits(), undefined).web, true);
+  assert.equal(resolveCapabilities(undefined, flagBits(), project).web, false);
+  assert.equal(resolveCapabilities({ capabilities: { web: true } }, flagBits(), project).web, true);
+  assert.equal(resolveCapabilities({ capabilities: { web: false } }, flagBits(), undefined).web, false);
 });
 
 test("bootRuntime loads tah.config.json coding with tools/", async () => {
@@ -153,20 +155,44 @@ test("bootRuntime loads tah.config.json coding with tools/", async () => {
   assert.match(startup, /config=on/);
   assert.match(startup, /vision=on/);
   const names = runtime.get(TOOLS).list().map((t) => t.name).sort();
-  assert.deepEqual(names, ["echo", "execute_command", "grep", "list_files", "read_file", "write_file"]);
+  assert.deepEqual(names, ["echo", "edit_file", "execute_command", "grep", "list_files", "read_file", "todo_write", "web_fetch", "write_file"]);
   await runtime.stop();
 });
 
-test("bootRuntime rejects capabilities.web true", async () => {
+test("bootRuntime mounts web_fetch for capabilities.web; web_search needs a Tavily key", async () => {
   const cwd = projectDir({
     "tah.config.json": JSON.stringify({ capabilities: { web: true } }),
   });
-  const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
-  await assert.rejects(bootRuntime(flags, { homeDir }), (err: unknown) => {
-    assert.ok(err instanceof ProjectError);
-    assert.match(err.message, /web is not implemented/);
-    return true;
+  const mock = await bootRuntime({ ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd }, { homeDir });
+  const mockNames = mock.runtime.get(TOOLS).list().map((t) => t.name);
+  assert.match(mock.startup, /web=fetch/);
+  assert.ok(mockNames.includes("web_fetch") && !mockNames.includes("web_search"));
+  await mock.runtime.stop();
+
+  const home = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+  setSearchKey(home, "tvly-test");
+  const prev = process.env.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_API_KEY = "sk-test";
+  try {
+    const live = await bootRuntime({ ...parseArgv(["--no-persist", "--quiet", "run", "hi"]), cwd }, { homeDir: home });
+    assert.match(live.startup, /web=on/);
+    assert.ok(live.runtime.get(TOOLS).list().some((t) => t.name === "web_search"));
+    await live.runtime.stop();
+  } finally {
+    if (prev === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = prev;
+  }
+});
+
+test("bootRuntime: capabilities.web false drops the web tools", async () => {
+  const cwd = projectDir({
+    "tah.config.json": JSON.stringify({ capabilities: { coding: true, web: false } }),
   });
+  const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
+  const { runtime, startup } = await bootRuntime(flags, { homeDir });
+  assert.doesNotMatch(startup, /web=/);
+  assert.ok(!runtime.get(TOOLS).list().some((t) => t.name.startsWith("web_")));
+  await runtime.stop();
 });
 
 test("bootRuntime --no-exec overrides config coding.exec", async () => {

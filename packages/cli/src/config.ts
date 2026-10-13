@@ -131,10 +131,7 @@ export function loadTahConfig(cwd: string): TahConfig | undefined {
   return parseTahConfig(raw);
 }
 
-/**
- * Merge built-in defaults, optional config, and explicit CLI / env overrides.
- * `capabilities.web: true` is accepted here; the caller must refuse to boot until web tools exist.
- */
+/** Merge built-in defaults, optional config, and explicit CLI / env overrides. `web` follows `coding` unless the config sets it. */
 export function resolveCapabilities(
   config: TahConfig | undefined,
   flags: Pick<CliFlags, "exec" | "execSet" | "builtinTools" | "vision" | "visionSet" | "mcpCommand" | "mcpArgs">,
@@ -142,7 +139,7 @@ export function resolveCapabilities(
 ): ResolvedCapabilities {
   let coding = !project?.hasToolsDir;
   let execWanted = flags.exec;
-  let web = false;
+  let web: boolean | undefined;
   let vision = false;
   let mcp: TahMcpExtension | undefined;
   const fromConfig = config !== undefined;
@@ -174,18 +171,9 @@ export function resolveCapabilities(
   return {
     coding,
     exec: coding && execWanted,
-    web,
+    web: web ?? coding,
     vision,
     mcp,
     fromConfig,
   };
-}
-
-/** Refuse fake-on web until the tools are mounted. */
-export function assertWebImplemented(caps: ResolvedCapabilities): void {
-  if (caps.web) {
-    throw new ProjectError(
-      "tah: capabilities.web is not implemented yet — omit it or set false until web_search / web_fetch ship",
-    );
-  }
 }

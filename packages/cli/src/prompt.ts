@@ -7,6 +7,8 @@ export function buildSystemPrompt(opts: {
   role?: string;
   /** false: only the project's tools are mounted, so the file / command rules are left out. */
   builtinTools?: boolean;
+  /** "search": web_search and web_fetch; "fetch": web_fetch only (no search key). */
+  web?: "search" | "fetch" | "off";
   skillsCatalog?: string;
 }): string {
   const role = opts.role?.trim();
@@ -15,10 +17,11 @@ export function buildSystemPrompt(opts: {
     if (opts.mcp) {
       systemPrompt += "\n\nMCP tools from --mcp are also available.";
     }
+    if (opts.web && opts.web !== "off") systemPrompt += `\n\n${WEB_RULES[opts.web]}`;
     return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
   }
   const rules =
-    "Prefer list_files, read_file, and grep before answering. Use write_file only when asked to change files.";
+    "Prefer list_files, read_file, and grep before answering. Change files only when asked: edit_file for changes to an existing file, write_file for new files or full rewrites. For tasks with 3 or more steps, keep a task list with todo_write and update it as you go.";
   let systemPrompt = role ? `${role}\n\n${rules}` : `${DEFAULT_ROLE} ${rules}`;
   if (opts.exec) {
     systemPrompt +=
@@ -30,9 +33,17 @@ export function buildSystemPrompt(opts: {
   if (opts.mcp) {
     systemPrompt += " MCP tools from --mcp are also available.";
   }
+  if (opts.web && opts.web !== "off") systemPrompt += ` ${WEB_RULES[opts.web]}`;
   systemPrompt += `\n\n${ABOUT_TAH}`;
   return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
 }
+
+const WEB_RULES = {
+  search:
+    "Use web_search for current or external information (docs, versions, news) and web_fetch to read a page; cite the URLs you rely on.",
+  fetch:
+    "Use web_fetch to read a web page the user gives you; cite the URL. web_search is off until a Tavily API key is set (web app: Settings → Web search, or TAVILY_API_KEY in .env) — say so if the user needs a search.",
+};
 
 /** Without this the model guesses it runs in Cursor or Claude Code and gives their instructions. */
 export const ABOUT_TAH = [

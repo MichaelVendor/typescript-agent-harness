@@ -2,7 +2,7 @@ import type { Interface } from "node:readline";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import { bold, cyan, dim, useColor, yellow } from "./markdown.js";
 
-export const APPROVAL_TOOLS = ["write_file", "execute_command"];
+export const APPROVAL_TOOLS = ["write_file", "edit_file", "execute_command"];
 
 export type LineReader = { next(): Promise<string | undefined> };
 
@@ -34,6 +34,13 @@ export function parseAnswer(line: string | undefined): ApprovalAnswer {
 const PREVIEW_LINES = 8;
 const PREVIEW_WIDTH = 160;
 
+function preview(text: string, prefix: string): string[] {
+  const lines = text.split("\n");
+  const shown = lines.slice(0, PREVIEW_LINES).map((l) => `${prefix}${l.slice(0, PREVIEW_WIDTH)}`);
+  if (lines.length > PREVIEW_LINES) shown.push(`${prefix}… ${lines.length - PREVIEW_LINES} more lines`);
+  return shown;
+}
+
 /** Approval card: what will run, a short preview, then the answer keys. */
 export function formatPrompt(call: { name: string; arguments: unknown }, color: boolean): string {
   const paint = (style: (s: string) => string) => (s: string) => (color ? style(s) : s);
@@ -52,6 +59,12 @@ export function formatPrompt(call: { name: string; arguments: unknown }, color: 
     title = `${strong("Write file")}  ${code(String(a.path ?? ""))} ${faint(`(${content.length} chars)`)}`;
     body = lines.slice(0, PREVIEW_LINES).map((l) => faint(l.slice(0, PREVIEW_WIDTH)));
     if (lines.length > PREVIEW_LINES) body.push(faint(`… ${lines.length - PREVIEW_LINES} more lines`));
+  } else if (call.name === "edit_file") {
+    title = `${strong("Edit file")}  ${code(String(a.path ?? ""))}${a.replace_all ? faint(" (all matches)") : ""}`;
+    body = [
+      ...preview(String(a.old_string ?? ""), "- ").map(faint),
+      ...preview(String(a.new_string ?? ""), "+ ").map(code),
+    ];
   } else {
     title = strong(`Call ${call.name}`);
     body = [faint(JSON.stringify(call.arguments).slice(0, PREVIEW_WIDTH))];

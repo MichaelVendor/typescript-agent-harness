@@ -158,7 +158,7 @@ async function main(): Promise<void> {
         else rl.close();
       });
       console.log(
-        "tah chat  —  /exit  /reset  /sessions  /resume <id|n>  /fork [turns]  (Ctrl+C stops the current turn)",
+        "tah chat  —  /exit  /reset  /compact  /sessions  /resume <id|n>  /fork [turns]  (Ctrl+C stops the current turn)",
       );
       if (resumed) {
         console.log(`[tah] resumed session ${session.id}`);
@@ -176,6 +176,18 @@ async function main(): Promise<void> {
         if (line === "/reset") {
           session = await runtime.get(SESSION).create();
           console.log(`[tah] new session ${session.id}`);
+          prompt();
+          continue;
+        }
+        if (line === "/compact") {
+          running = true;
+          try {
+            if (!(await session.compact())) console.log("[tah] nothing to compact yet");
+          } catch (err) {
+            console.error(`[tah] compaction failed: ${err instanceof Error ? err.message : String(err)}`);
+          } finally {
+            running = false;
+          }
           prompt();
           continue;
         }

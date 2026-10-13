@@ -78,6 +78,10 @@ test("formatPrompt shows a card with the command or write preview and the answer
       keys("write_file"),
     ].join("\n"),
   );
+  assert.equal(
+    formatPrompt({ name: "edit_file", arguments: { path: "a.ts", old_string: "a\nb", new_string: "c" } }, false),
+    ["", "╭─ Edit file  a.ts", "│ - a", "│ - b", "│ + c", "╰─", keys("edit_file")].join("\n"),
+  );
   const colored = formatPrompt({ name: "write_file", arguments: { path: "a.ts", content: "x" } }, true);
   assert.match(colored, /\x1b\[33m╭─/);
   assert.equal(colored.replace(/\x1b\[\d+m/g, ""), formatPrompt({ name: "write_file", arguments: { path: "a.ts", content: "x" } }, false));

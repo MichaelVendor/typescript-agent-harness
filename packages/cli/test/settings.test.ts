@@ -10,7 +10,9 @@ import {
   keyHint,
   loadSettings,
   removeModel,
+  searchKey,
   setActiveModel,
+  setSearchKey,
   settingsPath,
 } from "../dist/settings.js";
 
@@ -45,6 +47,34 @@ test("settings: names and keys are required; corrupt file reads as empty", () =>
   mkdirSync(path.join(h, ".tah"), { recursive: true });
   writeFileSync(settingsPath(h), "{");
   assert.deepEqual(loadSettings(h), { models: [] });
+});
+
+test("settings: the Tavily key survives model changes; settings beat TAVILY_API_KEY", () => {
+  const h = home();
+  const prev = process.env.TAVILY_API_KEY;
+  delete process.env.TAVILY_API_KEY;
+  try {
+    assert.equal(searchKey(h), undefined);
+    process.env.TAVILY_API_KEY = "tvly-env";
+    assert.equal(searchKey(h), "tvly-env");
+
+    setSearchKey(h, " tvly-saved ");
+    assert.equal(searchKey(h), "tvly-saved");
+    const m = addModel(h, { model: "deepseek-chat", apiKey: "sk-aaaa1111" });
+    setActiveModel(h, null);
+    setActiveModel(h, m.id);
+    removeModel(h, m.id);
+    assert.equal(loadSettings(h).tavilyApiKey, "tvly-saved");
+    assert.equal(statSync(settingsPath(h)).mode & 0o777, 0o600);
+
+    assert.throws(() => setSearchKey(h, "  "), /API key/);
+    setSearchKey(h, null);
+    assert.equal(loadSettings(h).tavilyApiKey, undefined);
+    assert.equal(searchKey(h), "tvly-env");
+  } finally {
+    if (prev === undefined) delete process.env.TAVILY_API_KEY;
+    else process.env.TAVILY_API_KEY = prev;
+  }
 });
 
 test("settings: default base URL follows the model name; key hint hides the key", () => {

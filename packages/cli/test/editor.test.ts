@@ -83,11 +83,12 @@ test("blank input and slash queries", () => {
 
 test("slash commands: menu filter and parsing", () => {
   assert.deepEqual(matchCommands("/re").map((c) => c.name), ["/resume", "/reset"]);
-  assert.deepEqual(matchCommands("/").length, 5);
+  assert.deepEqual(matchCommands("/").length, 6);
   assert.deepEqual(matchCommands("/x"), []);
   assert.deepEqual(parseCommand("/resume"), { kind: "pick" });
   assert.deepEqual(parseCommand("/resume 2"), { kind: "resume", ref: "2" });
   assert.deepEqual(parseCommand("/sessions"), { kind: "pick" });
+  assert.deepEqual(parseCommand("/compact"), { kind: "compact" });
   assert.deepEqual(parseCommand("/fork"), { kind: "fork" });
   assert.deepEqual(parseCommand("/fork 3"), { kind: "fork", turns: 3 });
   assert.deepEqual(parseCommand("/fork x"), { kind: "error", message: "usage: /fork [turns]" });

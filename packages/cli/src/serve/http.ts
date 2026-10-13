@@ -9,7 +9,17 @@ import { AttachmentError, MAX_FILE_BYTES } from "../attachments/store.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
 import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
-import { activeModel, addModel, defaultBaseURL, keyHint, loadSettings, removeModel, setActiveModel } from "../settings.js";
+import {
+  activeModel,
+  addModel,
+  defaultBaseURL,
+  keyHint,
+  loadSettings,
+  removeModel,
+  searchKey,
+  setActiveModel,
+  setSearchKey,
+} from "../settings.js";
 import { discoverSkills } from "../skills/discover.js";
 import { importSkills, removeSkill } from "../skills/install.js";
 import type { ServeInfo, SettingsView, SkillsView } from "./protocol.js";
@@ -132,6 +142,11 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       user: os.userInfo().username,
       models: s.models.map((m) => ({ id: m.id, model: m.model, baseURL: m.baseURL ?? defaultBaseURL(m.model), keyHint: keyHint(m.apiKey) })),
       activeModel: s.activeModel ?? null,
+      search: s.tavilyApiKey
+        ? { source: "settings", keyHint: keyHint(s.tavilyApiKey) }
+        : searchKey(opts.home)
+          ? { source: "env", keyHint: keyHint(searchKey(opts.home)!) }
+          : null,
     };
   };
   const skillsView = (): SkillsView => ({
@@ -242,6 +257,9 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "POST /api/continue":
         hub.start(() => host().continueTurn());
         return json(res, 202);
+      case "POST /api/compact":
+        hub.start(() => host().compact());
+        return json(res, 202);
       case "POST /api/cancel":
         host().cancel();
         return json(res, 204);
@@ -337,6 +355,14 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         if (body.id !== null && typeof body.id !== "string") throw new HttpError(400, '"id" must be a string or null');
         const id = body.id;
         return changeModels(() => setActiveModel(opts.home, id), res);
+      }
+      case "POST /api/settings/search": {
+        const body = await readBody(req);
+        if (body.apiKey !== null && typeof body.apiKey !== "string") throw new HttpError(400, '"apiKey" must be a string or null');
+        hub.assertIdle();
+        setSearchKey(opts.home, body.apiKey);
+        await host().reload();
+        return json(res, 200, settingsView());
       }
       case "GET /api/skills":
         return json(res, 200, skillsView());

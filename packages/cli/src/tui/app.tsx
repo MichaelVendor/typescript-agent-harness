@@ -62,6 +62,20 @@ function StaticItem({ item }: { item: Item }) {
       return <Text>{item.text || " "}</Text>;
     case "tool":
       return <ToolLine tool={item.tool} summary={item.summary} status={item.ok ? "ok" : "failed"} result={item.result} />;
+    case "todos":
+      return (
+        <Box flexDirection="column" marginLeft={2}>
+          {item.todos.map((t, i) =>
+            t.status === "completed" ? (
+              <Text key={i} dimColor strikethrough>{`☑ ${t.content}`}</Text>
+            ) : t.status === "in_progress" ? (
+              <Text key={i} bold>{`▶ ${t.content}`}</Text>
+            ) : (
+              <Text key={i}>{`☐ ${t.content}`}</Text>
+            ),
+          )}
+        </Box>
+      );
     case "notice":
       return <Text dimColor>{item.text}</Text>;
     case "error":
@@ -154,6 +168,9 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
         return quit();
       case "reset":
         return void host.reset().catch(fail);
+      case "compact":
+        transcript.continueTurn();
+        return void host.compact().catch(fail);
       case "pick":
         return void host
           .listSessions()

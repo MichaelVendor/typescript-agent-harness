@@ -540,6 +540,36 @@ test("settings: add / switch / remove models; keys never come back; the host rel
   }
 });
 
+test("settings: the Tavily key is saved, hinted, and removed; the host reloads", async () => {
+  const prev = process.env.TAVILY_API_KEY;
+  delete process.env.TAVILY_API_KEY;
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  try {
+    assert.equal(JSON.parse((await api.get("/api/settings")).body).search, null);
+
+    const saved = await api.post("/api/settings/search", { apiKey: "tvly-secret-9876" });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(JSON.parse(saved.body).search, { source: "settings", keyHint: "tvl…9876" });
+    assert.doesNotMatch(saved.body, /tvly-secret/);
+    assert.equal(s.reloads(), 1);
+
+    assert.equal((await api.post("/api/settings/search", { apiKey: "" })).status, 400);
+    assert.equal((await api.post("/api/settings/search", { apiKey: 42 })).status, 400);
+
+    const removed = await api.post("/api/settings/search", { apiKey: null });
+    assert.equal(JSON.parse(removed.body).search, null);
+    assert.equal(s.reloads(), 2);
+
+    await api.post("/api/send", { text: "hi" });
+    assert.equal((await api.post("/api/settings/search", { apiKey: "tvly-x" })).status, 409);
+    s.finish();
+  } finally {
+    await s.close();
+    if (prev !== undefined) process.env.TAVILY_API_KEY = prev;
+  }
+});
+
 test("skills: list home + folder skills; import one or a folder of them (symlinks copied); remove home ones", async () => {
   const s = await fakeServer();
   const api = client(s.base, s.cookie);

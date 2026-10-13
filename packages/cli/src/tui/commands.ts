@@ -4,6 +4,7 @@ export const COMMANDS: SlashCommand[] = [
   { name: "/resume", args: "[id|n]", description: "switch session (no argument: pick from a list)" },
   { name: "/sessions", description: "pick a saved session" },
   { name: "/fork", args: "[turns]", description: "copy this session (optionally the first n turns) and switch to it" },
+  { name: "/compact", description: "summarize the conversation so far to free up context" },
   { name: "/reset", description: "start a new session" },
   { name: "/exit", description: "quit" },
 ];
@@ -15,6 +16,7 @@ export function matchCommands(query: string): SlashCommand[] {
 export type ParsedCommand =
   | { kind: "exit" }
   | { kind: "reset" }
+  | { kind: "compact" }
   | { kind: "pick" }
   | { kind: "resume"; ref: string }
   | { kind: "fork"; turns?: number }
@@ -29,6 +31,8 @@ export function parseCommand(line: string): ParsedCommand | undefined {
       return { kind: "exit" };
     case "/reset":
       return { kind: "reset" };
+    case "/compact":
+      return { kind: "compact" };
     case "/sessions":
       return { kind: "pick" };
     case "/resume":

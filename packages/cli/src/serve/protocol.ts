@@ -23,6 +23,8 @@ export type ServeRequest = {
   removeModel: { id: string };
   /** `null` goes back to `.env`. */
   activeModel: { id: string | null };
+  /** Tavily API key; `null` removes it. */
+  searchKey: { apiKey: string | null };
   /** A skill folder, or a folder of skill folders (e.g. `~/.cursor/skills`), copied into `~/.tah/skills`. */
   importSkills: { path: string };
   /** Only skills in `~/.tah/skills` can be removed here. */
@@ -52,6 +54,8 @@ export type SettingsView = {
   user: string;
   models: { id: string; model: string; baseURL: string; keyHint: string }[];
   activeModel: string | null;
+  /** Tavily key for `web_search`: from settings (removable here) or `TAVILY_API_KEY`; `null` = web_search is off. */
+  search: { source: "settings" | "env"; keyHint: string } | null;
 };
 
 /** `GET /api/skills`: what the open folder loads. `home` = `~/.tah/skills` (every folder); `folder` = inside the open folder. */

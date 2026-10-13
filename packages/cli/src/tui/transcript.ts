@@ -1,3 +1,4 @@
+import type { Todo } from "@typescript-agent-harness/tools";
 import type { HistoryItem, HostEvent } from "../host.js";
 import { createMarkdownStream, type MarkdownStream } from "../markdown.js";
 
@@ -6,6 +7,7 @@ export type Item =
   | { id: number; kind: "user"; text: string }
   | { id: number; kind: "assistant"; text: string }
   | { id: number; kind: "tool"; tool: string; summary: string; ok: boolean; result: string }
+  | { id: number; kind: "todos"; todos: Todo[] }
   | { id: number; kind: "notice"; text: string }
   | { id: number; kind: "error"; text: string };
 
@@ -104,6 +106,7 @@ export class Transcript {
       case "session":
         this.settle();
         this.showSession(event.id, event.resumed, event.history, event.hiddenTurns);
+        if (event.todos?.some((t) => t.status !== "completed")) this.push({ kind: "todos", todos: event.todos });
         return;
       case "user":
         this.settle();
@@ -124,6 +127,9 @@ export class Transcript {
         this.set({ tools: this.snapshot.tools.filter((t) => t.callId !== event.callId) });
         return;
       }
+      case "todos":
+        this.push({ kind: "todos", todos: event.todos });
+        return;
       case "approval":
         this.settle();
         this.set({ approval: { id: event.id, tool: event.tool, input: event.input } });

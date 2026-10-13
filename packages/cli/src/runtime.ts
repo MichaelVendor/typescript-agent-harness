@@ -16,15 +16,19 @@ import {
   grepTool,
   toolsPlugin,
   writeFileTool,
+  editFileTool,
+  todoWriteTool,
+  webFetchTool,
+  webSearchTool,
   executeCommandTool,
+  type Todo,
   type Tool,
 } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
-import { activeModel, defaultBaseURL } from "./settings.js";
+import { activeModel, defaultBaseURL, searchKey } from "./settings.js";
 import {
-  assertWebImplemented,
   loadTahConfig,
   resolveCapabilities,
   type ResolvedCapabilities,
@@ -46,6 +50,11 @@ export type StreamFlag = { on: boolean; midLine: boolean; flush: () => void };
 
 /** ~25k tokens of English/code (CJK costs more); leaves room for tool schemas and the reply on 64k-context models. */
 export const DEFAULT_CONTEXT_CHARS = 100_000;
+
+export const compactedNotice = (p: { turns: number; chars: number }) =>
+  `[ctx] compacted: ${p.turns} earlier turn(s) summarized in ${p.chars} chars (full history kept)`;
+export const compactFailedNotice = (p: { error: string }) =>
+  `[ctx] compaction failed: ${p.error} — trimming old turns instead`;
 
 export function describeProject(project: Project, systemFile: boolean): string {
   const parts = ["[tah] project:"];
@@ -102,7 +111,7 @@ export async function bootRuntime(
     : project?.instructions;
   const config = loadTahConfig(flags.cwd);
   const caps = resolveCapabilities(config, flags, project);
-  assertWebImplemented(caps);
+  const webKey = caps.web && !flags.mock ? searchKey(opts.homeDir ?? os.homedir()) : undefined;
   flags.vision = caps.vision;
   const builtin = caps.coding;
   const exec = caps.exec;
@@ -146,7 +155,7 @@ export async function bootRuntime(
   const discovered = discoverSkills({ cwd: flags.cwd, homeDir: opts.homeDir ?? os.homedir() });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? (webKey ? " web=on" : " web=fetch") : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -163,8 +172,13 @@ export async function bootRuntime(
       log(`[tool] ${p.tool} ...`);
     });
     runtime.on("tool.finished", (e) => {
-      const p = e as { tool: string };
+      const p = e as { tool: string; output: unknown };
       log(`[tool] ${p.tool} done`);
+      const todos = (p.output as { todos?: Todo[] } | undefined)?.todos;
+      if (p.tool === "todo_write" && Array.isArray(todos)) {
+        const mark = { completed: "[x]", in_progress: "[>]", pending: "[ ]" };
+        for (const t of todos) log(`  ${mark[t.status]} ${t.content}`);
+      }
     });
     runtime.on("agent.context.trimmed", (e) => {
       const p = e as { droppedTurns: number; elidedToolResults: number; chars: number };
@@ -172,6 +186,8 @@ export async function bootRuntime(
         `[ctx] trimmed: ${p.droppedTurns} old turn(s) dropped, ${p.elidedToolResults} tool output(s) omitted, ${p.chars} chars sent (full history kept; /reset for a fresh session)`,
       );
     });
+    runtime.on("agent.context.compacted", (e) => log(compactedNotice(e as { turns: number; chars: number })));
+    runtime.on("agent.context.compact-failed", (e) => log(compactFailedNotice(e as { error: string })));
   }
   if (print) {
     for (const w of discovered.warnings) log(`[tah] ${w}`);
@@ -193,9 +209,12 @@ export async function bootRuntime(
         readFileTool(flags.cwd),
         grepTool(flags.cwd),
         writeFileTool(flags.cwd),
+        editFileTool(flags.cwd),
+        todoWriteTool(),
         ...(exec ? [executeCommandTool(flags.cwd)] : []),
       ]
     : [];
+  if (caps.web) tools.push(webFetchTool(), ...(webKey ? [webSearchTool({ apiKey: webKey })] : []));
   const mountSkill = discovered.skills.some((s) => s.modelInvocable);
   for (const { file, tool } of project?.tools ?? []) {
     if (tool.name === "skill") {
@@ -261,6 +280,7 @@ export async function bootRuntime(
         exec,
         mcp: mcpOn,
         builtinTools: builtin,
+        web: caps.web ? (webKey ? "search" : "fetch") : "off",
         ...(role !== undefined ? { role } : {}),
         ...(skillsCatalog !== undefined ? { skillsCatalog } : {}),
       }),

@@ -10,6 +10,7 @@ import {
   createChatHost,
   historyOf,
   rememberAlways,
+  todosOf,
   toolResult,
   toolSummary,
   type HostEvent,
@@ -53,6 +54,35 @@ test("a turn streams tool calls, text, then turn.end — all plain JSON", async 
     assert.equal(end.rounds, 2);
     assert.equal(end.model, "mock");
     for (const e of events) assert.deepEqual(JSON.parse(JSON.stringify(e)), e);
+  } finally {
+    await host.close();
+  }
+});
+
+test("compact runs as a turn: summary notice, then turn.end; history stays on screen", async () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-host-"));
+  const { host, events } = await openHost(cwd);
+  try {
+    await host.compact();
+    assert.deepEqual(
+      events.slice(-3).map((e) => (e.type === "notice" ? e.text : e.type)),
+      ["[ctx] summarizing the conversation so far…", "[ctx] nothing to compact yet", "turn.end"],
+    );
+    await host.send("hello");
+    events.length = 0;
+    await host.compact();
+    assert.deepEqual(
+      events.map((e) => (e.type === "notice" ? e.text.replace(/\d+ chars/, "N chars") : e.type)),
+      [
+        "[ctx] summarizing the conversation so far…",
+        "[ctx] compacted: 1 earlier turn(s) summarized in N chars (full history kept)",
+        "turn.end",
+      ],
+    );
+    assert.deepEqual(
+      host.snapshot().history.map((h) => h.role),
+      ["user", "tool", "assistant"],
+    );
   } finally {
     await host.close();
   }
@@ -374,6 +404,8 @@ test("tool summaries and results", () => {
 
   assert.equal(toolResult("read_file", true, { content: "a\nb\nc" }), "3 lines");
   assert.equal(toolResult("execute_command", true, { exitCode: 1 }), "exit 1");
+  assert.equal(toolResult("edit_file", true, { path: "a", replacements: 1 }), "1 replacement");
+  assert.equal(toolResult("edit_file", true, { path: "a", replacements: 3 }), "3 replacements");
   assert.equal(toolResult("execute_command", true, { exitCode: null, timedOut: true }), "timed out");
   assert.equal(toolResult("write_file", false, { error: "rejected by user: write_file" }), "rejected by user: write_file");
   assert.equal(toolResult("query_order", false, "boom"), "boom");
@@ -400,4 +432,28 @@ test("historyOf keeps the last turns and pairs tool calls with their results", (
     { role: "tool", callId: "c1", tool: "read_file", summary: "a.md", ok: true, result: "2 lines" },
     { role: "assistant", text: "done" },
   ]);
+});
+
+test("todosOf returns the last successful todo_write list", () => {
+  const list = (status: string) => [{ content: "fix bug", status }];
+  const write = (id: string, output: unknown) => [
+    { role: "assistant" as const, toolCalls: [{ id, name: "todo_write", arguments: {} }] },
+    { role: "tool" as const, toolCallId: id, content: JSON.stringify(output) },
+  ];
+  assert.equal(todosOf([{ role: "user" as const, content: "hi" }]), undefined);
+  const messages = [
+    ...write("t1", { todos: list("in_progress") }),
+    ...write("t2", { todos: list("completed") }),
+    ...write("t3", { error: "todos[0].status must be one of pending, in_progress, completed" }),
+  ];
+  assert.deepEqual(todosOf(messages), list("completed"));
+  assert.equal(toolSummary("todo_write", { todos: list("in_progress") }), "fix bug");
+  assert.equal(toolResult("todo_write", true, { todos: list("completed") }), "1/1 done");
+});
+
+test("web tools: the summary is the query or url; the result counts results or chars", () => {
+  assert.equal(toolSummary("web_search", { query: "node 24 release" }), "node 24 release");
+  assert.equal(toolSummary("web_fetch", { url: "https://example.com/a" }), "https://example.com/a");
+  assert.equal(toolResult("web_search", true, { query: "q", results: [{}, {}] }), "2 results");
+  assert.equal(toolResult("web_fetch", true, { content: "abcde", truncated: true }), "5 chars (truncated)");
 });
