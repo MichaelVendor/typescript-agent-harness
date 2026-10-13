@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { SettingsView } from "@typescript-agent-harness/cli";
 import { groupModels, modelLabel, providerName } from "../src/model-view.ts";
 
-const m = (id: string, model: string, baseURL: string) => ({ id, model, baseURL, keyHint: "sk-…1234" });
+const m = (id: string, model: string, baseURL: string) => ({ id, model, baseURL, keyHint: "sk-…1234", vision: false });
 const view = (extra: Partial<SettingsView>): SettingsView => ({ user: "u", models: [], activeModel: null, env: null, search: null, ...extra });
 
 test("provider names: official endpoints by name, others by host", () => {

@@ -169,6 +169,7 @@ function ModelsSettings(props: { busy: boolean; view: SettingsView; onChange(vie
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [baseURL, setBaseURL] = useState("");
+  const [vision, setVision] = useState(false);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
   const { view } = props;
@@ -194,11 +195,13 @@ function ModelsSettings(props: { busy: boolean; view: SettingsView; onChange(vie
     setModel("");
     setApiKey("");
     setBaseURL("");
+    setVision(false);
     setError(undefined);
   };
 
   const add = async () => {
-    if (await save(api.addModel({ model, apiKey, ...(baseURL.trim() ? { baseURL: baseURL.trim() } : {}) }))) closeForm();
+    const input = { model, apiKey, vision, ...(baseURL.trim() ? { baseURL: baseURL.trim() } : {}) };
+    if (await save(api.addModel(input))) closeForm();
   };
 
   return (
@@ -220,6 +223,15 @@ function ModelsSettings(props: { busy: boolean; view: SettingsView; onChange(vie
                     {provider(m.baseURL)} · {m.keyHint}
                   </div>
                 </div>
+                <label className="model-vision" title="Send image attachments to this model">
+                  <input
+                    type="checkbox"
+                    checked={m.vision}
+                    disabled={locked}
+                    onChange={(e) => void save(api.modelVision({ id: m.id, vision: e.target.checked }))}
+                  />
+                  Images
+                </label>
                 {inUse ? (
                   <span className="badge">In use</span>
                 ) : (
@@ -269,6 +281,13 @@ function ModelsSettings(props: { busy: boolean; view: SettingsView; onChange(vie
             <input value={baseURL} placeholder={guessURL(model)} onChange={(e) => setBaseURL(e.target.value)} />
             <small>Leave empty to use {guessURL(model)}</small>
           </label>
+          <label className="check">
+            <input type="checkbox" checked={vision} onChange={(e) => setVision(e.target.checked)} />
+            <span>Can read images</span>
+          </label>
+          <small className="check-note">
+            Sends image attachments to the model. Leave off for text-only models such as deepseek-chat.
+          </small>
           <div className="card-actions">
             <span className="spacer" />
             {view.models.length ? (

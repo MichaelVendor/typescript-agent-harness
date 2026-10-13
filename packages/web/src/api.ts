@@ -80,6 +80,8 @@ export const api = {
     (await (await call("POST", "/api/settings/models", body)).json()) as SettingsView,
   removeModel: async (body: ServeRequest["removeModel"]) =>
     (await (await call("POST", "/api/settings/models/remove", body)).json()) as SettingsView,
+  modelVision: async (body: ServeRequest["modelVision"]) =>
+    (await (await call("POST", "/api/settings/models/vision", body)).json()) as SettingsView,
   activeModel: async (body: ServeRequest["activeModel"]) =>
     (await (await call("POST", "/api/settings/active", body)).json()) as SettingsView,
   searchKey: async (body: ServeRequest["searchKey"]) =>

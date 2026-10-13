@@ -67,6 +67,7 @@ export function ModelPicker(props: {
                   <li key={m.id} role="none">
                     <button type="button" role="menuitemradio" aria-checked={m.id === view.activeModel} onClick={() => pick(m.id)}>
                       {m.model}
+                      {m.vision ? <span className="model-key">images</span> : null}
                       <span className="model-check">{m.id === view.activeModel ? "✓" : ""}</span>
                     </button>
                   </li>
