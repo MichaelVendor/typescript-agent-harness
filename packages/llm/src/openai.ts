@@ -19,6 +19,8 @@ export type OpenAICompatConfig = {
   /** Retries on network errors, 408/429/5xx. Only before the response starts, so streamed text is never repeated. Default 3. */
   maxRetries?: number;
   onRetry?: (info: LLMRetryInfo) => void | Promise<void>;
+  /** `false` for models that take no images: multimodal user messages go out as text, images as `[image omitted]`. Default true. */
+  images?: boolean;
 };
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
@@ -56,7 +58,7 @@ type OpenAIMessage = {
   tool_call_id?: string;
 };
 
-function toOpenAIMessages(messages: ChatMessage[]): OpenAIMessage[] {
+function toOpenAIMessages(messages: ChatMessage[], images: boolean): OpenAIMessage[] {
   return messages.map((m) => {
     if (m.role === "tool") {
       return { role: "tool", tool_call_id: m.toolCallId, content: m.content };
@@ -77,6 +79,12 @@ function toOpenAIMessages(messages: ChatMessage[]): OpenAIMessage[] {
         }));
       }
       return out;
+    }
+    if (m.role === "user" && Array.isArray(m.content) && !images) {
+      return {
+        role: "user",
+        content: m.content.map((part) => (part.type === "text" ? part.text : "[image omitted]")).join("\n\n"),
+      };
     }
     if (m.role === "user" && Array.isArray(m.content)) {
       return {
@@ -110,10 +118,11 @@ function requestBody(
   request: LLMRequest,
   model: string,
   stream: boolean,
+  images: boolean,
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model,
-    messages: toOpenAIMessages(request.messages),
+    messages: toOpenAIMessages(request.messages, images),
     stream,
   };
   if (request.temperature !== undefined) body.temperature = request.temperature;
@@ -142,7 +151,7 @@ export function createOpenAICompatLLM(config: OpenAICompatConfig): LLMService {
         "content-type": "application/json",
         authorization: `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify(requestBody(request, model, stream)),
+      body: JSON.stringify(requestBody(request, model, stream, config.images ?? true)),
     };
     if (request.signal) init.signal = request.signal;
     const maxRetries = config.maxRetries ?? 3;

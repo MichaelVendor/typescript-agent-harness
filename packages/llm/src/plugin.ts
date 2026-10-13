@@ -12,6 +12,8 @@ export type LLMPluginOptions = {
   apiKey?: string;
   /** openai-compatible only: retries before the response starts (emits `llm.retry`). Default 3. */
   maxRetries?: number;
+  /** openai-compatible only: `false` when the model takes no images (see `OpenAICompatConfig.images`). */
+  images?: boolean;
 };
 
 function wrapWithEvents(
@@ -110,6 +112,7 @@ export function llmPlugin(options: LLMPluginOptions = {}): Plugin {
           apiKey,
           defaultModel,
           ...(options.maxRetries !== undefined ? { maxRetries: options.maxRetries } : {}),
+          ...(options.images !== undefined ? { images: options.images } : {}),
           onRetry: (info) => ctx.emit("llm.retry", info),
         });
         ctx.provide(LLM, wrapWithEvents(service, ctx, defaultModel));
