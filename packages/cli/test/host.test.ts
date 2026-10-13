@@ -397,6 +397,7 @@ test("rememberAlways answers yes for a tool once it was always allowed", async (
 
 test("tool summaries and results", () => {
   assert.equal(toolSummary("read_file", { path: "src/a.ts" }), "src/a.ts");
+  assert.equal(toolSummary("read_image_text", { path: "shot.png" }), "shot.png");
   assert.equal(toolSummary("execute_command", { program: "npm", args: ["test"] }), "npm test");
   assert.equal(toolSummary("grep", { pattern: "foo", directory: "src" }), "foo in src");
   assert.equal(toolSummary("query_order", { orderId: "A1" }), '{"orderId":"A1"}');
@@ -407,6 +408,8 @@ test("tool summaries and results", () => {
   assert.equal(toolResult("edit_file", true, { path: "a", replacements: 1 }), "1 replacement");
   assert.equal(toolResult("edit_file", true, { path: "a", replacements: 3 }), "3 replacements");
   assert.equal(toolResult("execute_command", true, { exitCode: null, timedOut: true }), "timed out");
+  assert.equal(toolResult("read_image_text", true, "Hello\n你好"), "2 lines");
+  assert.equal(toolResult("read_image_text", true, "(no text found in the image)"), "no text");
   assert.equal(toolResult("write_file", false, { error: "rejected by user: write_file" }), "rejected by user: write_file");
   assert.equal(toolResult("query_order", false, "boom"), "boom");
   assert.equal(toolResult("query_order", true, { ok: 1 }), "done");

@@ -9,8 +9,17 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
+/** How the model gets at an image: it is attached (`vision`), via the OCR tool, or not at all. */
+export type ImageAccess = "vision" | "ocr" | "none";
+
+const IMAGE_HINT: Record<ImageAccess, string> = {
+  vision: "The image is attached to this message.",
+  ocr: "This model cannot see images; call read_image_text with this path to read the text in it.",
+  none: "This model cannot see images; ask the user to describe it if it matters.",
+};
+
 /** Path handles for the model (and a machine-readable line for history rebuild). */
-export function composeAttachmentPrompt(text: string, refs: AttachmentRef[]): string {
+export function composeAttachmentPrompt(text: string, refs: AttachmentRef[], images: ImageAccess = "none"): string {
   const body = text.trimEnd();
   if (refs.length === 0) return body;
   const meta: AttachmentMeta[] = refs.map(({ id, kind, name, mime, bytes, sha256 }) => ({
@@ -23,9 +32,7 @@ export function composeAttachmentPrompt(text: string, refs: AttachmentRef[]): st
   }));
   const lines = refs.map((r) => {
     const base = `- ${r.kind} ${r.name} → ${r.path} (${r.mime}, ${formatSize(r.bytes)})`;
-    return r.kind === "image"
-      ? `${base}. Use tools to inspect; this model may not see pixels unless vision is enabled.`
-      : base;
+    return r.kind === "image" ? `${base}. ${IMAGE_HINT[images]}` : base;
   });
   const parts = [
     body,
@@ -60,7 +67,7 @@ export function userContentForVision(
   refs: AttachmentRef[],
   images: Array<{ mime: string; data: Buffer }>,
 ): ContentPart[] {
-  const prompt = composeAttachmentPrompt(text, refs);
+  const prompt = composeAttachmentPrompt(text, refs, "vision");
   const parts: ContentPart[] = [{ type: "text", text: prompt || " " }];
   for (const img of images) {
     parts.push({

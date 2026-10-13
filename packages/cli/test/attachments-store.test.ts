@@ -47,3 +47,15 @@ test("compose and parse round-trip display text and meta", () => {
   assert.equal(parsed.attachments[0]?.id, ref.id);
   assert.equal(parsed.attachments[0]?.name, "note.txt");
 });
+
+test("image hint: attached for vision models, read_image_text otherwise when available", () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-att-"));
+  const ref = createAttachmentStore(cwd).save({ name: "shot.png", mime: "image/png", data: Buffer.from("x") });
+  assert.match(composeAttachmentPrompt("", [ref], "vision"), /attached to this message/);
+  const ocr = composeAttachmentPrompt("", [ref], "ocr");
+  assert.match(ocr, /cannot see images/);
+  assert.ok(ocr.includes(`read_image_text`));
+  const none = composeAttachmentPrompt("", [ref], "none");
+  assert.match(none, /cannot see images/);
+  assert.doesNotMatch(none, /read_image_text/);
+});

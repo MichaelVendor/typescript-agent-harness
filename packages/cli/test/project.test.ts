@@ -47,7 +47,17 @@ async function boot(cwd: string, extra: string[] = []) {
   return { runtime, tools, system };
 }
 
-const BUILTIN = ["edit_file", "execute_command", "grep", "list_files", "read_file", "todo_write", "web_fetch", "write_file"];
+const BUILTIN = [
+  "edit_file",
+  "execute_command",
+  "grep",
+  "list_files",
+  "read_file",
+  ...(process.platform === "darwin" ? ["read_image_text"] : []),
+  "todo_write",
+  "web_fetch",
+  "write_file",
+];
 
 test("without the package.json marker, tools/ and AGENTS.md are ignored", async () => {
   const cwd = makeDir({ "AGENTS.md": "You are a pirate.", "tools/echo.ts": "throw new Error('must not run')" }, false);

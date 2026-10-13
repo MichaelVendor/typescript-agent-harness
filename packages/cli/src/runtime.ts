@@ -39,6 +39,7 @@ import { loadProject, ProjectError, type Project } from "./project.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { buildSkillsCatalogSection } from "./skills/catalog.js";
 import { discoverSkills } from "./skills/discover.js";
+import { readImageTextTool } from "./ocr.js";
 import { createSkillTool } from "./skills/tool.js";
 import type { SkillSummary } from "./skills/types.js";
 import { formatSessions, resolveSessionRef, toRows, type SessionRow } from "./sessions.js";
@@ -105,6 +106,10 @@ export async function bootRuntime(
   caps: ResolvedCapabilities;
   skills: SkillSummary[];
   warnings: string[];
+  /** The model reads images: the active saved model's flag, else `--vision` / config for the `.env` model. */
+  vision: boolean;
+  /** `read_image_text` is mounted. */
+  ocr: boolean;
 }> {
   const ask = flags.yes ? undefined : opts.ask;
   const project = "project" in opts ? opts.project : await loadProject(flags.cwd);
@@ -129,6 +134,8 @@ export async function bootRuntime(
   const mcpOn = Boolean(caps.mcp);
   const chosen = flags.mock ? undefined : activeModel(opts.homeDir ?? os.homedir());
   const hasKey = Boolean(chosen) || Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY);
+  const vision = chosen ? chosen.vision === true : caps.vision;
+  const ocr = builtin && process.platform === "darwin";
   // `tah serve` starts anyway so a model can be added in its Settings; turns fail until then.
   if (!flags.mock && !hasKey && flags.command !== "serve") {
     throw new Error(
@@ -166,7 +173,7 @@ export async function bootRuntime(
   const discovered = discoverSkills({ cwd: flags.cwd, homeDir: opts.homeDir ?? os.homedir() });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? (webKey ? " web=on" : " web=fetch") : ""}${browser ? " browser=on" : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? (webKey ? " web=on" : " web=fetch") : ""}${browser ? " browser=on" : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -223,6 +230,7 @@ export async function bootRuntime(
         editFileTool(flags.cwd),
         todoWriteTool(),
         ...(exec ? [executeCommandTool(flags.cwd)] : []),
+        ...(ocr ? [readImageTextTool(flags.cwd)] : []),
       ]
     : [];
   if (caps.web) tools.push(webFetchTool(), ...(webKey ? [webSearchTool({ apiKey: webKey })] : []));
@@ -265,8 +273,14 @@ export async function bootRuntime(
         ? noModelPlugin()
         : llmPlugin(
             chosen
-              ? { provider, apiKey: chosen.apiKey, baseURL: chosen.baseURL ?? defaultBaseURL(chosen.model), defaultModel: chosen.model }
-              : { provider },
+              ? {
+                  provider,
+                  apiKey: chosen.apiKey,
+                  baseURL: chosen.baseURL ?? defaultBaseURL(chosen.model),
+                  defaultModel: chosen.model,
+                  images: vision,
+                }
+              : { provider, images: vision },
           ),
     )
     .use(toolsPlugin({ tools }));
@@ -309,7 +323,17 @@ export async function bootRuntime(
   for (const plugin of project?.plugins ?? []) runtime.use(plugin);
 
   await runtime.start();
-  return { runtime, streamed, project, startup, caps, skills: discovered.skills, warnings: discovered.warnings };
+  return {
+    runtime,
+    streamed,
+    project,
+    startup,
+    caps,
+    skills: discovered.skills,
+    warnings: discovered.warnings,
+    vision,
+    ocr,
+  };
 }
 
 export async function openChatSession(

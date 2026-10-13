@@ -5,7 +5,12 @@ import type { ChatMessage } from "@typescript-agent-harness/llm";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import type { Todo } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
-import { composeAttachmentPrompt, parseUserContent, userContentForVision } from "./attachments/compose.js";
+import {
+  composeAttachmentPrompt,
+  parseUserContent,
+  userContentForVision,
+  type ImageAccess,
+} from "./attachments/compose.js";
 import {
   checkMessageLimits,
   createAttachmentStore,
@@ -100,7 +105,9 @@ function clip(s: string, width = SUMMARY_WIDTH): string {
 
 export function toolSummary(tool: string, input: unknown): string {
   const a = (input ?? {}) as Record<string, unknown>;
-  if (tool === "read_file" || tool === "write_file" || tool === "edit_file") return clip(String(a.path ?? ""));
+  if (tool === "read_file" || tool === "write_file" || tool === "edit_file" || tool === "read_image_text") {
+    return clip(String(a.path ?? ""));
+  }
   if (tool === "list_files") return clip(String(a.directory ?? "."));
   if (tool === "grep") return clip(`${String(a.pattern ?? "")}${a.directory ? ` in ${String(a.directory)}` : ""}`);
   if (tool === "web_search") return clip(String(a.query ?? ""));
@@ -145,6 +152,9 @@ export function toolResult(tool: string, ok: boolean, output: unknown): string {
   }
   if (tool === "todo_write" && Array.isArray(o.todos)) {
     return `${(o.todos as Todo[]).filter((t) => t.status === "completed").length}/${o.todos.length} done`;
+  }
+  if (tool === "read_image_text" && typeof output === "string") {
+    return output.startsWith("(no text") ? "no text" : `${output.split("\n").length} lines`;
   }
   if (tool === "browser_open") return o.opened ? "opened" : "already open";
   if (tool.startsWith("browser_") && typeof output === "string") {
@@ -358,6 +368,7 @@ export async function createChatHost(
   let project: Project | undefined;
   let skills: SkillSummary[] = [];
   let skillWarnings: string[] = [];
+  let images: ImageAccess = "none";
   const boot = async (opts: { project?: Project | undefined } = {}) => {
     const booted = await bootRuntime(flags, { ask, print: false, homeDir, ...opts });
     runtime = booted.runtime;
@@ -365,6 +376,7 @@ export async function createChatHost(
     project = booted.project;
     skills = booted.skills;
     skillWarnings = booted.warnings;
+    images = booted.vision ? "vision" : booted.ocr ? "ocr" : "none";
     attach(runtime);
     return booted.startup;
   };
@@ -533,10 +545,10 @@ export async function createChatHost(
           bytes,
           sha256,
         }));
-        const prompt = composeAttachmentPrompt(display, refs);
+        const prompt = composeAttachmentPrompt(display, refs, images);
         const { modelText, suffix } = promptWithSkills(prompt, display, skills);
         const run = async () => {
-          if (flags.vision && refs.some((r) => r.kind === "image")) {
+          if (images === "vision" && refs.some((r) => r.kind === "image")) {
             const images = await Promise.all(
               refs.filter((r) => r.kind === "image").map(async (r) => ({
                 mime: r.mime,

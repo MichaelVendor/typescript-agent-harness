@@ -12,7 +12,7 @@ import {
   resolveCapabilities,
 } from "../dist/config.js";
 import { bootRuntime } from "../dist/runtime.js";
-import { setSearchKey } from "../dist/settings.js";
+import { addModel, setModelVision, setSearchKey } from "../dist/settings.js";
 
 const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
 const MARKER = JSON.stringify({
@@ -155,8 +155,27 @@ test("bootRuntime loads tah.config.json coding with tools/", async () => {
   assert.match(startup, /config=on/);
   assert.match(startup, /vision=on/);
   const names = runtime.get(TOOLS).list().map((t) => t.name).sort();
-  assert.deepEqual(names, ["echo", "edit_file", "execute_command", "grep", "list_files", "read_file", "todo_write", "web_fetch", "write_file"]);
+  const ocr = process.platform === "darwin" ? ["read_image_text"] : [];
+  assert.deepEqual(names, ["echo", "edit_file", "execute_command", "grep", "list_files", "read_file", ...ocr, "todo_write", "web_fetch", "write_file"]);
   await runtime.stop();
+});
+
+test("bootRuntime: the active saved model's flag decides vision, not --vision", async () => {
+  const cwd = projectDir({});
+  const home = mkdtempSync(path.join(tmpdir(), "tah-home-"));
+  const flags = () => ({ ...parseArgv(["--no-persist", "--quiet", "--vision", "run", "hi"]), cwd });
+  const plain = addModel(home, { model: "deepseek-chat", apiKey: "sk-a" });
+  const off = await bootRuntime(flags(), { homeDir: home });
+  assert.equal(off.vision, false);
+  assert.doesNotMatch(off.startup, /vision=on/);
+  await off.runtime.stop();
+
+  setModelVision(home, plain.id, true);
+  const on = await bootRuntime(flags(), { homeDir: home });
+  assert.equal(on.vision, true);
+  assert.match(on.startup, /vision=on/);
+  assert.equal(on.ocr, process.platform === "darwin");
+  await on.runtime.stop();
 });
 
 test("bootRuntime mounts web_fetch for capabilities.web; web_search needs a Tavily key", async () => {
