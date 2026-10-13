@@ -79,6 +79,7 @@ function sidebarDesign() {
         { text: "tah serve", link: "/design/serve" },
         { text: "工作文件夹", link: "/design/workspaces" },
         { text: "附件", link: "/design/attachments" },
+        { text: "内置浏览器", link: "/design/browser" },
       ],
     },
     {
