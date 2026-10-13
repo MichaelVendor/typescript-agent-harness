@@ -19,7 +19,7 @@ function size(m: ChatMessage): number {
   return n;
 }
 
-function total(messages: ChatMessage[]): number {
+export function total(messages: ChatMessage[]): number {
   return messages.reduce((n, m) => n + size(m), 0);
 }
 

@@ -1,7 +1,8 @@
 import type { Context } from "@typescript-agent-harness/core";
 import type { ChatMessage, LLMResponse, LLMService, ToolCall } from "@typescript-agent-harness/llm";
 import type { ToolService } from "@typescript-agent-harness/tools";
-import { projectContext } from "./context.js";
+import { applySummary, compactHistory } from "./compact.js";
+import { projectContext, total } from "./context.js";
 import type {
   AgentLoop,
   RunResult,
@@ -63,11 +64,27 @@ export function createDefaultLoop(deps: {
       }
 
       let steps = 0;
+      let compactTried = false;
       while (steps < session.maxSteps) {
         steps += 1;
         session.signal.throwIfAborted();
 
-        let messages = [...session.messages];
+        if (deps.contextChars !== undefined && !compactTried && total(applySummary(session.messages)) > deps.contextChars) {
+          compactTried = true;
+          let end = session.messages.length - 1;
+          while (end > 0 && session.messages[end]!.role !== "user") end -= 1;
+          try {
+            const done = end > 0 ? await compactHistory(deps.llm, session.messages, end, session.signal) : undefined;
+            if (done) await deps.ctx.emit("agent.context.compacted", { sessionId: session.id, ...done, auto: true });
+          } catch (error) {
+            session.signal.throwIfAborted();
+            await deps.ctx.emit("agent.context.compact-failed", {
+              sessionId: session.id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        let messages = applySummary(session.messages);
         if (deps.contextChars !== undefined) {
           const projected = projectContext(messages, deps.contextChars);
           messages = projected.messages;

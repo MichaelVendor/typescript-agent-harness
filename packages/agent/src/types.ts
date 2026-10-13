@@ -1,5 +1,6 @@
 import type { LLMRequest, LLMResponse, ToolCall } from "@typescript-agent-harness/llm";
 import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
+import type { Compaction } from "./compact.js";
 
 export type SessionState =
   | "idle"
@@ -54,6 +55,8 @@ export interface Session {
 
   run(input: string | { text: string; content?: string | ContentPart[] }): Promise<RunResult>;
   resume(): Promise<RunResult>;
+  /** Summarizes every turn so far into one message the model sees instead; full history is kept. `undefined`: nothing to compact. */
+  compact(): Promise<Compaction | undefined>;
   cancel(): Promise<void>;
 }
 

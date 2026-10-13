@@ -1,6 +1,7 @@
 import type { Context } from "@typescript-agent-harness/core";
-import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
+import type { ChatMessage, ContentPart, LLMService } from "@typescript-agent-harness/llm";
 import type { StorageService } from "@typescript-agent-harness/storage";
+import { compactHistory, type Compaction } from "./compact.js";
 import { pendingToolCalls } from "./loop.js";
 import type { AgentLoop } from "./types.js";
 import type {
@@ -25,6 +26,8 @@ export type SessionInit = {
   maxSteps: number;
   systemPrompt?: string;
   storage?: StorageService | undefined;
+  /** Used by `compact()`. */
+  llm?: LLMService | undefined;
   restored?: {
     state: SessionState;
     messages: ChatMessage[];
@@ -48,9 +51,11 @@ export class MemorySession implements Session {
   private readonly bus: Pick<Context, "emit">;
   private readonly maxSteps: number;
   private readonly storage: StorageService | undefined;
+  private readonly llm: LLMService | undefined;
 
   constructor(init: SessionInit) {
     this.loop = init.loop;
+    this.llm = init.llm;
     this.bus = init.bus;
     this.maxSteps = init.maxSteps;
     this.storage = init.storage;
@@ -110,14 +115,7 @@ export class MemorySession implements Session {
       throw new Error(`session ${this.id} is already running`);
     }
     this.abort = new AbortController();
-    // Providers reject a request whose assistant tool_calls lack results (e.g. after cancel/crash mid-tool).
-    for (const call of pendingToolCalls(this._messages)) {
-      this._messages.push({
-        role: "tool",
-        toolCallId: call.id,
-        content: JSON.stringify({ error: "not run: the previous turn was interrupted" }),
-      });
-    }
+    this.closeInterrupted();
     const text = typeof input === "string" ? input : input.text;
     const content = typeof input === "string" ? input : (input.content ?? input.text);
     this._messages.push({ role: "user", content });
@@ -137,8 +135,41 @@ export class MemorySession implements Session {
     return this.drive();
   }
 
+  async compact(): Promise<Compaction | undefined> {
+    if (this._state === "running") {
+      throw new Error(`session ${this.id} is already running`);
+    }
+    if (!this.llm) throw new Error("compaction needs an LLM");
+    this.abort = new AbortController();
+    this.closeInterrupted();
+    const before = this._state;
+    this._state = "running";
+    try {
+      const done = await compactHistory(this.llm, this._messages, this._messages.length, this.abort.signal);
+      if (done) {
+        this.record("context.compacted", done);
+        await this.bus.emit("agent.context.compacted", { sessionId: this.id, ...done, auto: false });
+      }
+      return done;
+    } finally {
+      this._state = before;
+      await this.persist();
+    }
+  }
+
   async cancel(): Promise<void> {
     this.abort.abort();
+  }
+
+  /** Providers reject a request whose assistant tool_calls lack results (e.g. after cancel/crash mid-tool). */
+  private closeInterrupted(): void {
+    for (const call of pendingToolCalls(this._messages)) {
+      this._messages.push({
+        role: "tool",
+        toolCallId: call.id,
+        content: JSON.stringify({ error: "not run: the previous turn was interrupted" }),
+      });
+    }
   }
 
   private handle(): SessionHandle {

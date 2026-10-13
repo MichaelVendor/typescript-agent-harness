@@ -2,6 +2,7 @@ export { agentPlugin, SESSION, type AgentPluginOptions } from "./plugin.js";
 export { subagentTool } from "./subagent-tool.js";
 export { createDefaultLoop } from "./loop.js";
 export { projectContext, type ContextProjection } from "./context.js";
+export { applySummary, compactHistory, SUMMARY_PREFIX, type Compaction } from "./compact.js";
 export { MemorySession } from "./session.js";
 export type {
   AgentLoop,

@@ -80,6 +80,7 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
         const session = new MemorySession({
           id: row.id,
           loop,
+          llm,
           bus: ctx,
           maxSteps,
           systemPrompt,
@@ -105,6 +106,7 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
         async create() {
           const session = new MemorySession({
             loop,
+            llm,
             bus: ctx,
             maxSteps,
             systemPrompt,
@@ -127,6 +129,7 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
           }
           const session = new MemorySession({
             loop,
+            llm,
             bus: ctx,
             maxSteps,
             systemPrompt,
