@@ -1,13 +1,12 @@
 export function StatusBar(props: {
   cwd: string | undefined;
-  model: string | undefined;
   sessionId: string;
   rounds: number;
   approve: boolean;
   /** Absent while compacting is not possible (a turn runs, or not connected). */
   onCompact: (() => void) | undefined;
 }) {
-  const parts = [props.cwd, props.model ?? "tah", props.sessionId, `${props.rounds} rounds`, ...(props.approve ? [] : ["approve=off"])];
+  const parts = [props.cwd, props.sessionId, `${props.rounds} rounds`, ...(props.approve ? [] : ["approve=off"])];
   return (
     <div className="status">
       <span>{parts.filter(Boolean).join(" · ")}</span>

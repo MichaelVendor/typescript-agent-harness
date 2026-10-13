@@ -1108,36 +1108,143 @@ main {
 }
 .composer {
   display: flex;
-  gap: 8px;
-  align-items: flex-end;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 8px 8px 6px 12px;
+}
+.composer:focus-within {
+  border-color: var(--accent);
 }
 .composer textarea {
-  flex: 1;
   resize: none;
   font: inherit;
   color: var(--text);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  /* One 24px line plus padding and border. */
-  min-height: 42px;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
   outline: none;
 }
-.composer textarea:focus {
-  border-color: var(--accent);
+.composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
 }
-/* As tall as a one-line textarea (min-height above), also under page zoom. */
-.composer button {
-  height: 42px;
-  padding: 0 16px;
-  border-radius: 8px;
-}
-.composer .attach-btn {
-  width: 42px;
+.composer-bar .attach-btn {
+  width: 30px;
+  height: 30px;
   padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
   font-size: 20px;
   line-height: 1;
+}
+.composer-bar .attach-btn:not(:disabled):hover {
+  background: var(--border);
+  color: var(--text);
+}
+.send-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.send-btn.stop {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+.model-picker {
+  position: relative;
+}
+.model-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 260px;
+  height: 30px;
+  padding: 0 6px 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.model-chev {
+  flex: none;
+  display: inline-flex;
+  transform: rotate(-90deg);
+}
+.model-btn:not(:disabled):hover,
+.model-btn.on {
+  background: var(--border);
+  color: var(--text);
+}
+.context-menu.model-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 240px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.model-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.model-menu button {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.model-menu .menu-label {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.model-gear {
+  display: inline-flex;
+  margin-right: 6px;
+  color: var(--muted);
+}
+.model-gear svg {
+  width: 13px;
+  height: 13px;
+}
+.model-key {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.model-check {
+  flex: none;
+  width: 16px;
+  margin-left: auto;
+  padding-left: 12px;
+  box-sizing: content-box;
+  text-align: right;
+  color: var(--accent);
+}
+.model-key + .model-check {
+  margin-left: 0;
+}
+.menu-sep {
+  margin: 4px 2px;
+  border-top: 1px solid var(--border);
 }
 
 .status {

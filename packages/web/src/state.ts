@@ -20,7 +20,6 @@ export type State = {
   /** Counts finished turns: a turn can start and end within one rendered frame, so `busy` may never show it. */
   turnsEnded: number;
   rounds: number;
-  model: string | undefined;
   nextId: number;
 };
 
@@ -42,7 +41,6 @@ export const initialState: State = {
   busy: false,
   turnsEnded: 0,
   rounds: 0,
-  model: undefined,
   nextId: 0,
 };
 
@@ -141,7 +139,6 @@ export function applyEvent(state: State, action: Action): State {
         approval: undefined,
         rounds: action.rounds,
         stepLimit: action.finishReason === "max_steps",
-        model: action.model ?? state.model,
       };
     case "turn.error":
       return push(

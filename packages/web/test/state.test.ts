@@ -64,7 +64,6 @@ test("a turn: user, merged text, tool lines, then turn.end", () => {
   assert.equal(done.entries.at(-1)?.kind, "assistant");
   assert.equal(done.busy, false);
   assert.equal(done.rounds, 2);
-  assert.equal(done.model, "deepseek-chat");
 });
 
 test("a call rejected at approval never starts but still gets a failed tool line", () => {

@@ -1,5 +1,5 @@
 import type { AttachmentMeta } from "@typescript-agent-harness/cli";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api";
 
 type Draft = AttachmentMeta & { status: "uploading" | "ready" | "error"; error?: string; preview?: string };
@@ -16,6 +16,8 @@ export function Composer(props: {
   disabled: boolean;
   onSend(text: string, attachmentIds: string[]): void;
   onStop(): void;
+  /** Shown left of the send button (the model picker). */
+  children?: ReactNode;
 }) {
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -140,15 +142,6 @@ export function Composer(props: {
             e.target.value = "";
           }}
         />
-        <button
-          type="button"
-          className="attach-btn"
-          disabled={props.disabled || props.busy}
-          title="Attach files"
-          onClick={() => fileRef.current?.click()}
-        >
-          +
-        </button>
         <textarea
           ref={ref}
           rows={1}
@@ -168,15 +161,32 @@ export function Composer(props: {
             send();
           }}
         />
-        {props.busy ? (
-          <button className="danger" onClick={props.onStop}>
-            Stop
+        <div className="composer-bar">
+          <button
+            type="button"
+            className="attach-btn"
+            disabled={props.disabled || props.busy}
+            title="Attach files"
+            onClick={() => fileRef.current?.click()}
+          >
+            +
           </button>
-        ) : (
-          <button className="primary" onClick={send} disabled={!canSend}>
-            Send
-          </button>
-        )}
+          <span className="spacer" />
+          {props.children}
+          {props.busy ? (
+            <button type="button" className="send-btn stop" onClick={props.onStop} title="Stop" aria-label="Stop">
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+                <rect x="4" y="4" width="8" height="8" rx="1.5" fill="currentColor" />
+              </svg>
+            </button>
+          ) : (
+            <button type="button" className="send-btn" onClick={send} disabled={!canSend} title="Send" aria-label="Send">
+              <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                <path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

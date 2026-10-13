@@ -5,6 +5,7 @@ import { ApprovalCard } from "./components/ApprovalCard";
 import { Composer } from "./components/Composer";
 import { TodoPanel } from "./components/TodoPanel";
 import { Messages } from "./components/Messages";
+import { ModelPicker } from "./components/ModelPicker";
 import { NewFolder } from "./components/NewFolder";
 import { OpenProject } from "./components/OpenProject";
 import { Settings } from "./components/Settings";
@@ -167,10 +168,16 @@ export function App() {
           disabled={connection !== "open" || state.stepLimit}
           onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}
           onStop={() => run(api.cancel())}
-        />
+        >
+          <ModelPicker
+            view={settings}
+            busy={state.busy}
+            onPick={(id) => run(api.activeModel({ id }).then(setSettings))}
+            onManage={() => setDialog("settings")}
+          />
+        </Composer>
         <StatusBar
           cwd={workspaces?.find((w) => w.active)?.path}
-          model={state.model}
           sessionId={state.sessionId}
           rounds={state.rounds}
           approve={info?.approve ?? true}
