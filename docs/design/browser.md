@@ -59,7 +59,8 @@
 
 - 输入 `{ url?: string }`。
 - 浏览器没开：启动 Playwright MCP 进程，`tools/list` 后把白名单里的工具注册进工具表；有 `url` 就接着调用 `browser_navigate`。返回 `{ opened: true, tools: [...] }` 和导航结果。
-- 浏览器已开：不重启；有 `url` 就导航。
+- 浏览器已开：不重启；有 `url` 就导航，没有就停在当前页面。
+- 第一次打开且没给 `url` 时导航到 `about:blank`，让窗口立刻出现（Playwright MCP 在第一次工具调用时才启动 Chrome）。
 - agent loop 每次请求前都重新读工具表（`listSchemas()`），所以新工具在下一步就能被模型看到。
 
 启动参数：
