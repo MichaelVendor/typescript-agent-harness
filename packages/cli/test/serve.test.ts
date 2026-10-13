@@ -570,6 +570,36 @@ test("settings: the Tavily key is saved, hinted, and removed; the host reloads",
   }
 });
 
+test("settings: models are marked as reading images; changing the active one reloads the host", async () => {
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  const view = async () => JSON.parse((await api.get("/api/settings")).body);
+  try {
+    await api.post("/api/settings/models", { model: "gpt-4o", apiKey: "sk-first-1234", vision: true });
+    await api.post("/api/settings/models", { model: "deepseek-chat", apiKey: "sk-second-5678" });
+    const [a, b] = (await view()).models as { id: string; model: string; vision: boolean }[];
+    assert.deepEqual([a!.vision, b!.vision], [true, false]);
+    assert.equal(s.reloads(), 1);
+
+    assert.equal((await api.post("/api/settings/models/vision", { id: b!.id, vision: true })).status, 200);
+    assert.equal(s.reloads(), 1);
+    const off = await api.post("/api/settings/models/vision", { id: a!.id, vision: false });
+    assert.deepEqual(
+      JSON.parse(off.body).models.map((m: { vision: boolean }) => m.vision),
+      [false, true],
+    );
+    assert.equal(s.reloads(), 2);
+
+    assert.equal((await api.post("/api/settings/models/vision", { id: a!.id, vision: "yes" })).status, 400);
+    assert.equal((await api.post("/api/settings/models/vision", { id: "nope", vision: true })).status, 400);
+    await api.post("/api/send", { text: "hi" });
+    assert.equal((await api.post("/api/settings/models/vision", { id: a!.id, vision: true })).status, 409);
+    s.finish();
+  } finally {
+    await s.close();
+  }
+});
+
 test("settings: env names the .env model and its key variable, never the key", async () => {
   const names = ["DEEPSEEK_API_KEY", "DEEPSEEK_MODEL", "OPENAI_API_KEY", "OPENAI_MODEL"];
   const prev = names.map((n) => process.env[n]);

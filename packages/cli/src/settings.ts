@@ -2,8 +2,8 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-/** One OpenAI-compatible model; `baseURL` defaults from the model name (see `defaultBaseURL`). */
-export type ModelEntry = { id: string; model: string; apiKey: string; baseURL?: string };
+/** One OpenAI-compatible model; `baseURL` defaults from the model name (see `defaultBaseURL`); `vision`: it reads images. */
+export type ModelEntry = { id: string; model: string; apiKey: string; baseURL?: string; vision?: true };
 
 /** `<home>/.tah/settings.json`; the active model and the search key win over `.env`. */
 export type Settings = { models: ModelEntry[]; activeModel?: string; tavilyApiKey?: string };
@@ -17,13 +17,21 @@ export function loadSettings(home: string): Settings {
   if (!existsSync(file)) return { models: [] };
   try {
     const raw = JSON.parse(readFileSync(file, "utf8")) as { models?: unknown; activeModel?: unknown; tavilyApiKey?: unknown };
-    const models = (Array.isArray(raw?.models) ? raw.models : []).filter(
-      (m): m is ModelEntry =>
-        typeof m?.id === "string" &&
-        typeof m.model === "string" &&
-        typeof m.apiKey === "string" &&
-        (m.baseURL === undefined || typeof m.baseURL === "string"),
-    );
+    const models = (Array.isArray(raw?.models) ? raw.models : [])
+      .filter(
+        (m): m is ModelEntry =>
+          typeof m?.id === "string" &&
+          typeof m.model === "string" &&
+          typeof m.apiKey === "string" &&
+          (m.baseURL === undefined || typeof m.baseURL === "string"),
+      )
+      .map(({ id, model, apiKey, baseURL, vision }) => ({
+        id,
+        model,
+        apiKey,
+        ...(baseURL !== undefined ? { baseURL } : {}),
+        ...(vision === true ? { vision } : {}),
+      }));
     const active = typeof raw?.activeModel === "string" && models.some((m) => m.id === raw.activeModel) ? raw.activeModel : undefined;
     const tavily = typeof raw?.tavilyApiKey === "string" && raw.tavilyApiKey ? { tavilyApiKey: raw.tavilyApiKey } : {};
     return active ? { models, activeModel: active, ...tavily } : { models, ...tavily };
@@ -46,13 +54,19 @@ export function activeModel(home: string): ModelEntry | undefined {
   return s.models.find((m) => m.id === s.activeModel);
 }
 
-export function addModel(home: string, input: { model: string; apiKey: string; baseURL?: string }): ModelEntry {
+export function addModel(home: string, input: { model: string; apiKey: string; baseURL?: string; vision?: boolean }): ModelEntry {
   const model = input.model.trim();
   const apiKey = input.apiKey.trim();
   const baseURL = input.baseURL?.trim();
   if (!model) throw new Error("model name is required");
   if (!apiKey) throw new Error("API key is required");
-  const entry: ModelEntry = { id: `m_${randomBytes(4).toString("hex")}`, model, apiKey, ...(baseURL ? { baseURL } : {}) };
+  const entry: ModelEntry = {
+    id: `m_${randomBytes(4).toString("hex")}`,
+    model,
+    apiKey,
+    ...(baseURL ? { baseURL } : {}),
+    ...(input.vision ? { vision: true as const } : {}),
+  };
   const s = loadSettings(home);
   save(home, { ...s, models: [...s.models, entry], activeModel: s.activeModel ?? entry.id });
   return entry;
@@ -69,6 +83,17 @@ export function setActiveModel(home: string, id: string | null): void {
   const { activeModel: _, ...s } = loadSettings(home);
   if (id !== null && !s.models.some((m) => m.id === id)) throw new Error(`no model "${id}"`);
   save(home, id === null ? s : { ...s, activeModel: id });
+}
+
+export function setModelVision(home: string, id: string, vision: boolean): void {
+  const s = loadSettings(home);
+  if (!s.models.some((m) => m.id === id)) throw new Error(`no model "${id}"`);
+  const models = s.models.map((m) => {
+    if (m.id !== id) return m;
+    const { vision: _, ...rest } = m;
+    return vision ? { ...rest, vision: true as const } : rest;
+  });
+  save(home, { ...s, models });
 }
 
 /** `null` removes it, so `TAVILY_API_KEY` from `.env` applies again. */

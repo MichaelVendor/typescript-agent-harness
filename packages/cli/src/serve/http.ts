@@ -18,6 +18,7 @@ import {
   removeModel,
   searchKey,
   setActiveModel,
+  setModelVision,
   setSearchKey,
 } from "../settings.js";
 import { discoverSkills } from "../skills/discover.js";
@@ -148,7 +149,13 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     const s = loadSettings(opts.home);
     return {
       user: os.userInfo().username,
-      models: s.models.map((m) => ({ id: m.id, model: m.model, baseURL: m.baseURL ?? defaultBaseURL(m.model), keyHint: keyHint(m.apiKey) })),
+      models: s.models.map((m) => ({
+        id: m.id,
+        model: m.model,
+        baseURL: m.baseURL ?? defaultBaseURL(m.model),
+        keyHint: keyHint(m.apiKey),
+        vision: m.vision === true,
+      })),
       activeModel: s.activeModel ?? null,
       env: envModel(),
       search: s.tavilyApiKey
@@ -169,9 +176,9 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   /** The open folder rebuilds its LLM when the active model changed; other folders read settings when opened. */
   const changeModels = async (change: () => void, res: ServerResponse) => {
     hub.assertIdle();
-    const before = activeModel(opts.home)?.id;
+    const before = JSON.stringify(activeModel(opts.home));
     change();
-    if (activeModel(opts.home)?.id !== before) await host().reload();
+    if (JSON.stringify(activeModel(opts.home)) !== before) await host().reload();
     return json(res, 200, settingsView());
   };
 
@@ -351,13 +358,24 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         return json(res, 200, settingsView());
       case "POST /api/settings/models": {
         const body = await readBody(req);
-        const input = { model: str(body, "model"), apiKey: typeof body.apiKey === "string" ? body.apiKey : "" };
+        const input = {
+          model: str(body, "model"),
+          apiKey: typeof body.apiKey === "string" ? body.apiKey : "",
+          vision: body.vision === true,
+        };
         const baseURL = optStr(body, "baseURL");
         return changeModels(() => void addModel(opts.home, baseURL ? { ...input, baseURL } : input), res);
       }
       case "POST /api/settings/models/remove": {
         const id = str(await readBody(req), "id");
         return changeModels(() => removeModel(opts.home, id), res);
+      }
+      case "POST /api/settings/models/vision": {
+        const body = await readBody(req);
+        const id = str(body, "id");
+        if (typeof body.vision !== "boolean") throw new HttpError(400, '"vision" must be a boolean');
+        const vision = body.vision;
+        return changeModels(() => setModelVision(opts.home, id, vision), res);
       }
       case "POST /api/settings/active": {
         const body = await readBody(req);

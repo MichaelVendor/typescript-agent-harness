@@ -19,8 +19,10 @@ export type ServeRequest = {
   sessionFlag: { id: string; flag: "pinned" | "archived"; on: boolean; cwd?: string };
   workspace: { path: string };
   mkdir: { path: string; name: string };
-  addModel: { model: string; apiKey: string; baseURL?: string };
+  addModel: { model: string; apiKey: string; baseURL?: string; vision?: boolean };
   removeModel: { id: string };
+  /** Whether the model reads images (image attachments are sent to it). */
+  modelVision: { id: string; vision: boolean };
   /** `null` goes back to `.env`. */
   activeModel: { id: string | null };
   /** Tavily API key; `null` removes it. */
@@ -52,7 +54,7 @@ export type WorkspaceView = {
 /** `GET /api/settings`; API keys only ever leave the server as `keyHint`. `baseURL` is the effective one. */
 export type SettingsView = {
   user: string;
-  models: { id: string; model: string; baseURL: string; keyHint: string }[];
+  models: { id: string; model: string; baseURL: string; keyHint: string; vision: boolean }[];
   activeModel: string | null;
   /** What `.env` / the environment gives when no model is active; `key` is the variable's name. `null` = no key there. */
   env: { model: string; key: "DEEPSEEK_API_KEY" | "OPENAI_API_KEY" } | null;

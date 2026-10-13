@@ -12,6 +12,7 @@ import {
   removeModel,
   searchKey,
   setActiveModel,
+  setModelVision,
   setSearchKey,
   settingsPath,
 } from "../dist/settings.js";
@@ -75,6 +76,29 @@ test("settings: the Tavily key survives model changes; settings beat TAVILY_API_
     if (prev === undefined) delete process.env.TAVILY_API_KEY;
     else process.env.TAVILY_API_KEY = prev;
   }
+});
+
+test("settings: a model can be marked as reading images; unmarked and odd values read as false", () => {
+  const h = home();
+  const a = addModel(h, { model: "gpt-4o", apiKey: "sk-aaaa1111", vision: true });
+  const b = addModel(h, { model: "deepseek-chat", apiKey: "sk-bbbb2222" });
+  assert.equal(activeModel(h)?.vision, true);
+  assert.equal(loadSettings(h).models.find((m) => m.id === b.id)?.vision, undefined);
+
+  setModelVision(h, b.id, true);
+  setModelVision(h, a.id, false);
+  assert.deepEqual(
+    loadSettings(h).models.map((m) => [m.model, m.vision]),
+    [
+      ["gpt-4o", undefined],
+      ["deepseek-chat", true],
+    ],
+  );
+  assert.equal(statSync(settingsPath(h)).mode & 0o777, 0o600);
+  assert.throws(() => setModelVision(h, "nope", true), /no model/);
+
+  writeFileSync(settingsPath(h), JSON.stringify({ models: [{ id: "x", model: "m", apiKey: "k", vision: "yes" }] }));
+  assert.deepEqual(loadSettings(h).models, [{ id: "x", model: "m", apiKey: "k" }]);
 });
 
 test("settings: default base URL follows the model name; key hint hides the key", () => {
