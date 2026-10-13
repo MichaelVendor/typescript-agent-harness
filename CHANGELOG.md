@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.32.0 — 2026-10-13
 
 Web (`tah serve`): the sidebar is laid out like DeepSeek Harness — a tah header with a collapse button, a full-width **New session** row, and search / view options / add folder next to "Workspaces". **Search** finds sessions by title or folder name across folders and highlights the match. **View options** switch between grouping by folder and **One list** (every folder's sessions, newest first). Each folder shows its first 5 sessions, with "Show N more" for the rest (the current session always stays visible); hovering a folder shows `+` (new session there) and `⋯` (remove from list). The current session shows a spinner while a turn runs and an orange dot with "needs approval" while waiting for you. The collapse button shrinks the sidebar to a 56px icon rail (expand, new session, search, add folder, settings). Fork moved to the session right-click menu. The collapsed state and grouping are remembered in the browser.
 

@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/permissions",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "description": "Tool permission policy",
   "type": "module",
   "main": "./dist/index.js",
