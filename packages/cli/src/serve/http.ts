@@ -128,6 +128,14 @@ function optStr(body: Record<string, unknown>, key: string): string | undefined 
   return body[key] === undefined ? undefined : str(body, key);
 }
 
+/** Same precedence as the openai-compatible provider in `@typescript-agent-harness/llm`. */
+function envModel(): SettingsView["env"] {
+  const e = process.env;
+  const key = e.DEEPSEEK_API_KEY ? "DEEPSEEK_API_KEY" : e.OPENAI_API_KEY ? "OPENAI_API_KEY" : undefined;
+  if (!key) return null;
+  return { model: e.DEEPSEEK_MODEL ?? e.OPENAI_MODEL ?? (e.DEEPSEEK_API_KEY ? "deepseek-chat" : "gpt-4o-mini"), key };
+}
+
 /** Request handler plus `closeAll()` to end the event streams on shutdown. */
 export function createServeHandler(opts: ServeOptions): { handle: RequestListener; closeAll(): void } {
   const { workspaces, hub } = opts;
@@ -142,6 +150,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       user: os.userInfo().username,
       models: s.models.map((m) => ({ id: m.id, model: m.model, baseURL: m.baseURL ?? defaultBaseURL(m.model), keyHint: keyHint(m.apiKey) })),
       activeModel: s.activeModel ?? null,
+      env: envModel(),
       search: s.tavilyApiKey
         ? { source: "settings", keyHint: keyHint(s.tavilyApiKey) }
         : searchKey(opts.home)

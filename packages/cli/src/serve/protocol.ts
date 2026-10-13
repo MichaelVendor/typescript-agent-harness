@@ -54,6 +54,8 @@ export type SettingsView = {
   user: string;
   models: { id: string; model: string; baseURL: string; keyHint: string }[];
   activeModel: string | null;
+  /** What `.env` / the environment gives when no model is active; `key` is the variable's name. `null` = no key there. */
+  env: { model: string; key: "DEEPSEEK_API_KEY" | "OPENAI_API_KEY" } | null;
   /** Tavily key for `web_search`: from settings (removable here) or `TAVILY_API_KEY`; `null` = web_search is off. */
   search: { source: "settings" | "env"; keyHint: string } | null;
 };

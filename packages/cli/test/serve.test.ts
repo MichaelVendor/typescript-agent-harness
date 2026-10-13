@@ -570,6 +570,28 @@ test("settings: the Tavily key is saved, hinted, and removed; the host reloads",
   }
 });
 
+test("settings: env names the .env model and its key variable, never the key", async () => {
+  const names = ["DEEPSEEK_API_KEY", "DEEPSEEK_MODEL", "OPENAI_API_KEY", "OPENAI_MODEL"];
+  const prev = names.map((n) => process.env[n]);
+  for (const n of names) delete process.env[n];
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  const env = async () => JSON.parse((await api.get("/api/settings")).body).env;
+  try {
+    assert.equal(await env(), null);
+    process.env.OPENAI_API_KEY = "sk-openai-1111";
+    assert.deepEqual(await env(), { model: "gpt-4o-mini", key: "OPENAI_API_KEY" });
+    process.env.DEEPSEEK_API_KEY = "sk-deep-2222";
+    process.env.DEEPSEEK_MODEL = "deepseek-reasoner";
+    const body = (await api.get("/api/settings")).body;
+    assert.deepEqual(JSON.parse(body).env, { model: "deepseek-reasoner", key: "DEEPSEEK_API_KEY" });
+    assert.doesNotMatch(body, /sk-openai|sk-deep/);
+  } finally {
+    await s.close();
+    names.forEach((n, i) => (prev[i] === undefined ? delete process.env[n] : (process.env[n] = prev[i])));
+  }
+});
+
 test("skills: list home + folder skills; import one or a folder of them (symlinks copied); remove home ones", async () => {
   const s = await fakeServer();
   const api = client(s.base, s.cookie);
