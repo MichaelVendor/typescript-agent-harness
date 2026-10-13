@@ -227,3 +227,11 @@ test("bootRuntime mounts mcp from extensions.mcp", async () => {
   assert.equal(runtime.get(TOOLS).listSchemas().some((t) => t.name === "ping"), true);
   await runtime.stop();
 });
+
+test("resolveCapabilities: browser follows web unless the config sets it", () => {
+  assert.equal(resolveCapabilities(undefined, flagBits(), undefined).browser, true);
+  assert.equal(resolveCapabilities({ capabilities: { web: false } }, flagBits(), undefined).browser, false);
+  assert.equal(resolveCapabilities({ capabilities: { browser: false } }, flagBits(), undefined).browser, false);
+  assert.equal(resolveCapabilities({ capabilities: { web: false, browser: true } }, flagBits(), undefined).browser, true);
+  assert.throws(() => parseTahConfig({ capabilities: { browser: "yes" } }), /capabilities.browser must be a boolean/);
+});

@@ -138,3 +138,9 @@ test("bootRuntime asks before write_file; --yes skips the question", async () =>
   assert.deepEqual(asked, ["write_file"]);
   await yes.runtime.stop();
 });
+
+test("formatPrompt: browser_open shows the url; browser_file_upload the files", () => {
+  assert.match(formatPrompt({ name: "browser_open", arguments: { url: "https://example.com" } }, false), /Open browser\s+https:\/\/example.com/);
+  assert.match(formatPrompt({ name: "browser_open", arguments: {} }, false), /Open browser\s+\(blank page\)/);
+  assert.match(formatPrompt({ name: "browser_file_upload", arguments: { paths: ["/tmp/a.png"] } }, false), /Upload files[\s\S]*\/tmp\/a.png/);
+});

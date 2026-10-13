@@ -457,3 +457,13 @@ test("web tools: the summary is the query or url; the result counts results or c
   assert.equal(toolResult("web_search", true, { query: "q", results: [{}, {}] }), "2 results");
   assert.equal(toolResult("web_fetch", true, { content: "abcde", truncated: true }), "5 chars (truncated)");
 });
+
+test("browser tools: url or element as summary; opened / page title / chars as result", () => {
+  assert.equal(toolSummary("browser_open", { url: "https://a.dev" }), "https://a.dev");
+  assert.equal(toolSummary("browser_navigate", { url: "https://b.dev" }), "https://b.dev");
+  assert.equal(toolSummary("browser_click", { element: "Sign in button", ref: "e3" }), "Sign in button");
+  assert.equal(toolResult("browser_open", true, { opened: true, page: "" }), "opened");
+  assert.equal(toolResult("browser_open", true, { opened: false, page: "" }), "already open");
+  assert.equal(toolResult("browser_navigate", true, "- Page URL: x\n- Page Title: Home\n"), "Home");
+  assert.equal(toolResult("browser_snapshot", true, "abcde"), "5 chars");
+});

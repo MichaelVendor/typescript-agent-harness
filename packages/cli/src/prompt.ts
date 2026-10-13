@@ -9,6 +9,7 @@ export function buildSystemPrompt(opts: {
   builtinTools?: boolean;
   /** "search": web_search and web_fetch; "fetch": web_fetch only (no search key). */
   web?: "search" | "fetch" | "off";
+  browser?: boolean;
   skillsCatalog?: string;
 }): string {
   const role = opts.role?.trim();
@@ -18,6 +19,7 @@ export function buildSystemPrompt(opts: {
       systemPrompt += "\n\nMCP tools from --mcp are also available.";
     }
     if (opts.web && opts.web !== "off") systemPrompt += `\n\n${WEB_RULES[opts.web]}`;
+    if (opts.browser) systemPrompt += `\n\n${BROWSER_RULES}`;
     return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
   }
   const rules =
@@ -34,6 +36,7 @@ export function buildSystemPrompt(opts: {
     systemPrompt += " MCP tools from --mcp are also available.";
   }
   if (opts.web && opts.web !== "off") systemPrompt += ` ${WEB_RULES[opts.web]}`;
+  if (opts.browser) systemPrompt += ` ${BROWSER_RULES}`;
   systemPrompt += `\n\n${ABOUT_TAH}`;
   return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
 }
@@ -44,6 +47,9 @@ const WEB_RULES = {
   fetch:
     "Use web_fetch to read a web page the user gives you; cite the URL. web_search is off until a Tavily API key is set (web app: Settings → Web search, or TAVILY_API_KEY in .env) — say so if the user needs a search.",
 };
+
+const BROWSER_RULES =
+  "For pages that need clicking, forms, logins, or JavaScript rendering, call browser_open first: it opens a Chrome window the user can see and adds browser_* tools. Understand pages with browser_snapshot or browser_find; screenshots are only saved for the user. For logins, captchas, payments, or anything that needs the user's confirmation, stop and ask the user to finish it in that window.";
 
 /** Without this the model guesses it runs in Cursor or Claude Code and gives their instructions. */
 export const ABOUT_TAH = [

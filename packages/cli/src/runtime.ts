@@ -27,6 +27,7 @@ import {
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
+import { createBrowser, type BrowserServer } from "./browser.js";
 import { activeModel, defaultBaseURL, searchKey } from "./settings.js";
 import {
   loadTahConfig,
@@ -94,6 +95,7 @@ export async function bootRuntime(
     print?: boolean;
     project?: Project | undefined;
     homeDir?: string;
+    browserServer?: BrowserServer;
   } = {},
 ): Promise<{
   runtime: Runtime;
@@ -113,6 +115,15 @@ export async function bootRuntime(
   const caps = resolveCapabilities(config, flags, project);
   const webKey = caps.web && !flags.mock ? searchKey(opts.homeDir ?? os.homedir()) : undefined;
   flags.vision = caps.vision;
+  const browser =
+    caps.browser && !flags.mock
+      ? createBrowser({
+          cwd: flags.cwd,
+          homeDir: opts.homeDir ?? os.homedir(),
+          headless: flags.command === "run",
+          ...(opts.browserServer ? { server: opts.browserServer } : {}),
+        })
+      : undefined;
   const builtin = caps.coding;
   const exec = caps.exec;
   const mcpOn = Boolean(caps.mcp);
@@ -155,7 +166,7 @@ export async function bootRuntime(
   const discovered = discoverSkills({ cwd: flags.cwd, homeDir: opts.homeDir ?? os.homedir() });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? (webKey ? " web=on" : " web=fetch") : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? (webKey ? " web=on" : " web=fetch") : ""}${browser ? " browser=on" : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${caps.vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -240,6 +251,7 @@ export async function bootRuntime(
       approvalPlugin({
         tools: APPROVAL_TOOLS,
         ask: (call, signal) => {
+          if (call.name === "browser_open" && browser?.isOpen()) return Promise.resolve("yes" as const);
           md.flush();
           return ask(call, signal);
         },
@@ -258,6 +270,7 @@ export async function bootRuntime(
           ),
     )
     .use(toolsPlugin({ tools }));
+  if (browser) runtime.use(browser.plugin);
 
   if (caps.mcp) {
     const { mcpPlugin, stdioMcpBackend } = await import("@typescript-agent-harness/mcp");
@@ -281,6 +294,7 @@ export async function bootRuntime(
         mcp: mcpOn,
         builtinTools: builtin,
         web: caps.web ? (webKey ? "search" : "fetch") : "off",
+        browser: Boolean(browser),
         ...(role !== undefined ? { role } : {}),
         ...(skillsCatalog !== undefined ? { skillsCatalog } : {}),
       }),

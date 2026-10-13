@@ -6,7 +6,9 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Runtime } from "@typescript-agent-harness/core";
 import { TOOLS, toolsPlugin } from "@typescript-agent-harness/tools";
+import { parseArgv } from "../dist/args.js";
 import { BROWSER_RESULT_CHARS, createBrowser, playwrightServer } from "../dist/browser.js";
+import { bootRuntime } from "../dist/runtime.js";
 
 const fake = fileURLToPath(new URL("./fixtures/fake-browser.mjs", import.meta.url));
 const dir = () => mkdtempSync(path.join(tmpdir(), "tah-browser-"));
@@ -93,4 +95,37 @@ test("playwrightServer runs the bundled Playwright MCP with Chrome, the tah prof
     "omit",
   ]);
   assert.equal(playwrightServer({ cwd: "/w", homeDir: "/h", headless: true }).args.at(-1), "--headless");
+});
+
+test("bootRuntime mounts browser_open (not with --mock); approval is asked only while the browser is closed", async () => {
+  const cwd = dir();
+  const homeDir = dir();
+  const mock = await bootRuntime({ ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd }, { homeDir });
+  assert.equal(mock.runtime.get(TOOLS).list().some((t) => t.name === "browser_open"), false);
+  assert.doesNotMatch(mock.startup, /browser=on/);
+  await mock.runtime.stop();
+
+  const prev = process.env.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_API_KEY = "sk-test";
+  const asked: string[] = [];
+  try {
+    const live = await bootRuntime({ ...parseArgv(["--no-persist", "--quiet", "chat"]), cwd }, {
+      homeDir,
+      browserServer: { command: process.execPath, args: [fake] },
+      ask: async (c) => {
+        asked.push(c.name);
+        return "yes";
+      },
+    });
+    assert.match(live.startup, /browser=on/);
+    const tools = live.runtime.get(TOOLS);
+    const ctx = (id: string) => ({ sessionId: "s", callId: id, signal: new AbortController().signal, runtime: live.runtime.context() });
+    await tools.execute({ id: "a", name: "browser_open", arguments: {} }, ctx("a"));
+    await tools.execute({ id: "b", name: "browser_open", arguments: {} }, ctx("b"));
+    assert.deepEqual(asked, ["browser_open"]);
+    await live.runtime.stop();
+  } finally {
+    if (prev === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = prev;
+  }
 });

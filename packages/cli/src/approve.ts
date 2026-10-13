@@ -2,7 +2,7 @@ import type { Interface } from "node:readline";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import { bold, cyan, dim, useColor, yellow } from "./markdown.js";
 
-export const APPROVAL_TOOLS = ["write_file", "edit_file", "execute_command"];
+export const APPROVAL_TOOLS = ["write_file", "edit_file", "execute_command", "browser_open", "browser_file_upload"];
 
 export type LineReader = { next(): Promise<string | undefined> };
 
@@ -65,6 +65,12 @@ export function formatPrompt(call: { name: string; arguments: unknown }, color: 
       ...preview(String(a.old_string ?? ""), "- ").map(faint),
       ...preview(String(a.new_string ?? ""), "+ ").map(code),
     ];
+  } else if (call.name === "browser_open") {
+    title = `${strong("Open browser")}  ${code(typeof a.url === "string" && a.url ? a.url : "(blank page)")}`;
+    body = [faint("Opens a Chrome window the agent can click and type in.")];
+  } else if (call.name === "browser_file_upload") {
+    title = strong("Upload files");
+    body = (Array.isArray(a.paths) ? a.paths.map(String) : []).map(code);
   } else {
     title = strong(`Call ${call.name}`);
     body = [faint(JSON.stringify(call.arguments).slice(0, PREVIEW_WIDTH))];

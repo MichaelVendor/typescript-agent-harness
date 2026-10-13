@@ -105,6 +105,8 @@ export function toolSummary(tool: string, input: unknown): string {
   if (tool === "grep") return clip(`${String(a.pattern ?? "")}${a.directory ? ` in ${String(a.directory)}` : ""}`);
   if (tool === "web_search") return clip(String(a.query ?? ""));
   if (tool === "web_fetch") return clip(String(a.url ?? ""));
+  if (tool === "browser_open" || tool === "browser_navigate") return clip(String(a.url ?? ""));
+  if (tool.startsWith("browser_") && typeof a.element === "string") return clip(a.element);
   if (tool === "execute_command") {
     const args = Array.isArray(a.args) ? a.args.map(String) : [];
     return clip([String(a.program ?? ""), ...args].join(" "));
@@ -143,6 +145,10 @@ export function toolResult(tool: string, ok: boolean, output: unknown): string {
   }
   if (tool === "todo_write" && Array.isArray(o.todos)) {
     return `${(o.todos as Todo[]).filter((t) => t.status === "completed").length}/${o.todos.length} done`;
+  }
+  if (tool === "browser_open") return o.opened ? "opened" : "already open";
+  if (tool.startsWith("browser_") && typeof output === "string") {
+    return /- Page Title: (.+)/.exec(output)?.[1]?.trim() || `${output.length} chars`;
   }
   return "done";
 }

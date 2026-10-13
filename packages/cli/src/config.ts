@@ -9,6 +9,7 @@ export type TahConfig = {
   capabilities?: {
     coding?: boolean | { exec?: boolean };
     web?: boolean;
+    browser?: boolean;
     vision?: boolean;
   };
   extensions?: {
@@ -20,6 +21,7 @@ export type ResolvedCapabilities = {
   coding: boolean;
   exec: boolean;
   web: boolean;
+  browser: boolean;
   vision: boolean;
   mcp: TahMcpExtension | undefined;
   /** True when a project `tah.config.json` was loaded. */
@@ -27,7 +29,7 @@ export type ResolvedCapabilities = {
 };
 
 const TOP_KEYS = new Set(["capabilities", "extensions"]);
-const CAP_KEYS = new Set(["coding", "web", "vision"]);
+const CAP_KEYS = new Set(["coding", "web", "browser", "vision"]);
 const EXT_KEYS = new Set(["mcp"]);
 const CODING_OBJ_KEYS = new Set(["exec"]);
 
@@ -73,6 +75,10 @@ export function parseTahConfig(raw: unknown, rel = "tah.config.json"): TahConfig
     if ("web" in raw.capabilities) {
       if (typeof raw.capabilities.web !== "boolean") bad(rel, "capabilities.web must be a boolean");
       caps.web = raw.capabilities.web;
+    }
+    if ("browser" in raw.capabilities) {
+      if (typeof raw.capabilities.browser !== "boolean") bad(rel, "capabilities.browser must be a boolean");
+      caps.browser = raw.capabilities.browser;
     }
     if ("vision" in raw.capabilities) {
       if (typeof raw.capabilities.vision !== "boolean") {
@@ -131,7 +137,7 @@ export function loadTahConfig(cwd: string): TahConfig | undefined {
   return parseTahConfig(raw);
 }
 
-/** Merge built-in defaults, optional config, and explicit CLI / env overrides. `web` follows `coding` unless the config sets it. */
+/** Merge built-in defaults, optional config, and explicit CLI / env overrides. `web` follows `coding` and `browser` follows `web` unless the config sets them. */
 export function resolveCapabilities(
   config: TahConfig | undefined,
   flags: Pick<CliFlags, "exec" | "execSet" | "builtinTools" | "vision" | "visionSet" | "mcpCommand" | "mcpArgs">,
@@ -140,6 +146,7 @@ export function resolveCapabilities(
   let coding = !project?.hasToolsDir;
   let execWanted = flags.exec;
   let web: boolean | undefined;
+  let browser: boolean | undefined;
   let vision = false;
   let mcp: TahMcpExtension | undefined;
   const fromConfig = config !== undefined;
@@ -155,6 +162,7 @@ export function resolveCapabilities(
       }
     }
     if (c.web !== undefined) web = c.web;
+    if (c.browser !== undefined) browser = c.browser;
     if (c.vision !== undefined) vision = c.vision;
   }
   if (config?.extensions?.mcp) {
@@ -168,10 +176,12 @@ export function resolveCapabilities(
     mcp = { command: flags.mcpCommand, args: [...flags.mcpArgs] };
   }
 
+  const webOn = web ?? coding;
   return {
     coding,
     exec: coding && execWanted,
-    web: web ?? coding,
+    web: webOn,
+    browser: browser ?? webOn,
     vision,
     mcp,
     fromConfig,
