@@ -22,6 +22,8 @@
 | 16 | 内置工具补齐（`edit_file`、`todo_write`、`web_fetch` / `web_search`、内置浏览器）+ 上下文压缩 | ✅ `v0.31` |
 | 17 | 网页参考 DeepSeek Harness：侧栏、输入框模型选择 | ✅ `v0.32` |
 | 18 | 看图：每个模型单独设能否看图，macOS `read_image_text` 识别图中文字 | ✅ `v0.33` |
+| 19 | macOS 客户端（`apps/desktop`，壳里跑 `tah serve`） | ✅ `v0.35` |
+| 20 | 文件预览：对话里的路径在右侧面板只读预览 | ✅ `v0.35` |
 
 ## Phase 1 — Runtime ✅
 
@@ -270,6 +272,25 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 - 不能看图的模型：会话里的旧图片换成 `[image omitted]`，附件说明改为提示用 `read_image_text`
 - `read_image_text`：macOS 用系统 OCR 识别中英文，跟内置文件工具一起挂；Windows / Linux 不提供
 
+## Phase 19 — macOS 客户端 ✅（v0.35）
+
+设计见 [macOS 客户端](/design/desktop)。
+
+交付物：
+
+- `apps/desktop`：Apple Silicon、本地打包 `.dmg`、不签名；窗口里跑 `tah serve`，自带 Node，命令拿到登录 shell 的 PATH
+- 和命令行共用 `~/.tah`；打开时回到上次的文件夹；内核包不改
+
+## Phase 20 — 文件预览 ✅（v0.35）
+
+设计见 [文件预览](/design/file-preview)。
+
+交付物：
+
+- 工具行、附件卡片、Markdown 链接、像路径的行内代码可点，右侧面板只读预览，只限当前工作文件夹
+- 图片 / PDF / 视频 / Markdown / 代码；HTML 在 sandbox 不透明来源里渲染，拿不到登录 cookie 和 `/api`
+- 写、改文件或跑命令后自动刷新；新接口 `GET /api/files/stat`、`GET /api/files/raw`、`GET /preview/<令牌>/<路径>`
+
 ## 非目标（刻意不做）
 
 - Phase 1–3 不做 Electron / 完整 Web IDE  
@@ -281,6 +302,6 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.33`）  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.35`）  
 - `v0.N`：当前小版本的开发分支，合入 `main` 后打 `v0.N.x`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  
