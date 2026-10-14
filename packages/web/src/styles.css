@@ -1289,3 +1289,120 @@ main {
   text-align: center;
   color: var(--muted);
 }
+
+.file-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
+}
+.file-link:hover {
+  text-decoration-color: var(--accent);
+}
+button.file-link {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+}
+button.user-attach-chip {
+  font-size: 12px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.preview {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 280px;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+}
+.preview-resize {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 1;
+}
+.preview-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 13px;
+}
+.preview-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+.preview-head button {
+  font-size: 13px;
+  padding: 2px 8px;
+}
+.preview-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.preview-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
+}
+.preview-image,
+.preview-video {
+  max-width: 100%;
+  margin: 12px auto;
+  display: block;
+}
+.preview-markdown,
+.preview-code {
+  padding: 12px 16px;
+}
+.preview-text {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  white-space: pre;
+}
+.preview-note {
+  font-size: 12px;
+  color: var(--warn);
+  margin-bottom: 8px;
+}
+.preview-empty {
+  margin: auto;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .preview {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    max-width: 100%;
+    box-shadow: -8px 0 24px rgb(0 0 0 / 0.2);
+  }
+}

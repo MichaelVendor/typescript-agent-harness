@@ -3,6 +3,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { api, connect, type Connection } from "./api";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { Composer } from "./components/Composer";
+import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
 import { Messages } from "./components/Messages";
 import { ModelPicker } from "./components/ModelPicker";
@@ -11,6 +12,7 @@ import { OpenProject } from "./components/OpenProject";
 import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
+import { touchesFiles, type FileTarget } from "./preview-view";
 import { applyEvent, initialState, type Action } from "./state";
 
 export function App() {
@@ -21,6 +23,9 @@ export function App() {
   const [sessionsError, setSessionsError] = useState<string>();
   const [dialog, setDialog] = useState<"open" | "new" | "settings">();
   const [settings, setSettings] = useState<SettingsView>();
+  const [preview, setPreview] = useState<FileTarget>();
+  const [previewVersion, setPreviewVersion] = useState(0);
+  const closePreview = useCallback(() => setPreview(undefined), []);
   const closeDialog = useCallback(() => setDialog(undefined), []);
 
   // Streamed deltas arrive far faster than the screen refreshes: render at most once per frame.
@@ -49,7 +54,10 @@ export function App() {
           api.info().then(setInfo, () => {});
           api.settings().then(setSettings, () => {});
         },
-        onEvent: enqueue,
+        onEvent(event) {
+          enqueue(event);
+          if (touchesFiles(event)) setPreviewVersion((v) => v + 1);
+        },
         onStatus: setConnection,
       });
     });
@@ -75,6 +83,8 @@ export function App() {
     if (connection !== "open" || state.busy) return;
     void refresh();
   }, [connection, state.busy, state.sessionId, state.turnsEnded, refresh]);
+
+  useEffect(() => setPreview(undefined), [state.sessionId]);
 
   const openFolder = async (path: string) => {
     await api.addWorkspace({ path });
@@ -129,7 +139,7 @@ export function App() {
       ) : null}
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
-        <Messages entries={state.entries} busy={state.busy}>
+        <Messages entries={state.entries} busy={state.busy} onOpen={setPreview}>
           {thinking ? (
             <div className="thinking">
               <span className="spinner" /> thinking…
@@ -191,6 +201,9 @@ export function App() {
           }
         />
       </main>
+      {preview ? (
+        <FilePreview target={preview} version={previewVersion} onOpen={setPreview} onClose={closePreview} />
+      ) : null}
     </div>
   );
 }
