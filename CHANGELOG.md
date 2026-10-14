@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.35.0 — 2026-10-14
 
 Desktop: **macOS app** (`apps/desktop`, Apple Silicon, built locally with `pnpm --filter desktop dist` → `apps/desktop/release/tah-<version>-arm64.dmg`, unsigned). It wraps `tah serve` in a window: double-click to open, reopens the last folder (first launch asks for one), and agent commands get the PATH from your login shell. It ships its own Node 22 and shares `~/.tah` with the command line. Closing the window keeps tah running; ⌘Q stops it. No changes to the published packages.
 
