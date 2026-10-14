@@ -27,6 +27,8 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const lastMove = useRef(0);
   const wheel = useRef<{ x: number; y: number; dx: number; dy: number; modifiers: number } | undefined>(undefined);
   const composing = useRef(false);
+  /** The button pressed on the frame; until it is released, moves and the release outside the frame count at its edge. */
+  const held = useRef<number | undefined>(undefined);
 
   useEffect(
     () =>
@@ -56,12 +58,20 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const point = (e: { clientX: number; clientY: number }) => {
     const rect = image.current?.getBoundingClientRect();
     if (!rect || !frame) return undefined;
-    if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return undefined;
-    return toPage(e.clientX, e.clientY, rect, frame);
+    const outside = e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom;
+    if (outside && held.current === undefined) return undefined;
+    const x = Math.min(Math.max(e.clientX, rect.left), rect.right);
+    const y = Math.min(Math.max(e.clientY, rect.top), rect.bottom);
+    return toPage(x, y, rect, frame);
   };
   const press = (e: ReactMouseEvent, event: "down" | "up") => {
+    const button = mouseButton(e.button);
+    if (!button || (event === "up" && held.current === undefined)) return;
     const p = point(e);
-    if (p) send({ type: "mouse", event, ...p, button: mouseButton(e.button), clickCount: Math.max(e.detail, 1), modifiers: modifiers(e) });
+    if (!p) return;
+    if (event === "down") held.current ??= e.button;
+    else if (held.current === e.button) held.current = undefined;
+    send({ type: "mouse", event, ...p, button, clickCount: Math.max(e.detail, 1), modifiers: modifiers(e) });
   };
   const move = (e: ReactMouseEvent) => {
     if (Date.now() - lastMove.current < THROTTLE_MS) return;
@@ -184,6 +194,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
               className="browser-keys"
               aria-label="Type into the page"
               spellCheck={false}
+              onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
               onMouseDown={(e) => press(e, "down")}
               onMouseUp={(e) => press(e, "up")}
               onMouseMove={move}

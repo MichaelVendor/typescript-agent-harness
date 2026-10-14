@@ -103,7 +103,16 @@ export function App() {
 
   useEffect(() => {
     if (connection !== "open") return;
-    api.browserState().then((s) => setBrowserAvailable(s.available), () => {});
+    let cancelled = false;
+    api.browserState().then(
+      (s) => {
+        if (!cancelled) setBrowserAvailable(s.available);
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
   }, [connection, state.sessionId]);
 
   const openFolder = async (path: string) => {

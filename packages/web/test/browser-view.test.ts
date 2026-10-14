@@ -46,6 +46,7 @@ test("modifier bits and mouse buttons follow CDP", () => {
   assert.equal(modifiers({ altKey: true, ctrlKey: true, metaKey: true, shiftKey: true }), 15);
   assert.equal(modifiers({ ...none, metaKey: true }), 4);
   assert.deepEqual([0, 1, 2].map(mouseButton), ["left", "middle", "right"]);
+  assert.deepEqual([3, 4].map(mouseButton), [undefined, undefined]);
 });
 
 test("keys: special keys and shortcuts are sent; typed characters, IME and clipboard shortcuts are not", () => {
@@ -87,8 +88,12 @@ test("keys: special keys and shortcuts are sent; typed characters, IME and clipb
   assert.equal(keyInput(key("A", "KeyA", 65, { shiftKey: true }), "down"), null);
   assert.equal(keyInput(key("Enter", "Enter", 13, { isComposing: true }), "down"), null);
   assert.equal(keyInput(key("Process", "KeyN", 229), "down"), null);
+  assert.equal(keyInput(key("Enter", "Enter", 229), "down"), null);
   for (const k of ["c", "v", "x"]) {
     assert.equal(keyInput(key(k, `Key${k.toUpperCase()}`, 0, { metaKey: true }), "down"), null, k);
+  }
+  for (const [k, code] of [["с", "KeyC"], ["м", "KeyV"], ["ч", "KeyX"]]) {
+    assert.equal(keyInput(key(k!, code!, 0, { ctrlKey: true }), "down"), null, code);
   }
 });
 

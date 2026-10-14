@@ -42,18 +42,20 @@ export function toPage(
   return { x: ((clientX - rect.left) / rect.width) * frame.width, y: ((clientY - rect.top) / rect.height) * frame.height };
 }
 
-export function mouseButton(button: number): "left" | "middle" | "right" {
-  return button === 1 ? "middle" : button === 2 ? "right" : "left";
+/** Back / forward (3, 4) are not sent. */
+export function mouseButton(button: number): "left" | "middle" | "right" | undefined {
+  return (["left", "middle", "right"] as const)[button];
 }
 
-const CLIPBOARD = new Set(["c", "v", "x"]);
+const CLIPBOARD = new Set(["KeyC", "KeyV", "KeyX"]);
 
 /** Key presses sent as keys: special keys and shortcuts. Typed characters arrive as `text` from the input box instead; IME composition and copy / paste / cut are left to the box. */
 export function keyInput(e: Mods & { key: string; code: string; keyCode: number; isComposing: boolean }, event: "down" | "up"): BrowserInput | null {
-  if (e.isComposing || e.key === "Process" || e.key === "Dead") return null;
+  // Safari ends IME composition with an Enter keydown that has isComposing false but keyCode 229.
+  if (e.isComposing || e.keyCode === 229 || e.key === "Process" || e.key === "Dead") return null;
   const shortcut = e.metaKey || e.ctrlKey;
   if (e.key.length === 1 && !shortcut) return null;
-  if (shortcut && CLIPBOARD.has(e.key.toLowerCase())) return null;
+  if (shortcut && CLIPBOARD.has(e.code)) return null;
   const input: KeyInput = { type: "key", event, key: e.key, code: e.code, keyCode: e.keyCode, modifiers: modifiers(e) };
   return e.key === "Enter" && event === "down" ? { ...input, text: "\r" } : input;
 }
