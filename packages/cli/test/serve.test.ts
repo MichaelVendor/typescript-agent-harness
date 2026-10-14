@@ -16,17 +16,16 @@ import { createWorkspaces } from "../dist/serve/workspaces.js";
 
 const TOKEN = "t".repeat(43);
 
-/** Raw request, so tests can send any Host / Origin header. */
+/** Raw request, so tests can send any Host / Origin header and the path as written. */
 function raw(
   base: string,
   method: string,
   pathname: string,
   opts: { headers?: Record<string, string>; body?: unknown } = {},
 ): Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }> {
-  const url = new URL(pathname, base);
   const body = opts.body === undefined ? undefined : JSON.stringify(opts.body);
   return new Promise((resolve, reject) => {
-    const req = request(url, { method, headers: opts.headers }, (res) => {
+    const req = request(base, { method, path: pathname, headers: opts.headers }, (res) => {
       let text = "";
       res.setEncoding("utf8");
       res.on("data", (c) => (text += c));
@@ -783,6 +782,12 @@ test("files: raw honours one Range", async () => {
     assert.equal((await get("bytes=8-")).body, "89");
     assert.equal((await get("bytes=20-")).status, 416);
     assert.equal((await get("bytes=0-1,4-5")).status, 416);
+
+    writeFileSync(path.join(s.cwd, "empty.txt"), "");
+    const empty = await raw(s.base, "GET", "/api/files/raw?path=empty.txt", { headers: { cookie: s.cookie } });
+    assert.equal(empty.status, 200);
+    assert.equal(empty.headers["content-length"], "0");
+    assert.equal(empty.body, "");
   } finally {
     await s.close();
   }
@@ -834,6 +839,21 @@ test("preview: html and its folder files under a preview token, sandboxed, witho
     assert.equal((await anon.get(view.previewURL.replace(/^\/preview\/[^/]+/, `/preview/${"x".repeat(43)}`))).status, 404);
     assert.equal((await anon.get(view.previewURL.replace(/^\/preview\/[^/]+/, "/preview/short"))).status, 404);
     assert.equal((await raw(s.base, "POST", view.previewURL)).status, 405);
+
+    const head = await raw(s.base, "HEAD", view.previewURL);
+    assert.equal(head.status, 200);
+    assert.equal(head.headers["content-type"], "text/html; charset=utf-8");
+    assert.equal(head.headers["content-security-policy"], "sandbox allow-scripts allow-forms allow-popups allow-modals");
+    assert.equal(head.body, "");
+
+    const token = view.previewURL.split("/")[2];
+    for (const bad of ["..%2F..%2Fetc%2Fpasswd", "", "site/", "/etc/passwd"]) {
+      const r = await raw(s.base, "GET", `/preview/${token}/${bad}`);
+      assert.equal(r.status, 404, bad);
+      assert.deepEqual(JSON.parse(r.body), { error: "not found in this folder" }, bad);
+    }
+    // The URL parser turns `%2e%2e` segments into `..`, so this leaves /preview for /etc/passwd (web UI not built here).
+    assert.equal((await raw(s.base, "GET", `/preview/${token}/%2e%2e/%2e%2e/etc/passwd`)).status, 503);
   } finally {
     await s.close();
   }

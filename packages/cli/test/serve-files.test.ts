@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer, get } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { contentType, fileKind, NotInFolderError, parseRange, resolveInFolder } from "../dist/serve/files.js";
+import { contentType, fileKind, NotInFolderError, parseRange, resolveInFolder, sendFile } from "../dist/serve/files.js";
 
 function folder() {
   const root = mkdtempSync(path.join(tmpdir(), "tah-files-"));
@@ -44,6 +46,14 @@ test("resolveInFolder: outside, symlinked out, directories and missing files are
       return true;
     });
   }
+});
+
+test("resolveInFolder: a sibling folder sharing the name prefix is outside", async () => {
+  const { root } = folder();
+  mkdirSync(`${root}-x`);
+  writeFileSync(path.join(`${root}-x`, "f.txt"), "x");
+  await assert.rejects(resolveInFolder(root, path.join(`${root}-x`, "f.txt")), NotInFolderError);
+  await assert.rejects(resolveInFolder(root, `../${path.basename(root)}-x/f.txt`), NotInFolderError);
 });
 
 test("resolveInFolder: an unreadable file is not found", { skip: process.getuid?.() === 0 }, async () => {
@@ -97,4 +107,28 @@ test("parseRange: one bytes= range; anything else is unsatisfiable", () => {
     assert.equal(parseRange(bad, 10), null, bad);
   }
   assert.equal(parseRange("bytes=0-", 0), null);
+});
+
+test("sendFile: without a Range, sends only the stat size even if the file has grown", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "tah-send-"));
+  const file = path.join(root, "grows.txt");
+  writeFileSync(file, "0123456789");
+  const server = createServer((req, res) => sendFile(req, res, file, 4, {}));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const { port } = server.address() as AddressInfo;
+    const body = await new Promise<string>((resolve, reject) => {
+      get(`http://127.0.0.1:${port}/`, (res) => {
+        let text = "";
+        res.setEncoding("utf8");
+        res.on("data", (c) => (text += c));
+        res.on("end", () => resolve(text));
+        res.on("error", reject);
+      }).on("error", reject);
+    });
+    assert.equal(body, "0123");
+  } finally {
+    server.closeAllConnections();
+    await new Promise((r) => server.close(r));
+  }
 });

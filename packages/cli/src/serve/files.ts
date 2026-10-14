@@ -146,9 +146,9 @@ export function sendFile(
   } else {
     res.writeHead(200, { ...common, "content-length": String(size) });
   }
-  if (req.method === "HEAD") {
+  if (req.method === "HEAD" || size === 0) {
     res.end();
     return;
   }
-  pipeline(createReadStream(abs, range ?? {}), res, () => {});
+  pipeline(createReadStream(abs, range ?? { start: 0, end: size - 1 }), res, () => {});
 }
