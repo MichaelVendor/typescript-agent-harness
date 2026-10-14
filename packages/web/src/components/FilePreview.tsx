@@ -36,7 +36,9 @@ export function FilePreview(props: {
   const [nonce, setNonce] = useState(0);
   const [source, setSource] = useState(false);
   const [text, setText] = useState<string>();
-  const [width, setWidth] = useState(() => Number(localStorage.getItem(WIDTH)) || 480);
+  const [width, setWidth] = useState(() =>
+    Math.min(Math.max(Number(localStorage.getItem(WIDTH)) || 480, 280), window.innerWidth - 360),
+  );
   const drag = useRef<{ x: number; width: number } | undefined>(undefined);
 
   useEffect(() => {

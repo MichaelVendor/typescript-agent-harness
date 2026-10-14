@@ -38,9 +38,15 @@ function fileLinks(onOpen: Open): Components {
           role="button"
           tabIndex={0}
           title={`Open ${file}`}
-          onClick={() => onOpen({ path: file })}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpen({ path: file });
+          }}
           onKeyDown={(e) => {
-            if (e.key === "Enter") onOpen({ path: file });
+            if (e.key !== "Enter") return;
+            e.stopPropagation();
+            onOpen({ path: file });
           }}
         >
           {children}
