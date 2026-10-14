@@ -158,7 +158,7 @@ type BrowserInput =
   - 键盘：画面上盖一个透明的 `<textarea>` 拿焦点。`keydown` / `keyup` 发 `key`；可打印字符由 `input` 事件整段发 `text`；输入法组字中（`isComposing`）不发，`compositionend` 后整段发 `text`。
   - 粘贴：读 `paste` 事件里的文字，发 `text`。
 - 网页对话框：地址栏下方出现一条提示，显示对话框文字和「OK」（`alert` 只有它）、「Cancel」；`prompt` 多一个输入框。
-- 关面板只是隐藏；「Close browser」才关 Chrome（会二次确认：Agent 正在用时会打断它）。
+- 关面板只是隐藏；「Close browser」才关 Chrome（Agent 接入了浏览器时，地址栏下方出现提示条二次确认，关掉会打断它）。
 - 浏览器没运行时，面板里只有地址栏和一行说明；启动失败在地址栏下方显示 `error`，在地址栏回车即重试。
 
 ### 入口

@@ -21,6 +21,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const [frame, setFrame] = useState<Frame>();
   const [address, setAddress] = useState<string>();
   const [failed, setFailed] = useState<string>();
+  const [closing, setClosing] = useState(false);
   const image = useRef<HTMLImageElement>(null);
   const keys = useRef<HTMLTextAreaElement>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -38,7 +39,9 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
           return;
         }
         setState(event.state);
-        if (!event.state.running) setFrame(undefined);
+        if (event.state.running) return;
+        setFrame(undefined);
+        setClosing(false);
       }),
     [],
   );
@@ -171,10 +174,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
         <button
           type="button"
           disabled={!state?.running}
-          onClick={() => {
-            if (state?.agent && !window.confirm("The agent is using this browser. Close it anyway?")) return;
-            run(api.browserClose());
-          }}
+          onClick={() => (state?.agent ? setClosing(true) : run(api.browserClose()))}
           aria-label="Close browser"
           title="Close browser"
         >
@@ -186,6 +186,23 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
       </div>
       {props.agentBusy ? <div className="browser-agent">Agent is using the browser</div> : null}
       {failed || state?.error ? <div className="preview-note browser-error">{failed ?? state?.error}</div> : null}
+      {closing ? (
+        <div className="browser-dialog">
+          <span>The agent is using this browser. Close it anyway?</span>
+          <button
+            type="button"
+            onClick={() => {
+              setClosing(false);
+              run(api.browserClose());
+            }}
+          >
+            Close
+          </button>
+          <button type="button" onClick={() => setClosing(false)}>
+            Cancel
+          </button>
+        </div>
+      ) : null}
       {dialog ? (
         <form
           key={`${dialog.type}:${dialog.message}`}
