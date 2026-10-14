@@ -236,7 +236,7 @@ Expected：无输出。
 - Produces:
   - `parseEnvDump(out: string): Record<string, string> | undefined`：取两个标记之间的 `env -0` 输出；没有标记返回 `undefined`。
   - `type ShellEnv = { env: NodeJS.ProcessEnv; error?: string }`
-  - `loadShellEnv(opts?: { shell?: string; base?: NodeJS.ProcessEnv; timeoutMs?: number }): Promise<ShellEnv>`：成功返回 shell 的环境；失败（超时、启动失败、没打印标记）返回 `{ env: base, error }`。`shell` 默认 `os.userInfo().shell ?? "/bin/zsh"`，`base` 默认 `process.env`，`timeoutMs` 默认 `5000`。
+  - `loadShellEnv(opts?: { shell?: string; base?: NodeJS.ProcessEnv; timeoutMs?: number }): Promise<ShellEnv>`：成功返回 shell 的环境；失败（超时、启动失败、没打印标记）返回 `{ env: base, error }`。`shell` 默认 `os.userInfo().shell ?? "/bin/zsh"`，`base` 默认 `process.env`，`timeoutMs` 默认 `15_000`。
 
 - [ ] **Step 1: 写失败的测试 `apps/desktop/test/shell-env.test.ts`**
 
@@ -335,7 +335,7 @@ export function loadShellEnv(
 ): Promise<ShellEnv> {
   const base = opts.base ?? process.env;
   const shell = opts.shell ?? os.userInfo().shell ?? "/bin/zsh";
-  const timeoutMs = opts.timeoutMs ?? 5000;
+  const timeoutMs = opts.timeoutMs ?? 15_000;
   return new Promise((resolve) => {
     let settled = false;
     const finish = (result: ShellEnv) => {

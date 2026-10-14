@@ -52,7 +52,7 @@ tah.app
 ## 启动流程
 
 1. 单实例：已经开着就把窗口拉到前面，自己退出。
-2. 读登录 shell 环境：用 `os.userInfo().shell`（不是 `$SHELL`，从 Dock 打开时没有它）跑 `-ilc`，在两个分隔标记之间打印 `env -0`，解析后作为子进程的环境。超时 5 秒；失败就用 App 自己的环境，并在日志里记一行。
+2. 读登录 shell 环境：用 `os.userInfo().shell`（不是 `$SHELL`，从 Dock 打开时没有它）跑 `-ilc`，在两个分隔标记之间打印 `env -0`，解析后作为子进程的环境。超时 15 秒（`.zshrc` 里有 nvm 等时可能要 10 秒以上）；失败就用 App 自己的环境，并在日志里记一行。
 3. 定文件夹：`~/.tah/desktop.json` 里的 `lastFolder` 还存在就用它；否则弹系统「选文件夹」对话框（可新建文件夹），取消就退出 App。
 4. 启动子进程，等输出里出现 `[tah] open <url>`，超时 30 秒。失败（超时或子进程退出）弹错误框，显示 stderr 最后 20 行，按钮「重试」/「退出」。
 5. 打开窗口，加载这个地址。
@@ -102,5 +102,5 @@ tah.app
 | 风险 | 应对 |
 | --- | --- |
 | `pnpm deploy` 和 workspace 依赖配合问题（pnpm 10 需要 `inject-workspace-packages` 或 `--legacy`） | 实施第一步先手动跑通，再写进脚本 |
-| 登录 shell 启动慢或会等输入（oh-my-zsh 更新提示、tmux 自启） | 设 `DISABLE_AUTO_UPDATE=true`、`ZSH_TMUX_AUTOSTART=false`，5 秒超时回退 |
+| 登录 shell 启动慢或会等输入（oh-my-zsh 更新提示、tmux 自启） | 设 `DISABLE_AUTO_UPDATE=true`、`ZSH_TMUX_AUTOSTART=false`，15 秒超时回退 |
 | 不签名的 App 首次打开被拦 | 自己用：右键「打开」一次即可 |
