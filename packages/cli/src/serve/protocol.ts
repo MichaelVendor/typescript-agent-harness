@@ -75,3 +75,6 @@ export type RecentFolder = { path: string; name: string };
 
 /** `GET /api/fs`: sub-folders of `path`; `parent` is null at the root; `crumbs` runs from the root down to `path`. */
 export type DirListing = { path: string; parent: string | null; dirs: string[]; crumbs: { name: string; path: string }[] };
+
+/** How the preview panel shows a file. */
+export type FileKind = "image" | "pdf" | "video" | "html" | "markdown" | "text" | "binary";
