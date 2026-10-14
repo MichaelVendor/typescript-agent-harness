@@ -26,7 +26,7 @@ export function loadShellEnv(
 ): Promise<ShellEnv> {
   const base = opts.base ?? process.env;
   const shell = opts.shell ?? os.userInfo().shell ?? "/bin/zsh";
-  const timeoutMs = opts.timeoutMs ?? 5000;
+  const timeoutMs = opts.timeoutMs ?? 15_000;
   return new Promise((resolve) => {
     let settled = false;
     const finish = (result: ShellEnv) => {
