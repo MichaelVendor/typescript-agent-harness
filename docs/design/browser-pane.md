@@ -93,6 +93,7 @@ type Browser = {
 | `POST /api/browser/nav` | `{ action: "back" \| "reload" }` |
 | `POST /api/browser/tab` | `{ id: string }`：面板切到这个标签页 |
 | `POST /api/browser/input` | 鼠标、滚轮、按键、文字，见下 |
+| `POST /api/browser/dialog` | `{ accept: boolean, text?: string }`：回应面板标签页的网页对话框（`text` 是 `prompt` 的回答） |
 | `POST /api/browser/close` | 关闭浏览器 |
 
 ```ts
@@ -106,6 +107,8 @@ type BrowserState = {
   active: string | null;
   /** 最近一次启动失败的原因。 */
   error?: string;
+  /** 面板标签页正等着回应的网页对话框；回应前页面不接收输入。 */
+  dialog?: { type: "alert" | "confirm" | "prompt" | "beforeunload"; message: string };
 };
 
 type BrowserInput =
@@ -133,6 +136,7 @@ type BrowserInput =
 - 跟随规则：默认显示最新打开的标签页；新标签页出现（Agent 新开、页面弹窗如 OAuth 登录）就切过去；用户可以在下拉里切换。面板显示的标签页可能和 Agent 正在操作的不是同一个。
 - 只在至少有一个 `stream` 订阅时截屏；多个网页标签页共用一路，分发给每个。写不进去（`res.write` 返回 false）的订阅者只保留最新一帧，旧帧丢掉；收到帧立即 `screencastFrameAck`。
 - 连接断开（Chrome 崩溃、浏览器关闭、切换文件夹）：推 `state`（`running: false` 或 `error`）。`serve` 订阅事件中心：收到 `browser_*` 的 `tool.end` 或 `session` 事件时同步一次——浏览器换了或不在运行就断开；在运行、还没连上、且面板开着，就重新读 `DevToolsActivePort` 再连（Playwright 重启 Chrome 后端口会变）。下一次 `open` 也会连。
+- 网页对话框（`alert` / `confirm` / `prompt` / 离开页面确认）：对话框开着时 Chrome 不处理鼠标输入，面板会卡住。面板标签页收到 `Page.javascriptDialogOpening` 就把它放进 `state.dialog`，`javascriptDialogClosed` 时清掉；`/api/browser/dialog` 用 `Page.handleJavaScriptDialog` 回应。Playwright MCP 也会看到对话框已关闭，Agent 不会被卡住。
 - 输入内容不写日志、不进会话和事件流。
 
 ## 四、网页（`packages/web`）
@@ -153,6 +157,7 @@ type BrowserInput =
   - 鼠标：按下、抬起、点击次数直接发；移动按约 30ms 节流（悬停菜单需要）；滚轮直接发。
   - 键盘：画面上盖一个透明的 `<textarea>` 拿焦点。`keydown` / `keyup` 发 `key`；可打印字符由 `input` 事件整段发 `text`；输入法组字中（`isComposing`）不发，`compositionend` 后整段发 `text`。
   - 粘贴：读 `paste` 事件里的文字，发 `text`。
+- 网页对话框：地址栏下方出现一条提示，显示对话框文字和「OK」（`alert` 只有它）、「Cancel」；`prompt` 多一个输入框。
 - 关面板只是隐藏；「Close browser」才关 Chrome（会二次确认：Agent 正在用时会打断它）。
 - 浏览器没运行时，面板里只有地址栏和一行说明；启动失败在地址栏下方显示 `error`，在地址栏回车即重试。
 
@@ -179,7 +184,7 @@ type BrowserInput =
 | `src/components/ApprovalCard.tsx` | `browser_open` 说明改为「可在 Browser 面板里看、接手」 |
 | `src/components/Messages.tsx` | http(s) 链接点击 |
 | `src/App.tsx`、`styles.css` | 右侧面板切换、浏览器面板的开关 |
-| `src/api.ts` | `browserState()`、`browserStream()`、`browserOpen()`、`browserNav()`、`browserTab()`、`browserInput()`、`browserClose()` |
+| `src/api.ts` | `browserState()`、`browserStream()`、`browserOpen()`、`browserNav()`、`browserTab()`、`browserInput()`、`browserDialog()`、`browserClose()` |
 
 ## macOS 客户端
 
