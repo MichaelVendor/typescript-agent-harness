@@ -11,6 +11,7 @@ import {
   historyOf,
   rememberAlways,
   todosOf,
+  toolPath,
   toolResult,
   toolSummary,
   type HostEvent,
@@ -432,7 +433,7 @@ test("historyOf keeps the last turns and pairs tool calls with their results", (
   assert.equal(hiddenTurns, 1);
   assert.deepEqual(history, [
     { role: "user", text: "read it" },
-    { role: "tool", callId: "c1", tool: "read_file", summary: "a.md", ok: true, result: "2 lines" },
+    { role: "tool", callId: "c1", tool: "read_file", summary: "a.md", ok: true, result: "2 lines", path: "a.md" },
     { role: "assistant", text: "done" },
   ]);
 });
@@ -469,4 +470,38 @@ test("browser tools: url or element as summary; opened / page title / chars as r
   assert.equal(toolResult("browser_open", true, { opened: false, page: "" }), "already open");
   assert.equal(toolResult("browser_navigate", true, "- Page URL: x\n- Page Title: Home\n"), "Home");
   assert.equal(toolResult("browser_snapshot", true, "abcde"), "5 chars");
+});
+
+test("file tools carry their full path; other tools do not", () => {
+  const long = `src/${"deep/".repeat(20)}file.ts`;
+  assert.equal(toolPath("write_file", { path: long }), long);
+  assert.equal(toolPath("read_image_text", { path: "shot.png" }), "shot.png");
+  assert.equal(toolPath("list_files", { directory: "src" }), undefined);
+  assert.equal(toolPath("read_file", {}), undefined);
+  assert.equal(toolPath("read_file", null), undefined);
+  assert.equal(toolSummary("write_file", { path: long }).length, 60);
+});
+
+test("tool events carry the path of file tools", async () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-host-"));
+  writeFileSync(path.join(cwd, "README.md"), "# hi\n");
+  const { host, events } = await openHost(cwd, ["--quiet"]);
+  try {
+    await host.send("看看");
+    const tools = events.filter((e) => e.type === "tool.start" || e.type === "tool.end");
+    const read = tools.filter((e) => "tool" in e && e.tool === "read_file");
+    assert.equal(read.length, 2);
+    for (const e of read) assert.equal((e as { path?: string }).path, "README.md");
+    for (const e of tools.filter((e) => "tool" in e && e.tool === "list_files")) assert.equal("path" in e, false);
+    const history = host.snapshot().history.filter((h) => h.role === "tool");
+    assert.deepEqual(
+      history.map((h) => (h.role === "tool" ? [h.tool, h.path] : [])),
+      [
+        ["list_files", undefined],
+        ["read_file", "README.md"],
+      ],
+    );
+  } finally {
+    await host.close();
+  }
 });

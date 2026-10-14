@@ -39,7 +39,7 @@ import { watchProject } from "./watch.js";
 export type HistoryItem =
   | { role: "user"; text: string; attachments?: AttachmentMeta[] }
   | { role: "assistant"; text: string }
-  | { role: "tool"; callId: string; tool: string; summary: string; ok: boolean; result: string };
+  | { role: "tool"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string };
 
 export type SessionEvent = {
   type: "session";
@@ -56,8 +56,8 @@ export type HostEvent =
   | SessionEvent
   | { type: "user"; text: string; attachments?: AttachmentMeta[] }
   | { type: "text"; delta: string }
-  | { type: "tool.start"; callId: string; tool: string; summary: string }
-  | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string }
+  | { type: "tool.start"; callId: string; tool: string; summary: string; path?: string }
+  | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string }
   | { type: "todos"; todos: Todo[] }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "approval.end"; id: string; answer: ApprovalAnswer }
@@ -101,6 +101,15 @@ const SUMMARY_WIDTH = 60;
 function clip(s: string, width = SUMMARY_WIDTH): string {
   const line = s.replace(/\s+/g, " ").trim();
   return line.length > width ? `${line.slice(0, width - 1)}…` : line;
+}
+
+const PATH_TOOLS = new Set(["read_file", "write_file", "edit_file", "read_image_text"]);
+
+/** A file tool's full `path` (front ends open it; `summary` is clipped). */
+export function toolPath(tool: string, input: unknown): string | undefined {
+  if (!PATH_TOOLS.has(tool)) return undefined;
+  const value = (input as { path?: unknown } | null | undefined)?.path;
+  return typeof value === "string" && value ? value : undefined;
 }
 
 export function toolSummary(tool: string, input: unknown): string {
@@ -213,6 +222,7 @@ export function historyOf(
         output = JSON.parse(String(output));
       } catch {}
       const ok = !(output && typeof output === "object" && "error" in output);
+      const file = toolPath(call.name, call.arguments);
       history.push({
         role: "tool",
         callId: call.id,
@@ -220,6 +230,7 @@ export function historyOf(
         summary: toolSummary(call.name, call.arguments),
         ok,
         result: toolResult(call.name, ok, output),
+        ...(file ? { path: file } : {}),
       });
     }
   }
@@ -302,16 +313,20 @@ export async function createChatHost(
   const approvals = approvalQueue(emit);
   const rejectPending = () => approvals.rejectAll();
 
-  /** A call rejected at approval never starts, so its summary is kept from the question. */
-  const summaries = new Map<string, string>();
+  /** A call rejected at approval never starts, so how it is shown is kept from the question. */
+  const calls = new Map<string, { summary: string; path?: string }>();
+  const describe = (tool: string, input: unknown) => {
+    const file = toolPath(tool, input);
+    return { summary: toolSummary(tool, input), ...(file ? { path: file } : {}) };
+  };
   const ask = rememberAlways((call, signal) => {
-    summaries.set(call.id, toolSummary(call.name, call.arguments));
+    calls.set(call.id, describe(call.name, call.arguments));
     return approvals.ask(call, signal);
   });
   const toolEnd = (callId: string, tool: string, ok: boolean, output: unknown) => {
-    const summary = summaries.get(callId) ?? "";
-    summaries.delete(callId);
-    emit({ type: "tool.end", callId, tool, summary, ok, result: toolResult(tool, ok, output) });
+    const call = calls.get(callId) ?? { summary: "" };
+    calls.delete(callId);
+    emit({ type: "tool.end", callId, tool, ...call, ok, result: toolResult(tool, ok, output) });
   };
 
   let streamedText = false;
@@ -328,9 +343,9 @@ export async function createChatHost(
     });
     runtime.on("tool.started", (e) => {
       const p = e as { callId: string; tool: string; input: unknown };
-      const summary = toolSummary(p.tool, p.input);
-      summaries.set(p.callId, summary);
-      emit({ type: "tool.start", callId: p.callId, tool: p.tool, summary });
+      const call = describe(p.tool, p.input);
+      calls.set(p.callId, call);
+      emit({ type: "tool.start", callId: p.callId, tool: p.tool, ...call });
     });
     runtime.on("tool.finished", (e) => {
       const p = e as { callId: string; tool: string; output: unknown };
