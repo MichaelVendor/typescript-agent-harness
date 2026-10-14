@@ -103,6 +103,7 @@ export function createBrowser(o: BrowserOptions): Browser {
   let starting: Promise<McpBackend> | undefined;
   let infos: McpToolInfo[] = [];
   let mounted: string[] = [];
+  let disposed = false;
 
   async function shut() {
     for (const name of mounted) tools?.unregister(name);
@@ -134,7 +135,11 @@ export function createBrowser(o: BrowserOptions): Browser {
   }
 
   const ensure = (): Promise<McpBackend> =>
-    backend ? Promise.resolve(backend) : (starting ??= start().finally(() => (starting = undefined)));
+    disposed
+      ? Promise.reject(new Error("the browser was shut down"))
+      : backend
+        ? Promise.resolve(backend)
+        : (starting ??= start().finally(() => (starting = undefined)));
 
   function mount(b: McpBackend) {
     for (const info of infos) {
@@ -179,6 +184,8 @@ export function createBrowser(o: BrowserOptions): Browser {
         tools.register(openTool);
       },
       async dispose() {
+        disposed = true;
+        await starting?.catch(() => {});
         await shut();
       },
     },

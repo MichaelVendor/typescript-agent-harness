@@ -125,7 +125,21 @@ test("launch() starts the browser for the panel without giving the agent tools; 
   assert.equal(browser.agentAttached(), false);
   assert.equal(browser.cdpPort(), undefined);
   assert.deepEqual(names(), ["browser_open"]);
+  await browser.launch();
+  assert.equal(browser.running(), true);
   await runtime.stop();
+});
+
+test("stopping the runtime waits for a launch in flight; afterwards the browser stays shut", async () => {
+  const { browser, runtime } = await boot();
+  const open = runtime.get(TOOLS).list().find((t) => t.name === "browser_open")!;
+  const launching = browser.launch();
+  await runtime.stop();
+  await launching;
+  assert.equal(browser.running(), false);
+  await assert.rejects(browser.launch(), /the browser was shut down/);
+  await assert.rejects(open.execute({}, {} as never), /the browser was shut down/);
+  assert.equal(browser.running(), false);
 });
 
 test("writeBrowserConfig makes Chrome open a random debugging port", () => {
