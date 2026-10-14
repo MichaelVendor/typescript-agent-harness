@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { createServer } from "node:http";
+import type { AddressInfo, Socket } from "node:net";
 import { test } from "node:test";
-import { browserURL, cdpInput, createScreen, parseInput } from "../dist/serve/screen.js";
-import { fakeBrowser, fakeCdp, tick } from "./fixtures/fake-cdp.ts";
+import { browserURL, cdpInput, connectCdp, createScreen, parseInput } from "../dist/serve/screen.js";
+import { fakeBrowser, fakeCdp, tick, within } from "./fixtures/fake-cdp.ts";
 
 test("browserURL: web pages, a blank page and file previews; never tah itself", () => {
   assert.equal(browserURL("https://example.com/a", 7000), "https://example.com/a");
@@ -20,6 +23,8 @@ test("browserURL: web pages, a blank page and file previews; never tah itself", 
     "chrome://settings",
     "example.com",
     "",
+    "//[",
+    "/[",
   ]) {
     assert.equal(browserURL(bad, 7000), undefined, bad);
   }
@@ -43,6 +48,11 @@ test("parseInput keeps valid input and rejects anything else", () => {
     { ...mouse, x: "1" },
     { ...mouse, button: "back" },
     { ...wheel, dy: Infinity },
+    { ...mouse, clickCount: 1.5 },
+    { ...mouse, modifiers: -1 },
+    { ...wheel, modifiers: 0.5 },
+    { ...key, keyCode: 13.5 },
+    { ...key, keyCode: -13 },
     { ...key, text: 1 },
     { type: "text" },
     { type: "touch" },
@@ -221,4 +231,84 @@ test("input, back, reload and close go to the shown tab", async () => {
   assert.equal(fb.closes(), 1);
   assert.equal(fc.closed(), true);
   assert.equal(screen.state().running, false);
+});
+
+test("connectCdp: a command sent after the connection closed fails at once", async () => {
+  const sockets: Socket[] = [];
+  const server = createServer((_req, res) => {
+    const { port } = server.address() as AddressInfo;
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ webSocketDebuggerUrl: `ws://127.0.0.1:${port}/devtools/browser/x` }));
+  });
+  server.on("upgrade", (req, socket: Socket) => {
+    const accept = createHash("sha1")
+      .update(`${String(req.headers["sec-websocket-key"])}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest("base64");
+    socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`);
+    sockets.push(socket);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const cdp = await connectCdp((server.address() as AddressInfo).port);
+    const closed = new Promise<void>((resolve) => cdp.onClose(resolve));
+    sockets[0]!.destroy();
+    await within(closed);
+    await within(assert.rejects(cdp.send("Target.getTargets"), /the browser connection closed/));
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
+});
+
+test("a connection that closes while a tab is being shown does not leave open hanging", async () => {
+  const fb = fakeBrowser();
+  const conns = [fakeCdp(), fakeCdp()];
+  const first = conns[0]!.cdp;
+  const send = first.send.bind(first);
+  first.send = async (method, params, sessionId) => {
+    const out = await send(method, params, sessionId);
+    if (method === "Target.attachToTarget") first.close();
+    return out;
+  };
+  let n = 0;
+  const screen = createScreen({ browser: () => fb.browser, connect: async () => conns[n++]!.cdp });
+  await within(screen.open());
+  assert.equal(screen.state().active, null);
+  await within(screen.open("https://example.com/"));
+  assert.equal(n, 2);
+  assert.deepEqual(conns[1]!.sent.at(-1), { method: "Page.navigate", params: { url: "https://example.com/" }, sessionId: "S-T1" });
+  screen.dispose();
+});
+
+test("input waits for a tab that takes over while an earlier one is still being shown", async () => {
+  const fb = fakeBrowser();
+  const fc = fakeCdp();
+  const send = fc.cdp.send.bind(fc.cdp);
+  fc.cdp.send = async (method, params, sessionId) => {
+    if (method === "Target.attachToTarget" && params?.targetId === "T3") await tick();
+    return send(method, params, sessionId);
+  };
+  const screen = createScreen({ browser: () => fb.browser, connect: async () => fc.cdp });
+  await screen.open();
+  fc.event("Target.targetCreated", { targetInfo: { targetId: "T2", type: "page", title: "", url: "about:blank" } });
+  const typing = screen.input({ type: "text", text: "x" });
+  fc.event("Target.targetCreated", { targetInfo: { targetId: "T3", type: "page", title: "", url: "about:blank" } });
+  await within(typing);
+  assert.equal(screen.state().active, "T3");
+  assert.deepEqual(fc.sent.at(-1), { method: "Input.insertText", params: { text: "x" }, sessionId: "S-T3" });
+  screen.dispose();
+});
+
+test("dispose while connecting closes the new connection", async () => {
+  const fb = fakeBrowser();
+  const fc = fakeCdp();
+  let resolve: (cdp: typeof fc.cdp) => void = () => {};
+  const screen = createScreen({ browser: () => fb.browser, connect: () => new Promise((r) => (resolve = r)) });
+  const opening = screen.open();
+  await tick();
+  screen.dispose();
+  resolve(fc.cdp);
+  await within(assert.rejects(opening));
+  assert.equal(fc.closed(), true);
+  assert.deepEqual(fc.sent, []);
 });

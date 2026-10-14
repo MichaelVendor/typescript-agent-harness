@@ -31,7 +31,8 @@ export function fakeCdp() {
   let closer = () => {};
   let closed = false;
   const cdp = {
-    async send(method: string, params: Record<string, unknown> = {}, sessionId?: string) {
+    async send(method: string, params: Record<string, unknown> = {}, sessionId?: string): Promise<Record<string, unknown>> {
+      if (closed) throw new Error("the browser connection closed");
       sent.push(sessionId ? { method, params, sessionId } : { method, params });
       if (method === "Target.getTargets") {
         return { targetInfos: [{ targetId: "T1", type: "page", title: "Blank", url: "about:blank" }] };
@@ -62,3 +63,16 @@ export function fakeCdp() {
 
 /** Lets pending promise chains settle. */
 export const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+/** Fails instead of hanging when `promise` does not settle within `ms`. */
+export async function within<T>(promise: Promise<T>, ms = 1000): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`did not settle within ${ms}ms`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}

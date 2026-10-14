@@ -52,6 +52,7 @@ export async function connectCdp(port: number): Promise<Cdp> {
   return {
     send(method, params = {}, sessionId) {
       return new Promise((resolve, reject) => {
+        if (ws.readyState !== WebSocket.OPEN) return reject(new Error("the browser connection closed"));
         id += 1;
         pending.set(id, { resolve, reject });
         ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
@@ -69,12 +70,12 @@ const SELF = new Set(["127.0.0.1", "localhost", "[::1]"]);
 export function browserURL(input: string, port: number): string | undefined {
   const text = input.trim();
   if (text === "about:blank") return text;
-  if (text.startsWith("/")) {
-    const url = new URL(text, `http://127.0.0.1:${port}`);
-    return url.pathname.startsWith("/preview/") ? url.href : undefined;
-  }
   let url: URL;
   try {
+    if (text.startsWith("/")) {
+      url = new URL(text, `http://127.0.0.1:${port}`);
+      return url.pathname.startsWith("/preview/") ? url.href : undefined;
+    }
     url = new URL(text);
   } catch {
     return undefined;
@@ -87,6 +88,10 @@ export function browserURL(input: string, port: number): string | undefined {
 
 const num = (value: unknown, name: string): number => {
   if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`"${name}" must be a number`);
+  return value;
+};
+const int = (value: unknown, name: string): number => {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) throw new Error(`"${name}" must be a non-negative integer`);
   return value;
 };
 const str = (value: unknown, name: string): string => {
@@ -108,8 +113,8 @@ export function parseInput(body: Record<string, unknown>): BrowserInput {
         x: num(body.x, "x"),
         y: num(body.y, "y"),
         button: oneOf(body.button, "button", ["left", "middle", "right", "none"] as const),
-        clickCount: num(body.clickCount, "clickCount"),
-        modifiers: num(body.modifiers, "modifiers"),
+        clickCount: int(body.clickCount, "clickCount"),
+        modifiers: int(body.modifiers, "modifiers"),
       };
     case "wheel":
       return {
@@ -118,7 +123,7 @@ export function parseInput(body: Record<string, unknown>): BrowserInput {
         y: num(body.y, "y"),
         dx: num(body.dx, "dx"),
         dy: num(body.dy, "dy"),
-        modifiers: num(body.modifiers, "modifiers"),
+        modifiers: int(body.modifiers, "modifiers"),
       };
     case "key": {
       const key = {
@@ -126,8 +131,8 @@ export function parseInput(body: Record<string, unknown>): BrowserInput {
         event: oneOf(body.event, "event", ["down", "up"] as const),
         key: str(body.key, "key"),
         code: str(body.code, "code"),
-        keyCode: num(body.keyCode, "keyCode"),
-        modifiers: num(body.modifiers, "modifiers"),
+        keyCode: int(body.keyCode, "keyCode"),
+        modifiers: int(body.modifiers, "modifiers"),
       };
       return body.text === undefined ? key : { ...key, text: str(body.text, "text") };
     }
@@ -199,6 +204,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
   let casting = false;
   let lastFrame: Frame | undefined;
   let error: string | undefined;
+  let disposed = false;
 
   const state = (): BrowserState => {
     const b = opts.browser();
@@ -302,6 +308,10 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       const port = b?.cdpPort();
       if (!b || port === undefined) return undefined;
       const c = await (opts.connect ?? connectCdp)(port);
+      if (disposed) {
+        c.close();
+        return undefined;
+      }
       cdp = c;
       owner = b;
       c.on(onEvent(c));
@@ -328,8 +338,12 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
   /** The connection and the shown tab's session, once attached. */
   async function ready(): Promise<{ c: Cdp; s: string }> {
     const c = cdp ?? (opts.browser()?.running() ? await connect() : undefined);
-    await showing;
-    if (!c || !session) throw new Error("the browser is not open");
+    let shown: Promise<void>;
+    do {
+      shown = showing;
+      await shown;
+    } while (shown !== showing);
+    if (!c || cdp !== c || !session) throw new Error("the browser is not open");
     return { c, s: session };
   }
 
@@ -405,6 +419,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       push();
     },
     dispose() {
+      disposed = true;
       listeners.clear();
       drop();
     },
