@@ -81,6 +81,7 @@ function sidebarDesign() {
         { text: "附件", link: "/design/attachments" },
         { text: "内置浏览器", link: "/design/browser" },
         { text: "macOS 客户端", link: "/design/desktop" },
+        { text: "文件预览", link: "/design/file-preview" },
       ],
     },
     {
