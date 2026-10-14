@@ -1,12 +1,11 @@
 import type { FileStat } from "@typescript-agent-harness/cli";
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { api, ApiError, fileRawURL } from "../api";
 import { codeBlock, fileQuery, relativeTo, type FileTarget } from "../preview-view";
 
-const WIDTH = "tah.previewWidth";
 const TEXT_LIMIT = 1024 * 1024;
 const HIGHLIGHT_LIMIT = 256 * 1024;
 /** Same as the server's `/preview` CSP; never add allow-same-origin (the page could then use the sign-in cookie). */
@@ -26,9 +25,10 @@ export function FilePreview(props: {
   target: FileTarget;
   version: number;
   onOpen(target: FileTarget): void;
+  onBrowse?: (url: string) => void;
   onClose(): void;
 }) {
-  const { target, version, onOpen, onClose } = props;
+  const { target, version, onOpen, onBrowse, onClose } = props;
   const key = fileQuery(target);
   const [stat, setStat] = useState<FileStat>();
   const [gone, setGone] = useState(false);
@@ -36,10 +36,6 @@ export function FilePreview(props: {
   const [nonce, setNonce] = useState(0);
   const [source, setSource] = useState(false);
   const [text, setText] = useState<string>();
-  const [width, setWidth] = useState(() =>
-    Math.max(Math.min(Number(localStorage.getItem(WIDTH)) || 480, window.innerWidth - 360), 280),
-  );
-  const drag = useRef<{ x: number; width: number } | undefined>(undefined);
 
   useEffect(() => {
     let live = true;
@@ -80,25 +76,10 @@ export function FilePreview(props: {
     };
   }, [stat, wantsText, nonce]);
 
-  const startDrag = (e: PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { x: e.clientX, width };
-  };
-  const moveDrag = (e: PointerEvent<HTMLDivElement>) => {
-    if (!drag.current) return;
-    const next = Math.max(Math.min(drag.current.width + drag.current.x - e.clientX, window.innerWidth - 360), 280);
-    setWidth(next);
-  };
-  const endDrag = () => {
-    if (!drag.current) return;
-    drag.current = undefined;
-    localStorage.setItem(WIDTH, String(width));
-  };
-
   const title = stat?.path ?? ("path" in target ? target.path : "attachment");
+  const browsable = stat?.kind === "html" ? stat.previewURL : undefined;
   return (
-    <aside className="file-preview" style={{ width }}>
-      <div className="preview-resize" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} />
+    <>
       <div className="preview-head">
         <span className="preview-title" title={title}>
           {title}
@@ -106,6 +87,11 @@ export function FilePreview(props: {
         {stat?.kind === "html" ? (
           <button type="button" onClick={() => setSource(!source)}>
             {source ? "Rendered" : "Source"}
+          </button>
+        ) : null}
+        {browsable && onBrowse ? (
+          <button type="button" onClick={() => onBrowse(browsable)}>
+            Open in browser
           </button>
         ) : null}
         <button type="button" onClick={() => setNonce(nonce + 1)} aria-label="Refresh">
@@ -128,7 +114,7 @@ export function FilePreview(props: {
           <Body key={nonce} stat={stat} target={target} source={source} text={text} onOpen={onOpen} />
         )}
       </div>
-    </aside>
+    </>
   );
 }
 

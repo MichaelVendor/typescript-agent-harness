@@ -2,19 +2,37 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import Markdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+import { opensInPanel } from "../browser-view";
 import { codePath, linkPath, type FileTarget } from "../preview-view";
 import type { Entry } from "../state";
 import { ChevronIcon } from "./Sidebar";
 import { ToolLine } from "./ToolLine";
 
 type Open = (target: FileTarget) => void;
+type Browse = ((url: string) => void) | undefined;
 
 /** Paths in a reply open in the preview panel; other links and code stay as they are. */
-function fileLinks(onOpen: Open): Components {
+function fileLinks(onOpen: Open, onBrowse: Browse): Components {
   return {
     a({ node: _node, href, children, ...rest }) {
       const file = linkPath(href);
-      if (!file) return <a href={href} {...rest}>{children}</a>;
+      if (!file) {
+        return (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            {...rest}
+            onClick={(e) => {
+              if (!onBrowse || !href || !opensInPanel(href, e, location.origin)) return;
+              e.preventDefault();
+              onBrowse(href);
+            }}
+          >
+            {children}
+          </a>
+        );
+      }
       return (
         <a
           href={href}
@@ -57,8 +75,8 @@ function fileLinks(onOpen: Open): Components {
 }
 
 /** No raw HTML: replies can echo file contents, and this page can approve commands. */
-const Reply = memo(function Reply({ text, onOpen }: { text: string; onOpen: Open }) {
-  const components = useMemo(() => fileLinks(onOpen), [onOpen]);
+const Reply = memo(function Reply({ text, onOpen, onBrowse }: { text: string; onOpen: Open; onBrowse: Browse }) {
+  const components = useMemo(() => fileLinks(onOpen, onBrowse), [onOpen, onBrowse]);
   return (
     <div className="reply">
       <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
@@ -74,7 +92,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-const Row = memo(function Row({ entry, onOpen }: { entry: Entry; onOpen: Open }) {
+const Row = memo(function Row({ entry, onOpen, onBrowse }: { entry: Entry; onOpen: Open; onBrowse: Browse }) {
   switch (entry.kind) {
     case "user":
       return (
@@ -103,7 +121,7 @@ const Row = memo(function Row({ entry, onOpen }: { entry: Entry; onOpen: Open })
         </div>
       );
     case "assistant":
-      return <Reply text={entry.text} onOpen={onOpen} />;
+      return <Reply text={entry.text} onOpen={onOpen} onBrowse={onBrowse} />;
     case "tool":
       return (
         <ToolLine
@@ -140,10 +158,10 @@ function group(entries: Entry[]): Item[] {
 }
 
 /** While live, shows the latest few steps; once the turn moves on, collapses to one summary line. */
-function Steps({ entries, live, onOpen }: { entries: Entry[]; live: boolean; onOpen: Open }) {
+function Steps({ entries, live, onOpen, onBrowse }: { entries: Entry[]; live: boolean; onOpen: Open; onBrowse: Browse }) {
   const [open, setOpen] = useState(false);
   const tools = entries.filter((e) => e.kind === "tool");
-  if (!tools.length) return entries.map((e) => <Row key={e.id} entry={e} onOpen={onOpen} />);
+  if (!tools.length) return entries.map((e) => <Row key={e.id} entry={e} onOpen={onOpen} onBrowse={onBrowse} />);
 
   const counts = new Map<string, number>();
   for (const t of tools) counts.set(t.tool, (counts.get(t.tool) ?? 0) + 1);
@@ -165,7 +183,7 @@ function Steps({ entries, live, onOpen }: { entries: Entry[]; live: boolean; onO
       {shown.length ? (
         <div className="steps-body">
           {shown.map((e) => (
-            <Row key={e.id} entry={e} onOpen={onOpen} />
+            <Row key={e.id} entry={e} onOpen={onOpen} onBrowse={onBrowse} />
           ))}
         </div>
       ) : null}
@@ -178,11 +196,13 @@ export function Messages({
   entries,
   busy,
   onOpen,
+  onBrowse,
   children,
 }: {
   entries: Entry[];
   busy: boolean;
   onOpen: Open;
+  onBrowse: Browse;
   children?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -210,9 +230,9 @@ export function Messages({
       ) : null}
       {group(entries).map((item, i, items) =>
         item.kind === "row" ? (
-          <Row key={item.entry.id} entry={item.entry} onOpen={onOpen} />
+          <Row key={item.entry.id} entry={item.entry} onOpen={onOpen} onBrowse={onBrowse} />
         ) : (
-          <Steps key={item.id} entries={item.entries} live={busy && i === items.length - 1} onOpen={onOpen} />
+          <Steps key={item.id} entries={item.entries} live={busy && i === items.length - 1} onOpen={onOpen} onBrowse={onBrowse} />
         ),
       )}
       {children}

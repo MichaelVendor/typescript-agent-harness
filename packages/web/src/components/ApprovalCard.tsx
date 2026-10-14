@@ -32,7 +32,7 @@ function describe(approval: Approval): { title: string; body: string } {
   if (approval.tool === "browser_open") {
     return {
       title: `Open browser ${typeof a.url === "string" && a.url ? a.url : "(blank page)"}`,
-      body: "Opens a Chrome window the agent can click and type in.",
+      body: "Opens a browser the agent can click and type in — watch or take over in the Browser panel.",
     };
   }
   if (approval.tool === "browser_file_upload") {

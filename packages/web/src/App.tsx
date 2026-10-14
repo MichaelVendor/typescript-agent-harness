@@ -1,7 +1,9 @@
 import type { ServeInfo, SettingsView, WorkspaceView } from "@typescript-agent-harness/cli";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api, connect, type Connection } from "./api";
+import { agentBrowsing, opensBrowser } from "./browser-view";
 import { ApprovalCard } from "./components/ApprovalCard";
+import { BrowserPane } from "./components/BrowserPane";
 import { Composer } from "./components/Composer";
 import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
@@ -10,6 +12,7 @@ import { ModelPicker } from "./components/ModelPicker";
 import { NewFolder } from "./components/NewFolder";
 import { OpenProject } from "./components/OpenProject";
 import { Settings } from "./components/Settings";
+import { SidePanel } from "./components/SidePanel";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { fileQuery, touchesFiles, type FileTarget } from "./preview-view";
@@ -26,6 +29,17 @@ export function App() {
   const [preview, setPreview] = useState<FileTarget>();
   const [previewVersion, setPreviewVersion] = useState(0);
   const closePreview = useCallback(() => setPreview(undefined), []);
+  const [browserShown, setBrowserShown] = useState(false);
+  const [browserAvailable, setBrowserAvailable] = useState(false);
+  const [view, setView] = useState<"file" | "browser">("file");
+  const openFile = useCallback((target: FileTarget) => {
+    setPreview(target);
+    setView("file");
+  }, []);
+  const showBrowser = useCallback(() => {
+    setBrowserShown(true);
+    setView("browser");
+  }, []);
   const closeDialog = useCallback(() => setDialog(undefined), []);
 
   // Streamed deltas arrive far faster than the screen refreshes: render at most once per frame.
@@ -57,6 +71,7 @@ export function App() {
         onEvent(event) {
           enqueue(event);
           if (touchesFiles(event)) setPreviewVersion((v) => v + 1);
+          if (opensBrowser(event)) showBrowser();
         },
         onStatus: setConnection,
       });
@@ -65,7 +80,7 @@ export function App() {
       cancelled = true;
       stop();
     };
-  }, [enqueue]);
+  }, [enqueue, showBrowser]);
 
   const refresh = useCallback(
     () =>
@@ -86,6 +101,11 @@ export function App() {
 
   useEffect(() => setPreview(undefined), [state.sessionId]);
 
+  useEffect(() => {
+    if (connection !== "open") return;
+    api.browserState().then((s) => setBrowserAvailable(s.available), () => {});
+  }, [connection, state.sessionId]);
+
   const openFolder = async (path: string) => {
     await api.addWorkspace({ path });
     await api.reset({ cwd: path });
@@ -95,6 +115,18 @@ export function App() {
 
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
+
+  const browse = useMemo(
+    () =>
+      browserAvailable
+        ? (url: string) => {
+            showBrowser();
+            run(api.browserOpen({ url }));
+          }
+        : undefined,
+    // `run` only wraps `enqueue`.
+    [browserAvailable, showBrowser, enqueue],
+  );
 
   if (connection === "signed-out") {
     return (
@@ -107,6 +139,9 @@ export function App() {
   const last = state.entries.at(-1);
   const toolRunning = state.entries.some((e) => e.kind === "tool" && e.status === "running");
   const thinking = state.busy && !state.approval && !toolRunning && last?.kind !== "assistant";
+  const fileOpen = preview !== undefined;
+  const browserOpen = browserShown && browserAvailable;
+  const side = fileOpen && browserOpen ? view : fileOpen ? "file" : browserOpen ? "browser" : undefined;
 
   return (
     <div className="app">
@@ -139,7 +174,7 @@ export function App() {
       ) : null}
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
-        <Messages entries={state.entries} busy={state.busy} onOpen={setPreview}>
+        <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse}>
           {thinking ? (
             <div className="thinking">
               <span className="spinner" /> thinking…
@@ -199,16 +234,24 @@ export function App() {
                 }
               : undefined
           }
+          onBrowser={browserAvailable ? showBrowser : undefined}
         />
       </main>
-      {preview ? (
-        <FilePreview
-          key={fileQuery(preview)}
-          target={preview}
-          version={previewVersion}
-          onOpen={setPreview}
-          onClose={closePreview}
-        />
+      {side ? (
+        <SidePanel view={side} both={fileOpen && browserOpen} onView={setView}>
+          {side === "file" && preview ? (
+            <FilePreview
+              key={fileQuery(preview)}
+              target={preview}
+              version={previewVersion}
+              onOpen={openFile}
+              onBrowse={browse}
+              onClose={closePreview}
+            />
+          ) : (
+            <BrowserPane agentBusy={agentBrowsing(state.entries)} onClose={() => setBrowserShown(false)} />
+          )}
+        </SidePanel>
       ) : null}
     </div>
   );
