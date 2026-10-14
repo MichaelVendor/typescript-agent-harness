@@ -33,6 +33,10 @@ export type ServeRequest = {
   removeSkill: { name: string };
   /** System folder dialog starting at `start`; answers `{ path: string | null }` (null = cancelled), 501 when unavailable. */
   choose: { start?: string };
+  /** `url`: http(s) (not tah itself), `about:blank`, or a `/preview/…` address; omitted = just start the browser. */
+  browserOpen: { url?: string };
+  browserNav: { action: "back" | "reload" };
+  browserTab: { id: string };
 };
 
 export type { AttachmentMeta };
@@ -81,3 +85,38 @@ export type FileKind = "image" | "pdf" | "video" | "html" | "markdown" | "text" 
 
 /** `GET /api/files/stat`: `path` is relative to the open folder (`/`-separated); `mtime` in ms; `previewURL` only for `html`. */
 export type FileStat = { path: string; kind: FileKind; bytes: number; mtime: number; previewURL?: string };
+
+/** `GET /api/browser` and the `state` events of `GET /api/browser/stream`. */
+export type BrowserState = {
+  /** The open folder has the built-in browser (`capabilities.browser`, not `--mock`). */
+  available: boolean;
+  /** Playwright MCP is running. */
+  running: boolean;
+  /** The agent's `browser_open` was approved; its browser tools are mounted. */
+  agent: boolean;
+  tabs: { id: string; title: string; url: string }[];
+  /** The tab the panel shows. */
+  active: string | null;
+  /** Why the browser last failed to start. */
+  error?: string;
+};
+
+/** `POST /api/browser/input`: coordinates in page CSS pixels; `modifiers` bits: Alt 1, Ctrl 2, Meta 4, Shift 8. */
+export type BrowserInput =
+  | {
+      type: "mouse";
+      event: "move" | "down" | "up";
+      x: number;
+      y: number;
+      button: "left" | "middle" | "right" | "none";
+      clickCount: number;
+      modifiers: number;
+    }
+  | { type: "wheel"; x: number; y: number; dx: number; dy: number; modifiers: number }
+  | { type: "key"; event: "down" | "up"; key: string; code: string; keyCode: number; modifiers: number; text?: string }
+  | { type: "text"; text: string };
+
+/** One event of `GET /api/browser/stream`; a frame's `data` is a base64 JPEG, `width` / `height` the page size in CSS pixels. */
+export type BrowserStreamEvent =
+  | { type: "state"; state: BrowserState }
+  | { type: "frame"; data: string; width: number; height: number };
