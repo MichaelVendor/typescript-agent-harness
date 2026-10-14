@@ -95,6 +95,9 @@ test("keys: special keys and shortcuts are sent; typed characters, IME and clipb
   for (const [k, code] of [["с", "KeyC"], ["м", "KeyV"], ["ч", "KeyX"]]) {
     assert.equal(keyInput(key(k!, code!, 0, { ctrlKey: true }), "down"), null, code);
   }
+  // Dvorak: ⌘V is the key that types "v" (physical Period); physical KeyV types "k".
+  assert.equal(keyInput(key("v", "Period", 0, { metaKey: true }), "down"), null);
+  assert.equal(keyInput(key("k", "KeyV", 75, { metaKey: true }), "down")?.type, "key");
 });
 
 test("the agent is browsing while a browser tool runs; browser_open opens the panel", () => {

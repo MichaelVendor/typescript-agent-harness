@@ -20,8 +20,7 @@ function fileLinks(onOpen: Open, onBrowse: Browse): Components {
         return (
           <a
             href={href}
-            target="_blank"
-            rel="noreferrer"
+            {...(href?.startsWith("#") ? {} : { target: "_blank", rel: "noreferrer" })}
             {...rest}
             onClick={(e) => {
               if (!onBrowse || !href || !opensInPanel(href, e, location.origin)) return;

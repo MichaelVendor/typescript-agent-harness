@@ -47,7 +47,11 @@ export function mouseButton(button: number): "left" | "middle" | "right" | undef
   return (["left", "middle", "right"] as const)[button];
 }
 
-const CLIPBOARD = new Set(["KeyC", "KeyV", "KeyX"]);
+const CLIPBOARD = new Set(["c", "v", "x"]);
+
+/** The letter a shortcut means: the typed letter, or on non-Latin layouts the physical key. */
+const shortcutLetter = (e: { key: string; code: string }) =>
+  /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : e.code.startsWith("Key") ? e.code.slice(3).toLowerCase() : "";
 
 /** Key presses sent as keys: special keys and shortcuts. Typed characters arrive as `text` from the input box instead; IME composition and copy / paste / cut are left to the box. */
 export function keyInput(e: Mods & { key: string; code: string; keyCode: number; isComposing: boolean }, event: "down" | "up"): BrowserInput | null {
@@ -55,7 +59,7 @@ export function keyInput(e: Mods & { key: string; code: string; keyCode: number;
   if (e.isComposing || e.keyCode === 229 || e.key === "Process" || e.key === "Dead") return null;
   const shortcut = e.metaKey || e.ctrlKey;
   if (e.key.length === 1 && !shortcut) return null;
-  if (shortcut && CLIPBOARD.has(e.code)) return null;
+  if (shortcut && CLIPBOARD.has(shortcutLetter(e))) return null;
   const input: KeyInput = { type: "key", event, key: e.key, code: e.code, keyCode: e.keyCode, modifiers: modifiers(e) };
   return e.key === "Enter" && event === "down" ? { ...input, text: "\r" } : input;
 }
