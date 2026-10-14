@@ -1,5 +1,8 @@
 import type {
   AttachmentMeta,
+  BrowserInput,
+  BrowserState,
+  BrowserStreamEvent,
   DirListing,
   FileStat,
   HostEvent,
@@ -106,6 +109,13 @@ export const api = {
     (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,
   removeSkill: async (body: ServeRequest["removeSkill"]) =>
     (await (await call("POST", "/api/skills/remove", body)).json()) as SkillsView,
+  browserState: async () => (await (await call("GET", "/api/browser")).json()) as BrowserState,
+  browserOpen: async (body: ServeRequest["browserOpen"] = {}) =>
+    (await (await call("POST", "/api/browser/open", body)).json()) as BrowserState,
+  browserNav: (body: ServeRequest["browserNav"]) => post("/api/browser/nav", body),
+  browserTab: (body: ServeRequest["browserTab"]) => post("/api/browser/tab", body),
+  browserInput: (input: BrowserInput) => post("/api/browser/input", input),
+  browserClose: () => post("/api/browser/close"),
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";
@@ -134,5 +144,12 @@ export function connect(handlers: {
       }
     });
   };
+  return () => source.close();
+}
+
+/** The browser panel's stream: `state` on every change, the shown tab's frames while connected. */
+export function browserStream(onEvent: (event: BrowserStreamEvent) => void): () => void {
+  const source = new EventSource("/api/browser/stream");
+  source.onmessage = (message) => onEvent(JSON.parse(message.data as string) as BrowserStreamEvent);
   return () => source.close();
 }
