@@ -259,7 +259,7 @@ export async function bootRuntime(
       approvalPlugin({
         tools: APPROVAL_TOOLS,
         ask: (call, signal) => {
-          if (call.name === "browser_open" && browser?.isOpen()) return Promise.resolve("yes" as const);
+          if (call.name === "browser_open" && browser?.agentAttached()) return Promise.resolve("yes" as const);
           md.flush();
           return ask(call, signal);
         },

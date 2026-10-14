@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import type { Plugin } from "@typescript-agent-harness/core";
-import { mcpResultText, stdioMcpBackend, type McpBackend } from "@typescript-agent-harness/mcp";
+import { mcpResultText, stdioMcpBackend, type McpBackend, type McpToolInfo } from "@typescript-agent-harness/mcp";
 import { TOOLS, type Tool, type ToolService } from "@typescript-agent-harness/tools";
 
 /** Playwright MCP tools the model gets; code-running, network-inspection and rarely useful ones stay off. */
@@ -34,11 +34,35 @@ export type BrowserServer = { command: string; args: string[] };
 export type BrowserOptions = {
   cwd: string;
   homeDir: string;
-  /** `tah run` has nobody watching; chat and serve show the window. */
+  /** `tah chat` shows a Chrome window; `tah run` has nobody watching and `tah serve` shows the page in its browser panel. */
   headless: boolean;
   /** Tests swap in a fake MCP server. */
   server?: BrowserServer;
 };
+
+/** One tah host's browser: the agent's tools, plus what `tah serve`'s browser panel needs. */
+export type Browser = {
+  plugin: Plugin;
+  /** The agent's `browser_open` was approved and the browser tools are mounted. */
+  agentAttached(): boolean;
+  /** Playwright MCP is running. */
+  running(): boolean;
+  /** Starts the browser for the panel; mounts no tools. */
+  launch(): Promise<void>;
+  /** Chrome's debugging port; undefined while the browser is not running. */
+  cdpPort(): number | undefined;
+  /** Closes the browser and withdraws the tools. */
+  close(): Promise<void>;
+};
+
+const profileDir = (homeDir: string) => path.join(homeDir, ".tah", "browser-profile");
+const configFile = (homeDir: string) => path.join(homeDir, ".tah", "browser-config.json");
+
+/** Playwright MCP's config: Chrome opens a random debugging port and writes it to `<profile>/DevToolsActivePort`. */
+export function writeBrowserConfig(homeDir: string): void {
+  mkdirSync(path.dirname(configFile(homeDir)), { recursive: true });
+  writeFileSync(configFile(homeDir), `${JSON.stringify({ browser: { launchOptions: { args: ["--remote-debugging-port=0"] } } })}\n`);
+}
 
 export function playwrightServer(o: BrowserOptions): BrowserServer {
   const require = createRequire(import.meta.url);
@@ -51,11 +75,17 @@ export function playwrightServer(o: BrowserOptions): BrowserServer {
       "--browser",
       "chrome",
       "--user-data-dir",
-      path.join(o.homeDir, ".tah", "browser-profile"),
+      profileDir(o.homeDir),
       "--output-dir",
       path.join(o.cwd, ".tah", "browser"),
       "--image-responses",
       "omit",
+      "--config",
+      configFile(o.homeDir),
+      "--idle-timeout",
+      "0",
+      "--viewport-size",
+      "1280x720",
       ...(o.headless ? ["--headless"] : []),
     ],
   };
@@ -66,11 +96,12 @@ export function clipResult(out: unknown): unknown {
   return `${out.slice(0, BROWSER_RESULT_CHARS)}\n[truncated: ${out.length - BROWSER_RESULT_CHARS} more chars — use browser_find to search the page]`;
 }
 
-/** `browser_open` starts Playwright MCP on first use and mounts the browser tools; `browser_close` takes them down again. */
-export function createBrowser(o: BrowserOptions): { plugin: Plugin; isOpen(): boolean } {
+/** `browser_open` starts Playwright MCP on first use and mounts the browser tools; `browser_close` takes them down again. The panel can start the browser first (`launch`) without mounting them. */
+export function createBrowser(o: BrowserOptions): Browser {
   let tools: ToolService | undefined;
   let backend: McpBackend | undefined;
-  let opening: Promise<McpBackend> | undefined;
+  let starting: Promise<McpBackend> | undefined;
+  let infos: McpToolInfo[] = [];
   let mounted: string[] = [];
 
   async function shut() {
@@ -81,60 +112,62 @@ export function createBrowser(o: BrowserOptions): { plugin: Plugin; isOpen(): bo
     await b?.close?.();
   }
 
+  /** Playwright MCP starts Chrome on its first tool call; `browser_tabs` makes that happen now. */
   async function start(): Promise<McpBackend> {
+    if (!o.server) writeBrowserConfig(o.homeDir);
     const b = stdioMcpBackend({ ...(o.server ?? playwrightServer(o)), cwd: o.cwd });
     try {
-      const infos = (await b.listTools()).filter((t) => BROWSER_TOOLS.includes(t.name));
-      for (const info of infos) {
-        tools!.register({
-          name: info.name,
-          description: info.description,
-          inputSchema: info.inputSchema,
-          async execute(input) {
-            const out = clipResult(mcpResultText(await b.callTool(info.name, input)));
-            if (info.name === "browser_close") await shut();
-            return out;
-          },
-        });
-        mounted.push(info.name);
-      }
-      backend = b;
-      return b;
+      infos = (await b.listTools()).filter((t) => BROWSER_TOOLS.includes(t.name));
+      mcpResultText(await b.callTool("browser_tabs", { action: "list" }));
     } catch (err) {
-      for (const name of mounted) tools!.unregister(name);
-      mounted = [];
       await b.close?.();
-      throw new Error(`could not start the browser: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      if (/already in use/i.test(message)) {
+        throw new Error(
+          `the browser profile ${profileDir(o.homeDir)} is in use by another tah — close that tah (or its browser) and try again`,
+        );
+      }
+      throw new Error(`could not start the browser: ${message}`);
+    }
+    backend = b;
+    return b;
+  }
+
+  const ensure = (): Promise<McpBackend> =>
+    backend ? Promise.resolve(backend) : (starting ??= start().finally(() => (starting = undefined)));
+
+  function mount(b: McpBackend) {
+    for (const info of infos) {
+      tools!.register({
+        name: info.name,
+        description: info.description,
+        inputSchema: info.inputSchema,
+        async execute(input) {
+          const out = clipResult(mcpResultText(await b.callTool(info.name, input)));
+          if (info.name === "browser_close") await shut();
+          return out;
+        },
+      });
+      mounted.push(info.name);
     }
   }
 
   const openTool: Tool = {
     name: "browser_open",
     description:
-      "Open a Chrome window the user can see (or reuse the open one) and go to `url` (a blank page if omitted). Afterwards the browser_* tools (navigate, snapshot, click, type, fill_form, …) are available. Use it for clicking, forms, logins, or pages rendered by JavaScript; use web_fetch to just read a page.",
+      "Open a Chrome browser the user can watch (or reuse the open one) and go to `url` if given. Afterwards the browser_* tools (navigate, snapshot, click, type, fill_form, …) are available. Use it for clicking, forms, logins, or pages rendered by JavaScript; use web_fetch to just read a page.",
     inputSchema: {
       type: "object",
-      properties: { url: { type: "string", description: "Page to open; omit for a blank page" } },
+      properties: { url: { type: "string", description: "Page to open; omit to stay on the current page" } },
       additionalProperties: false,
     },
     async execute(input) {
-      const wasOpen = backend !== undefined;
-      const b = backend ?? (await (opening ??= start().finally(() => (opening = undefined))));
+      const wasRunning = backend !== undefined;
+      const b = await ensure();
+      if (mounted.length === 0) mount(b);
       const url = (input as { url?: unknown } | undefined)?.url;
-      const target = typeof url === "string" && url ? url : wasOpen ? undefined : "about:blank";
-      let page: unknown = "";
-      if (target) {
-        try {
-          page = mcpResultText(await b.callTool("browser_navigate", { url: target }));
-        } catch (err) {
-          if (wasOpen || !/already in use/i.test(err instanceof Error ? err.message : String(err))) throw err;
-          await shut();
-          throw new Error(
-            `the browser profile ${path.join(o.homeDir, ".tah", "browser-profile")} is in use by another tah — close that tah (or its browser) and try again`,
-          );
-        }
-      }
-      return { opened: !wasOpen, tools: [...mounted], page: clipResult(page) };
+      const page = typeof url === "string" && url ? mcpResultText(await b.callTool("browser_navigate", { url })) : "";
+      return { opened: !wasRunning, tools: [...mounted], page: clipResult(page) };
     },
   };
 
@@ -149,6 +182,23 @@ export function createBrowser(o: BrowserOptions): { plugin: Plugin; isOpen(): bo
         await shut();
       },
     },
-    isOpen: () => backend !== undefined,
+    agentAttached: () => mounted.length > 0,
+    running: () => backend !== undefined,
+    async launch() {
+      await ensure();
+    },
+    cdpPort() {
+      if (!backend) return undefined;
+      try {
+        const port = Number(readFileSync(path.join(profileDir(o.homeDir), "DevToolsActivePort"), "utf8").split("\n")[0]);
+        return Number.isInteger(port) && port > 0 ? port : undefined;
+      } catch {
+        return undefined;
+      }
+    },
+    async close() {
+      await starting?.catch(() => {});
+      await shut();
+    },
   };
 }
