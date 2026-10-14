@@ -939,6 +939,8 @@ test("browser endpoints need sign-in and same origin; a folder without the brows
     assert.match(JSON.parse(self.body).error, /not tah itself/);
     assert.equal((await api.post("/api/browser/nav", { action: "forward" })).status, 400);
     assert.equal((await api.post("/api/browser/input", { type: "mouse" })).status, 400);
+    assert.equal((await api.post("/api/browser/dialog", { accept: "yes" })).status, 400);
+    assert.equal((await api.post("/api/browser/dialog", { accept: true, text: 1 })).status, 400);
   } finally {
     await s.close();
   }
@@ -968,6 +970,8 @@ test("browser panel over HTTP: open, stream frames, type; a browser tool event r
     assert.equal((await api.post("/api/browser/input", { type: "text", text: "hi" })).status, 204);
     assert.deepEqual(conns[0]!.sent.at(-1), { method: "Input.insertText", params: { text: "hi" }, sessionId: "S-T1" });
     assert.equal((await api.post("/api/browser/nav", { action: "reload" })).status, 204);
+    assert.equal((await api.post("/api/browser/dialog", { accept: false })).status, 204);
+    assert.deepEqual(conns[0]!.sent.at(-1), { method: "Page.handleJavaScriptDialog", params: { accept: false }, sessionId: "S-T1" });
 
     const from = watch.events.length;
     conns[0]!.cdp.close();

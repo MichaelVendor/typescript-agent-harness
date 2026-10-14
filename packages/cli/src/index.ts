@@ -9,6 +9,7 @@ export type { Todo, TodoStatus } from "@typescript-agent-harness/tools";
 export type { SessionRow } from "./sessions.js";
 export type { AttachmentMeta } from "./attachments/store.js";
 export type {
+  BrowserDialog,
   BrowserInput,
   BrowserState,
   BrowserStreamEvent,

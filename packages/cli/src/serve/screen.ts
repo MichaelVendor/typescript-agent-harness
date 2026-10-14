@@ -1,5 +1,5 @@
 import type { Browser } from "../browser.js";
-import type { BrowserInput, BrowserState, BrowserStreamEvent } from "./protocol.js";
+import type { BrowserDialog, BrowserInput, BrowserState, BrowserStreamEvent } from "./protocol.js";
 
 type Params = Record<string, unknown>;
 type Tab = BrowserState["tabs"][number];
@@ -185,6 +185,8 @@ export type Screen = {
   nav(action: "back" | "reload"): Promise<void>;
   tab(id: string): Promise<void>;
   input(input: BrowserInput): Promise<void>;
+  /** Answers the shown tab's JavaScript dialog. */
+  dialog(accept: boolean, text?: string): Promise<void>;
   close(): Promise<void>;
   dispose(): void;
 };
@@ -204,6 +206,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
   let casting = false;
   let lastFrame: Frame | undefined;
   let error: string | undefined;
+  let dialog: BrowserDialog | undefined;
   let disposed = false;
 
   const state = (): BrowserState => {
@@ -215,6 +218,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       tabs: [...tabs.values()],
       active,
       ...(error === undefined ? {} : { error }),
+      ...(dialog === undefined ? {} : { dialog }),
     };
   };
   const emit = (event: BrowserStreamEvent) => {
@@ -228,6 +232,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
     session = undefined;
     casting = false;
     lastFrame = undefined;
+    dialog = undefined;
   };
   const drop = () => {
     const c = cdp;
@@ -254,6 +259,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
     session = undefined;
     casting = false;
     lastFrame = undefined;
+    dialog = undefined;
     push();
     showing = (async () => {
       if (previous) await c.send("Target.detachFromTarget", { sessionId: previous }).catch(() => {});
@@ -280,6 +286,11 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       emit(lastFrame);
       return;
     }
+    if (method === "Page.javascriptDialogOpening" || method === "Page.javascriptDialogClosed") {
+      if (sessionId === undefined || sessionId !== session) return;
+      dialog = method === "Page.javascriptDialogOpening" ? { type: params.type as BrowserDialog["type"], message: params.message as string } : undefined;
+      return push();
+    }
     const info = params.targetInfo as TargetInfo | undefined;
     if (method === "Target.targetCreated" && info?.type === "page") {
       tabs.set(info.targetId, { id: info.targetId, title: info.title, url: info.url });
@@ -295,6 +306,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       session = undefined;
       casting = false;
       lastFrame = undefined;
+      dialog = undefined;
       const last = [...tabs.keys()].at(-1);
       if (last) void show(last);
       else push();
@@ -411,6 +423,10 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       const { c, s } = await ready();
       const [method, params] = cdpInput(input);
       await c.send(method, params, s);
+    },
+    async dialog(accept, text) {
+      const { c, s } = await ready();
+      await c.send("Page.handleJavaScriptDialog", { accept, ...(text === undefined ? {} : { promptText: text }) }, s);
     },
     async close() {
       const b = opts.browser();

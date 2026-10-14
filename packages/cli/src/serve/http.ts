@@ -454,6 +454,13 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "POST /api/browser/input":
         await screen.input(parseInput(await readBody(req)));
         return json(res, 204);
+      case "POST /api/browser/dialog": {
+        const body = await readBody(req);
+        if (typeof body.accept !== "boolean") throw new HttpError(400, '"accept" must be a boolean');
+        if (body.text !== undefined && typeof body.text !== "string") throw new HttpError(400, '"text" must be a string');
+        await screen.dialog(body.accept, body.text);
+        return json(res, 204);
+      }
       case "POST /api/browser/close":
         await screen.close();
         return json(res, 204);

@@ -37,6 +37,8 @@ export type ServeRequest = {
   browserOpen: { url?: string };
   browserNav: { action: "back" | "reload" };
   browserTab: { id: string };
+  /** `text` answers a `prompt` dialog. */
+  browserDialog: { accept: boolean; text?: string };
 };
 
 export type { AttachmentMeta };
@@ -99,7 +101,11 @@ export type BrowserState = {
   active: string | null;
   /** Why the browser last failed to start. */
   error?: string;
+  /** A JavaScript dialog the shown tab is waiting on; the page takes no input until it is answered. */
+  dialog?: BrowserDialog;
 };
+
+export type BrowserDialog = { type: "alert" | "confirm" | "prompt" | "beforeunload"; message: string };
 
 /** `POST /api/browser/input`: coordinates in page CSS pixels; `modifiers` bits: Alt 1, Ctrl 2, Meta 4, Shift 8. */
 export type BrowserInput =

@@ -233,6 +233,23 @@ test("input, back, reload and close go to the shown tab", async () => {
   assert.equal(screen.state().running, false);
 });
 
+test("a dialog in the shown tab is reported until it is answered", async () => {
+  const fb = fakeBrowser();
+  const fc = fakeCdp();
+  const screen = createScreen({ browser: () => fb.browser, connect: async () => fc.cdp });
+  await screen.open();
+  fc.event("Page.javascriptDialogOpening", { type: "alert", message: "elsewhere" }, "S-OTHER");
+  assert.equal(screen.state().dialog, undefined);
+  fc.event("Page.javascriptDialogOpening", { type: "prompt", message: "Name?" }, "S-T1");
+  assert.deepEqual(screen.state().dialog, { type: "prompt", message: "Name?" });
+  await screen.dialog(true, "Ann");
+  assert.deepEqual(fc.sent.at(-1), { method: "Page.handleJavaScriptDialog", params: { accept: true, promptText: "Ann" }, sessionId: "S-T1" });
+  fc.event("Page.javascriptDialogClosed", { result: true }, "S-T1");
+  assert.equal(screen.state().dialog, undefined);
+  await screen.dialog(false);
+  assert.deepEqual(fc.sent.at(-1), { method: "Page.handleJavaScriptDialog", params: { accept: false }, sessionId: "S-T1" });
+});
+
 test("connectCdp: a command sent after the connection closed fails at once", async () => {
   const sockets: Socket[] = [];
   const server = createServer((_req, res) => {
