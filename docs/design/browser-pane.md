@@ -154,7 +154,7 @@ type BrowserInput =
   - 键盘：画面上盖一个透明的 `<textarea>` 拿焦点。`keydown` / `keyup` 发 `key`；可打印字符由 `input` 事件整段发 `text`；输入法组字中（`isComposing`）不发，`compositionend` 后整段发 `text`。
   - 粘贴：读 `paste` 事件里的文字，发 `text`。
 - 关面板只是隐藏；「Close browser」才关 Chrome（会二次确认：Agent 正在用时会打断它）。
-- 浏览器没运行时，面板里只有地址栏和一行说明；启动失败显示 `error` 和「Retry」。
+- 浏览器没运行时，面板里只有地址栏和一行说明；启动失败在地址栏下方显示 `error`，在地址栏回车即重试。
 
 ### 入口
 
@@ -199,9 +199,9 @@ type BrowserInput =
 | 情况 | 表现 |
 | --- | --- |
 | 登录目录被另一个 tah 占用 | 面板显示和现在相同的提示（关掉那个 tah 再试） |
-| 没装 Chrome、启动失败 | `error` 显示原因，「Retry」 |
-| Chrome 崩溃、Playwright MCP 退出 | 面板显示「Browser closed」；下一次面板操作或 Agent 浏览器调用后重连 |
-| 切换文件夹 | 浏览器随旧文件夹关闭，面板显示「Browser closed」 |
+| 没装 Chrome、启动失败 | 地址栏下方显示原因；在地址栏回车重试 |
+| Chrome 崩溃、Playwright MCP 退出 | 面板回到「Enter a URL above to open the browser」；在地址栏回车（重新拉起 Chrome）或 Agent 下一次浏览器调用后重连 |
+| 切换文件夹 | 浏览器随旧文件夹关闭，面板回到「Enter a URL above to open the browser」 |
 | 地址不允许 | 400，地址栏下方显示原因 |
 | 浏览器不可用（配置关闭、`--mock`） | `available: false`；面板和按钮不出现，链接新标签页打开 |
 | 网页接收慢 | 丢旧帧，只发最新一帧 |
