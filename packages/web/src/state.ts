@@ -3,7 +3,7 @@ import type { AttachmentMeta, HistoryItem, HostEvent, Todo } from "@typescript-a
 export type Entry =
   | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
   | { id: number; kind: "assistant"; text: string }
-  | { id: number; kind: "tool"; callId: string; tool: string; summary: string; status: "running" | "ok" | "failed"; result: string }
+  | { id: number; kind: "tool"; callId: string; tool: string; summary: string; status: "running" | "ok" | "failed"; result: string; path?: string }
   | { id: number; kind: "notice"; text: string; error: boolean };
 
 export type Approval = { id: string; tool: string; input: unknown };
@@ -54,7 +54,15 @@ function push(state: State, ...items: NewEntry[]): State {
 
 function fromHistory(h: HistoryItem): NewEntry {
   if (h.role === "tool") {
-    return { kind: "tool", callId: h.callId, tool: h.tool, summary: h.summary, status: h.ok ? "ok" : "failed", result: h.result };
+    return {
+      kind: "tool",
+      callId: h.callId,
+      tool: h.tool,
+      summary: h.summary,
+      status: h.ok ? "ok" : "failed",
+      result: h.result,
+      ...(h.path ? { path: h.path } : {}),
+    };
   }
   if (h.role === "user") {
     return {
@@ -111,13 +119,22 @@ export function applyEvent(state: State, action: Action): State {
         summary: action.summary,
         status: "running",
         result: "",
+        ...(action.path ? { path: action.path } : {}),
       });
     case "tool.end": {
       const status = action.ok ? "ok" : "failed";
       const index = state.entries.findIndex((e) => e.kind === "tool" && e.callId === action.callId);
       const entry = state.entries[index];
       if (entry?.kind !== "tool") {
-        return push(state, { kind: "tool", callId: action.callId, tool: action.tool, summary: action.summary, status, result: action.result });
+        return push(state, {
+          kind: "tool",
+          callId: action.callId,
+          tool: action.tool,
+          summary: action.summary,
+          status,
+          result: action.result,
+          ...(action.path ? { path: action.path } : {}),
+        });
       }
       const entries = [...state.entries];
       entries[index] = { ...entry, status, result: action.result };

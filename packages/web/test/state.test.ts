@@ -123,3 +123,22 @@ test("errors, cancellations and reconnects", () => {
   assert.deepEqual(run([{ type: "local.reset" }], s), initialState);
   assert.deepEqual(run([{ type: "batch", actions: [session("s9"), { type: "user", text: "y" }] }]).entries.length, 1);
 });
+
+test("tool entries keep the file path from events and history", () => {
+  const live = run([
+    session("s1"),
+    { type: "tool.start", callId: "c1", tool: "write_file", summary: "a.md", path: "docs/a.md" },
+    { type: "tool.end", callId: "c1", tool: "write_file", summary: "a.md", ok: true, result: "written", path: "docs/a.md" },
+    { type: "tool.end", callId: "c2", tool: "edit_file", summary: "b.md", ok: false, result: "rejected", path: "b.md" },
+  ]);
+  const tools = live.entries.filter((e) => e.kind === "tool");
+  assert.deepEqual(
+    tools.map((e) => (e.kind === "tool" ? e.path : undefined)),
+    ["docs/a.md", "b.md"],
+  );
+  const resumed = run([
+    session("s2", [{ role: "tool", callId: "c1", tool: "read_file", summary: "a.md", ok: true, result: "2 lines", path: "a.md" }]),
+  ]);
+  const entry = resumed.entries[0];
+  assert.equal(entry?.kind === "tool" ? entry.path : undefined, "a.md");
+});

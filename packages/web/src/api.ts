@@ -1,6 +1,7 @@
 import type {
   AttachmentMeta,
   DirListing,
+  FileStat,
   HostEvent,
   RecentFolder,
   ServeError,
@@ -11,6 +12,7 @@ import type {
   SkillsView,
   WorkspaceView,
 } from "@typescript-agent-harness/cli";
+import { fileQuery, type FileTarget } from "./preview-view";
 
 export class ApiError extends Error {
   constructor(
@@ -35,6 +37,11 @@ async function call(method: "GET" | "POST", path: string, body?: unknown): Promi
 }
 
 const post = (path: string, body?: unknown) => call("POST", path, body).then(() => undefined);
+
+/** Address of a file's bytes; `v` changes with the file, so the browser never shows a stale copy. */
+export function fileRawURL(target: FileTarget, mtime: number): string {
+  return `/api/files/raw?${fileQuery(target)}&v=${mtime}`;
+}
 
 export const api = {
   auth: (body: ServeRequest["auth"]) => post("/api/auth", body),
@@ -86,6 +93,14 @@ export const api = {
     (await (await call("POST", "/api/settings/active", body)).json()) as SettingsView,
   searchKey: async (body: ServeRequest["searchKey"]) =>
     (await (await call("POST", "/api/settings/search", body)).json()) as SettingsView,
+  fileStat: async (target: FileTarget) =>
+    (await (await call("GET", `/api/files/stat?${fileQuery(target)}`)).json()) as FileStat,
+  /** The first `limit` bytes as text. */
+  async fileText(target: FileTarget, mtime: number, limit: number): Promise<string> {
+    const res = await fetch(fileRawURL(target, mtime), { headers: { range: `bytes=0-${limit - 1}` } });
+    if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`);
+    return res.text();
+  },
   skills: async () => (await (await call("GET", "/api/skills")).json()) as SkillsView,
   importSkills: async (body: ServeRequest["importSkills"]) =>
     (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,
