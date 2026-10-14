@@ -1,6 +1,6 @@
 # 设计说明：macOS 客户端
 
-状态：📐 已设计
+状态：✅ 已实现（v0.34）
 
 `tah serve` 要先装 Node、在终端里启动，再打开浏览器。本设计把它包成一个 macOS App：双击打开，选个文件夹就能用。思路和 DeepSeek Harness 的桌面端一样——客户端只是网页工作台的壳，Agent 仍跑在本机的 Node 进程里。
 
@@ -77,7 +77,7 @@ tah.app
 
 - 位置：`apps/desktop`（私有包，不发 npm）；`pnpm-workspace.yaml` 加 `apps/*`。
 - Node：构建时下载固定版本的官方 Node 22 LTS（`darwin-arm64`），按官方 `SHASUMS256.txt` 校验，只取 `bin/node`，放进 `Resources/node/bin/`。解压后约 110MB，`.dmg` 压缩后约多 40MB。版本号写在 `apps/desktop` 的配置里。
-- tah：先 `pnpm -r build`，再用 `pnpm deploy --prod` 把 `@typescript-agent-harness/cli` 连同依赖装成普通目录（不用 pnpm 的软链接），放进 `Resources/tah/`。
+- tah：先 `pnpm -r build`，再用 `pnpm --filter @typescript-agent-harness/cli deploy --prod --legacy --config.node-linker=hoisted` 把 cli 连同依赖装成普通目录，删掉 `node_modules/.bin`（只有软链接），放进 `Resources/tah/`。
 - Electron 用实施时的稳定版，锁定版本号；它只当窗口用，内置的 Node 不跑 tah。
 - 用 electron-builder 出 `apps/desktop/release/tah-<版本>-arm64.dmg`；只做本机运行需要的临时签名（ad-hoc）。版本号跟仓库一致。
 - 命令：`pnpm --filter desktop dist`。不进 CI、不进发版流程。

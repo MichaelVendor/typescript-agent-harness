@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+Desktop: **macOS app** (`apps/desktop`, Apple Silicon, built locally with `pnpm --filter desktop dist` → `apps/desktop/release/tah-<version>-arm64.dmg`, unsigned). It wraps `tah serve` in a window: double-click to open, reopens the last folder (first launch asks for one), and agent commands get the PATH from your login shell. It ships its own Node 22 and shares `~/.tah` with the command line. Closing the window keeps tah running; ⌘Q stops it. No changes to the published packages.
+
 ## 0.33.0 — 2026-10-13
 
 Images: each saved model has a **"can read images"** setting (Settings → Models: "Can read images" when adding, an "Images" checkbox on each model; the composer's model menu tags them "images"). Image attachments go to a model as pictures only when it is marked; the `.env` model still follows `--vision` / `TAH_VISION=1` / `capabilities.vision`. When the model in use can't read images, images already in the conversation are sent as `[image omitted]` text, so switching from a vision model to a text-only one no longer breaks the request. New endpoint `POST /api/settings/models/vision` `{ id, vision }`; `POST /api/settings/models` accepts `vision`; `GET /api/settings` models carry `vision`. LLM package: `images: false` option.
