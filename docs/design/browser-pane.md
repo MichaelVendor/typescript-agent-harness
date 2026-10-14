@@ -66,10 +66,10 @@ type Browser = {
   cdpPort(): number | undefined;
   /** 关浏览器、收回工具。 */
   close(): Promise<void>;
-  /** 启动、关闭、挂工具、每次 Agent 浏览器工具调用后触发。 */
-  onChange(listener: () => void): () => void;
 };
 ```
+
+浏览器对象随 host 重建（热更新、切换文件夹）而换新，所以 `serve` 不订阅它；Agent 用浏览器的变化从事件中心的 `tool.end`（`browser_*`）和 `session` 事件得知，见「三、接口」。
 
 - Playwright MCP 参数加 `--config <file>`（内容为 `{ browser: { launchOptions: { args: ["--remote-debugging-port=0"] } } }`，写在 `~/.tah/browser-config.json`）、`--idle-timeout 0`、`--viewport-size 1280x720`。
 - `headless`：`tah run` 和 `tah serve` 为无界面，只有 `tah chat` 弹窗口（`runtime.ts` 里由 `flags.command === "run"` 改为 `!== "chat"`）。
@@ -90,7 +90,7 @@ type Browser = {
 | `GET /api/browser` | `BrowserState`：浏览器可不可用、是否在运行、Agent 是否已接入、标签页列表 |
 | `GET /api/browser/stream` | SSE：`state`（`BrowserState`）和 `frame`（`{ data: base64 JPEG, width, height }`，宽高是页面的 CSS 像素） |
 | `POST /api/browser/open` | `{ url?: string }`：没运行就启动；有 `url` 就在当前标签页打开 |
-| `POST /api/browser/nav` | `{ action: "back" \| "forward" \| "reload" }` |
+| `POST /api/browser/nav` | `{ action: "back" \| "reload" }` |
 | `POST /api/browser/tab` | `{ id: string }`：面板切到这个标签页 |
 | `POST /api/browser/input` | 鼠标、滚轮、按键、文字，见下 |
 | `POST /api/browser/close` | 关闭浏览器 |
@@ -132,7 +132,7 @@ type BrowserInput =
 - 用 Node 22 自带的 `WebSocket` 连 CDP，不加依赖。连浏览器级别的端点，`Target.setDiscoverTargets` 跟踪标签页；面板显示的标签页用 `Target.attachToTarget`（`flatten`）单独会话截屏和输入。
 - 跟随规则：默认显示最新打开的标签页；新标签页出现（Agent 新开、页面弹窗如 OAuth 登录）就切过去；用户可以在下拉里切换。面板显示的标签页可能和 Agent 正在操作的不是同一个。
 - 只在至少有一个 `stream` 订阅时截屏；多个网页标签页共用一路，分发给每个。写不进去（`res.write` 返回 false）的订阅者只保留最新一帧，旧帧丢掉；收到帧立即 `screencastFrameAck`。
-- 连接断开（Chrome 崩溃、浏览器关闭、切换文件夹）：推 `state`（`running: false` 或 `error`）。下一次 `open`、或 `browser.onChange` 时浏览器还在运行，就重新读 `DevToolsActivePort` 再连（Playwright 重启 Chrome 后端口会变）。
+- 连接断开（Chrome 崩溃、浏览器关闭、切换文件夹）：推 `state`（`running: false` 或 `error`）。`serve` 订阅事件中心：收到 `browser_*` 的 `tool.end` 或 `session` 事件时同步一次——浏览器换了或不在运行就断开；在运行、还没连上、且面板开着，就重新读 `DevToolsActivePort` 再连（Playwright 重启 Chrome 后端口会变）。下一次 `open` 也会连。
 - 输入内容不写日志、不进会话和事件流。
 
 ## 四、网页（`packages/web`）
@@ -141,7 +141,7 @@ type BrowserInput =
 
 - 和文件预览共用右侧面板：同一个宽度（`tah.previewWidth`）、同一条分隔线、窄屏（< 900px）同样浮在对话上面。
 - 文件预览和浏览器都打开时，面板顶部出现「File / Browser」切换；只开一个时不显示。
-- 顶栏加「Browser」按钮（浏览器不可用时不显示），打开面板的浏览器页。
+- 底部状态栏（「Compact」旁边）加「Browser」按钮（浏览器不可用时不显示），打开面板的浏览器页。
 - 面板文字和网页其他部分一样用英文。
 
 ### 面板
@@ -163,7 +163,7 @@ type BrowserInput =
 | Agent 调 `browser_open` | 收到 `tool.start` 就打开面板并切到浏览器页。之后的 `browser_*` 不强制弹出（用户关了不再被打开） |
 | 对话里的 http(s) 链接 | 点击：在面板打开（没运行就先启动，这是用户自己的操作，不需要审批）。⌘ / Ctrl 点击、或指向 tah 自己的链接：照旧新标签页 |
 | HTML 文件预览 | 面板顶部加「Open in browser」，`open` 它的 `previewURL` |
-| 顶栏「Browser」按钮 | 打开面板，用地址栏 |
+| 状态栏「Browser」按钮 | 打开面板，用地址栏 |
 
 浏览器不可用（`available: false`）时，链接照旧新标签页打开。切换文件夹、新建 / 切换会话时重新 `GET /api/browser`（浏览器跟着文件夹关闭）。
 
@@ -172,10 +172,13 @@ type BrowserInput =
 | 文件 | 内容 |
 | --- | --- |
 | `src/browser-view.ts`（新） | 纯函数：链接走面板还是新标签页、坐标换算、键盘事件转 `BrowserInput`、Agent 是否在用浏览器 |
-| `src/components/BrowserPane.tsx`（新） | 面板 |
-| `src/components/FilePreview.tsx` | 「Open in browser」 |
+| `src/components/SidePanel.tsx`（新） | 右侧面板外壳：宽度、拖动、「File / Browser」切换（从 `FilePreview` 移出来） |
+| `src/components/BrowserPane.tsx`（新） | 浏览器面板 |
+| `src/components/FilePreview.tsx` | 「Open in browser」；外壳交给 `SidePanel` |
+| `src/components/StatusBar.tsx` | 「Browser」按钮 |
+| `src/components/ApprovalCard.tsx` | `browser_open` 说明改为「可在 Browser 面板里看、接手」 |
 | `src/components/Messages.tsx` | http(s) 链接点击 |
-| `src/App.tsx`、`styles.css` | 右侧面板切换、顶栏按钮 |
+| `src/App.tsx`、`styles.css` | 右侧面板切换、浏览器面板的开关 |
 | `src/api.ts` | `browserState()`、`browserStream()`、`browserOpen()`、`browserNav()`、`browserTab()`、`browserInput()`、`browserClose()` |
 
 ## macOS 客户端
@@ -212,7 +215,7 @@ type BrowserInput =
 - `packages/cli/test/serve.test.ts`：`/api/browser*` 未登录 401、跨源 403；`--mock` 下 `available: false`；`open` tah 自己的地址 400。
 - `packages/web/test/browser-view.test.ts`（新）：链接分流、坐标换算、键盘和输入法转换、Agent 是否在用浏览器。
 - 手动验收（临时 HOME、真 Chrome，网页和客户端各一次）：
-  1. 顶栏「Browser」打开 `https://example.com`，点击链接、滚动、在搜索框输入中文。
+  1. 状态栏「Browser」打开 `https://example.com`，点击链接、滚动、在搜索框输入中文。
   2. 让 Agent 打开一个网页：审批弹出，批准后面板自动出现，能看到它操作。
   3. 在面板里点一下页面，再让 Agent 描述页面，它看到了变化。
   4. 对话里点一个 `http://localhost:<开发服务器>` 链接，在面板打开。
