@@ -18,6 +18,10 @@
 | 12 | 附件（`tah serve`：上传、路径投影、可选 vision） | ✅ `v0.27` |
 | 13 | 项目配置（`tah.config.json` 能力包） | ✅ `v0.28` |
 | 14 | Skills（`SKILL.md`、catalog、`skill` 工具、`/name`、热更新） | ✅ `v0.29` |
+| 15 | 网页工作文件夹 + Settings（模型、API key） | ✅ `v0.30` |
+| 16 | 内置工具补齐（`edit_file`、`todo_write`、`web_fetch` / `web_search`、内置浏览器）+ 上下文压缩 | ✅ `v0.31` |
+| 17 | 网页参考 DeepSeek Harness：侧栏、输入框模型选择 | ✅ `v0.32` |
+| 18 | 看图：每个模型单独设能否看图，macOS `read_image_text` 识别图中文字 | ✅ `v0.33` |
 
 ## Phase 1 — Runtime ✅
 
@@ -229,6 +233,43 @@ cd packages/cli && pnpm build && node --test --experimental-strip-types test/ski
 mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah --mock chat   # 试 /hello
 ```
 
+## Phase 15 — 工作文件夹 + Settings ✅（v0.30）
+
+设计见 [工作文件夹](/design/workspaces)。
+
+交付物：
+
+- 侧栏按文件夹分组列出会话；打开、新建文件夹，切到别的文件夹的会话时 Agent 工作目录跟着换
+- Settings：添加模型（名字、API key、可选 base URL）并选一个在用，存 `~/.tah/settings.json`（0600），优先于 `.env`；key 只进不出
+- Settings → Skills：列出已加载的 skill，导入到 `~/.tah/skills`（v0.30.1）
+- 连续的工具调用折叠成一块
+
+## Phase 16 — 内置工具补齐 + 上下文压缩 ✅（v0.31）
+
+交付物：
+
+- `edit_file`（精确替换，需审批）、`todo_write`（任务列表，网页显示在输入框上方）
+- `web_fetch`（不要 key，只取公网地址）、`web_search`（Tavily key）；`capabilities.web` 控制
+- 内置浏览器：`browser_open` 获批后挂 `browser_*` 工具，驱动本机 Chrome（见 [内置浏览器](/design/browser)）
+- 上下文超预算时先让模型总结早先的轮次，失败再裁剪；`/compact` 或网页 **Compact** 手动压缩
+
+## Phase 17 — 网页参考 DeepSeek Harness ✅（v0.32）
+
+交付物：
+
+- 侧栏：搜索会话、按文件夹 / 平铺切换、每组先显示 5 个、收起成图标栏
+- 输入框改成卡片式，发送按钮左边是模型按钮，按服务商列出已存模型和 `.env` 模型
+
+## Phase 18 — 看图 ✅（v0.33）
+
+设计见 [附件](/design/attachments)。
+
+交付物：
+
+- Settings 里每个模型可勾「能看图」；在用的模型决定图片附件是否直接发给模型（`.env` 模型仍看 `--vision`）
+- 不能看图的模型：会话里的旧图片换成 `[image omitted]`，附件说明改为提示用 `read_image_text`
+- `read_image_text`：macOS 用系统 OCR 识别中英文，跟内置文件工具一起挂；Windows / Linux 不提供
+
 ## 非目标（刻意不做）
 
 - Phase 1–3 不做 Electron / 完整 Web IDE  
@@ -240,6 +281,6 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.29`）  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.33`）  
 - `v0.N`：当前小版本的开发分支，合入 `main` 后打 `v0.N.x`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  

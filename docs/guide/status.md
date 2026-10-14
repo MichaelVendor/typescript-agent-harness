@@ -13,14 +13,14 @@
 | 包 | 作用 |
 | --- | --- |
 | `@typescript-agent-harness/core` | Runtime / Plugin / Context / Service / EventBus + waterfall 拦截 |
-| `@typescript-agent-harness/llm` | mock + OpenAI 兼容（DeepSeek） |
-| `@typescript-agent-harness/tools` | registry + list/read/write/grep + execute_command |
-| `@typescript-agent-harness/agent` | Session + DefaultLoop + resume + `run_subagent` + 上下文裁剪 |
+| `@typescript-agent-harness/llm` | mock + OpenAI 兼容（DeepSeek）+ 图片消息（不能看图的模型用 `images: false`，v0.33） |
+| `@typescript-agent-harness/tools` | registry + list/read/write/edit/grep + execute_command + `todo_write` + `web_fetch` / `web_search`（v0.31） |
+| `@typescript-agent-harness/agent` | Session + DefaultLoop + resume + `run_subagent` + 上下文压缩与裁剪（v0.31） |
 | `@typescript-agent-harness/storage` | SQLite / memory、事件日志、checkpoint |
 | `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |
 | `@typescript-agent-harness/mcp` | `McpBackend` → Tool（进程内 ping + stdio） |
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
-| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包 · **Skills**（`skill` 工具 + `/name`，v0.29，见 [设计说明](/design/skills)） |
+| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包 · **Skills**（`skill` 工具 + `/name`，v0.29，见 [设计说明](/design/skills)）· 网页工作文件夹与 Settings（v0.30）· 内置浏览器（v0.31）· 输入框模型选择（v0.32）· 每个模型单独设能否看图 + macOS `read_image_text`（v0.33） |
 
 未做：官方 MCP SDK 封装、shell/sandbox、插件市场。上网用官方 `web_fetch` / `web_search`；需要点击、填表、登录时用内置浏览器 `browser_open`（v0.31，见 [内置浏览器](/design/browser)）。
 
