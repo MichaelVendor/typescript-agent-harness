@@ -115,6 +115,7 @@ export const api = {
   browserNav: (body: ServeRequest["browserNav"]) => post("/api/browser/nav", body),
   browserTab: (body: ServeRequest["browserTab"]) => post("/api/browser/tab", body),
   browserInput: (input: BrowserInput) => post("/api/browser/input", input),
+  browserDialog: (body: ServeRequest["browserDialog"]) => post("/api/browser/dialog", body),
   browserClose: () => post("/api/browser/close"),
 };
 

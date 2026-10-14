@@ -53,6 +53,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   };
 
   const tab = state?.tabs.find((t) => t.id === state.active);
+  const dialog = state?.dialog;
   const shown = address ?? tab?.url ?? "";
 
   const point = (e: { clientX: number; clientY: number }) => {
@@ -185,6 +186,26 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
       </div>
       {props.agentBusy ? <div className="browser-agent">Agent is using the browser</div> : null}
       {failed || state?.error ? <div className="preview-note browser-error">{failed ?? state?.error}</div> : null}
+      {dialog ? (
+        <form
+          key={`${dialog.type}:${dialog.message}`}
+          className="browser-dialog"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const text = new FormData(e.currentTarget).get("text");
+            run(api.browserDialog({ accept: true, ...(typeof text === "string" ? { text } : {}) }));
+          }}
+        >
+          <span>{dialog.message || (dialog.type === "beforeunload" ? "Leave this page?" : "The page is asking")}</span>
+          {dialog.type === "prompt" ? <input name="text" aria-label="Answer" autoFocus /> : null}
+          <button type="submit">OK</button>
+          {dialog.type === "alert" ? null : (
+            <button type="button" onClick={() => run(api.browserDialog({ accept: false }))}>
+              Cancel
+            </button>
+          )}
+        </form>
+      ) : null}
       <div className="browser-screen">
         {state?.running && frame ? (
           <div className="browser-frame">

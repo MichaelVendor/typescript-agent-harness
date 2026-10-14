@@ -1435,6 +1435,28 @@ button.user-attach-chip {
   margin: 0;
   padding: 4px 10px;
 }
+.browser-dialog {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.browser-dialog span {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.browser-dialog input {
+  flex: 1;
+  min-width: 120px;
+  font-size: 12px;
+  padding: 3px 8px;
+}
 .browser-screen {
   flex: 1;
   min-height: 0;
