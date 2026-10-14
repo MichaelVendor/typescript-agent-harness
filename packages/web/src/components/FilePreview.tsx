@@ -37,7 +37,7 @@ export function FilePreview(props: {
   const [source, setSource] = useState(false);
   const [text, setText] = useState<string>();
   const [width, setWidth] = useState(() =>
-    Math.min(Math.max(Number(localStorage.getItem(WIDTH)) || 480, 280), window.innerWidth - 360),
+    Math.max(Math.min(Number(localStorage.getItem(WIDTH)) || 480, window.innerWidth - 360), 280),
   );
   const drag = useRef<{ x: number; width: number } | undefined>(undefined);
 
@@ -86,7 +86,7 @@ export function FilePreview(props: {
   };
   const moveDrag = (e: PointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
-    const next = Math.min(Math.max(drag.current.width + drag.current.x - e.clientX, 280), window.innerWidth - 360);
+    const next = Math.max(Math.min(drag.current.width + drag.current.x - e.clientX, window.innerWidth - 360), 280);
     setWidth(next);
   };
   const endDrag = () => {
