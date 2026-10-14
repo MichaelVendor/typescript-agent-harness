@@ -123,7 +123,7 @@ sequenceDiagram
 | Cordis 插件元框架 | 自研轻量 Plugin + Context（Phase 1） |
 | Everything is a plugin | Everything is a capability（以 Plugin 挂载） |
 | SessionEvent 日志 | Session + Event Log + Checkpoint（Phase 3） |
-| 完整 Web / Desktop | 终端 TUI + 本机网页工作台（`tah serve`）；不做桌面端 |
+| 完整 Web / Desktop | 终端 TUI + 本机网页工作台（`tah serve`）+ macOS 客户端（`apps/desktop`，壳里跑 `tah serve`，内核不变） |
 | `cordis-plugin-hmr` 按插件热替换 | 约定式项目文件改动后整个 Runtime 重建，不做插件级热替换（v0.26） |
 
 我们借鉴的是**架构思想**，不是 1:1 复刻 Cordis / dsh 产品面。
