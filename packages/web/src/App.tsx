@@ -12,7 +12,7 @@ import { OpenProject } from "./components/OpenProject";
 import { Settings } from "./components/Settings";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
-import { touchesFiles, type FileTarget } from "./preview-view";
+import { fileQuery, touchesFiles, type FileTarget } from "./preview-view";
 import { applyEvent, initialState, type Action } from "./state";
 
 export function App() {
@@ -202,7 +202,13 @@ export function App() {
         />
       </main>
       {preview ? (
-        <FilePreview target={preview} version={previewVersion} onOpen={setPreview} onClose={closePreview} />
+        <FilePreview
+          key={fileQuery(preview)}
+          target={preview}
+          version={previewVersion}
+          onOpen={setPreview}
+          onClose={closePreview}
+        />
       ) : null}
     </div>
   );

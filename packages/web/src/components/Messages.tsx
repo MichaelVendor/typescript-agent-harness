@@ -29,7 +29,7 @@ function fileLinks(onOpen: Open): Components {
       );
     },
     code({ node: _node, children, ...rest }) {
-      const file = typeof children === "string" ? codePath(children) : null;
+      const file = typeof children === "string" && !children.includes("\n") ? codePath(children) : null;
       if (!file) return <code {...rest}>{children}</code>;
       return (
         <code

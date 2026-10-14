@@ -1312,9 +1312,10 @@ button.user-attach-chip {
   padding: 2px 8px;
   border: 1px solid var(--border);
   background: var(--bg);
+  color: var(--muted);
 }
 
-.preview {
+.file-preview {
   position: relative;
   flex: none;
   display: flex;
@@ -1396,12 +1397,12 @@ button.user-attach-chip {
 }
 
 @media (max-width: 900px) {
-  .preview {
+  .file-preview {
     position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
-    z-index: 20;
+    z-index: 15;
     max-width: 100%;
     box-shadow: -8px 0 24px rgb(0 0 0 / 0.2);
   }

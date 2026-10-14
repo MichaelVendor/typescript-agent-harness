@@ -40,13 +40,6 @@ export function FilePreview(props: {
   const drag = useRef<{ x: number; width: number } | undefined>(undefined);
 
   useEffect(() => {
-    setStat(undefined);
-    setGone(false);
-    setFailed(undefined);
-    setSource(false);
-  }, [key]);
-
-  useEffect(() => {
     let live = true;
     api.fileStat(target).then(
       (next) => {
@@ -102,7 +95,7 @@ export function FilePreview(props: {
 
   const title = stat?.path ?? ("path" in target ? target.path : "attachment");
   return (
-    <aside className="preview" style={{ width }}>
+    <aside className="file-preview" style={{ width }}>
       <div className="preview-resize" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} />
       <div className="preview-head">
         <span className="preview-title" title={title}>
