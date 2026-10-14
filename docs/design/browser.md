@@ -2,6 +2,8 @@
 
 状态：✅ 已实现（随 **`v0.31`** 发布）
 
+v0.36 起 `tah serve` 不再弹出 Chrome 窗口，画面在网页的[浏览器面板](./browser-pane.md)里。
+
 `web_fetch` 只拿服务器返回的 HTML，不跑 JS，也不能点击、登录。本设计内置 [Playwright MCP](https://github.com/microsoft/playwright-mcp)，让 Agent 像 Cursor 的浏览器工具那样操作一个真的 Chrome。
 
 ## 背景
@@ -14,7 +16,7 @@
 
 - 默认可用、平时零开销：只挂一个小入口工具 `browser_open`，模型调用后才启动浏览器、挂上完整的浏览器工具（同 Cursor 的按需加载）。
 - 打开浏览器前问一次用户；之后的操作不再问，上传本机文件除外。
-- `tah serve` / `tah chat` 弹出可见的 Chrome 窗口，用户能看着它操作；`tah run` 用无界面模式。
+- `tah chat` 弹出可见的 Chrome 窗口；`tah serve` 在浏览器面板里显示画面（v0.36）；`tah run` 用无界面模式。
 - 登录状态保存在 `~/.tah/browser-profile`，所有文件夹共用。
 - 修好 MCP stdio 客户端，用户自己的 `extensions.mcp` 也能连真服务器。
 
@@ -60,7 +62,7 @@
 - 输入 `{ url?: string }`。
 - 浏览器没开：启动 Playwright MCP 进程，`tools/list` 后把白名单里的工具注册进工具表；有 `url` 就接着调用 `browser_navigate`。返回 `{ opened: true, tools: [...] }` 和导航结果。
 - 浏览器已开：不重启；有 `url` 就导航，没有就停在当前页面。
-- 第一次打开且没给 `url` 时导航到 `about:blank`，让窗口立刻出现（Playwright MCP 在第一次工具调用时才启动 Chrome）。
+- 启动时先调一次 `browser_tabs`（`action: "list"`），让 Chrome 立刻启动（Playwright MCP 在第一次工具调用时才启动 Chrome）；没给 `url` 就停在当前页面。
 - agent loop 每次请求前都重新读工具表（`listSchemas()`），所以新工具在下一步就能被模型看到。
 
 启动参数：
@@ -71,7 +73,10 @@
 | `--user-data-dir` | `~/.tah/browser-profile` |
 | `--output-dir` | `<cwd>/.tah/browser`（截图等输出） |
 | `--image-responses` | `omit`（不回传图片） |
-| `--headless` | 仅 `tah run`；`tah chat`（含 `--plain`）和 `tah serve` 弹出窗口 |
+| `--headless` | `tah run` 和 `tah serve`；只有 `tah chat`（含 `--plain`）弹出窗口 |
+| `--config` | `~/.tah/browser-config.json`：Chrome 加 `--remote-debugging-port=0`，给浏览器面板用（v0.36） |
+| `--idle-timeout` | `0`：无界面时不因空闲关浏览器（用户可能只在面板里浏览） |
+| `--viewport-size` | `1280x720` |
 | 进程 cwd | 当前工作文件夹（Playwright 默认只允许访问这个目录下的文件） |
 
 ### 挂哪些工具（18 个）
@@ -95,11 +100,11 @@
 
 | 工具 | 规则 |
 | --- | --- |
-| `browser_open` | 浏览器没开时需要审批；已开时自动放行 |
+| `browser_open` | Agent 还没接入时需要审批（用户先在浏览器面板里打开了浏览器也一样）；接入后自动放行 |
 | `browser_file_upload` | 每次都要审批（读本机文件） |
 | 其他浏览器工具 | 不问 |
 
-实现：两者加入 `APPROVAL_TOOLS`；CLI 传给 `approvalPlugin` 的 `ask` 先判断「是 `browser_open` 且浏览器已开」就直接返回 `yes`，不改 `packages/permissions`。`--yes` 照常全部跳过。
+实现：两者加入 `APPROVAL_TOOLS`；CLI 传给 `approvalPlugin` 的 `ask` 先判断「是 `browser_open` 且 Agent 已接入（`agentAttached()`）」就直接返回 `yes`，不改 `packages/permissions`。`--yes` 照常全部跳过。
 
 审批卡片：`browser_open` 显示「Open browser」和网址；`browser_file_upload` 显示文件路径。
 
@@ -111,7 +116,7 @@
 
 ## 五、提示词
 
-`web` 规则后追加：读静态网页用 `web_fetch`；需要点击、填表、登录，或页面靠 JS 渲染读不到内容时，先 `browser_open`。遇到登录、验证码、支付或需要人工确认的操作，停下来告诉用户在弹出的窗口里自己完成。
+`web` 规则后追加：读静态网页用 `web_fetch`；需要点击、填表、登录，或页面靠 JS 渲染读不到内容时，先 `browser_open`。遇到登录、验证码、支付或需要人工确认的操作，停下来告诉用户在那个浏览器里自己完成（`tah chat` 是弹出的窗口，`tah serve` 是浏览器面板）。
 
 ## 六、显示
 
@@ -124,7 +129,7 @@
 ## 测试
 
 - `packages/mcp`：按行收发的假服务器；结果转换（text 拼接、image 省略、`isError` 抛错）。
-- `packages/cli`：用假 MCP 服务器代替 Playwright（可注入启动命令），测 `browser_open` 前后工具表变化、已开时自动放行、`browser_close` 后撤下工具、截断、`capabilities.browser: false`、`--mock` 不挂。
+- `packages/cli`：用假 MCP 服务器代替 Playwright（可注入启动命令），测 `browser_open` 前后工具表变化、Agent 已接入时自动放行、`browser_close` 后撤下工具、截断、`capabilities.browser: false`、`--mock` 不挂。
 - 端到端（手动，临时 HOME）：真 Playwright 打开本机测试页，点击、输入、读快照；`tah serve` 里弹出窗口并批准；`tah run` 无界面。
 
 ## 后续

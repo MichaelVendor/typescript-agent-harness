@@ -109,6 +109,8 @@ Skills（v0.30.1）：`GET /api/skills` 列出当前文件夹加载的 skill（`
 
 文件预览（v0.35）：`GET /api/files/stat?path=…`（或 `?attachment=<id>`）返回 `FileStat`；`GET /api/files/raw` 返回文件字节（支持 `Range`）；`GET /preview/<预览令牌>/<相对路径>` 给 HTML 预览用（不需要登录，CSP sandbox）。都只读、只限当前工作文件夹，见 [文件预览](./file-preview.md)。
 
+浏览器面板（v0.36）：`GET /api/browser` 返回 `BrowserState`；`GET /api/browser/stream` 是 SSE（`state` 和截屏 `frame`）；`POST /api/browser/open`（`{ url? }`）、`/nav`（`{ action: "back" | "reload" }`）、`/tab`（`{ id }`）、`/input`（`BrowserInput`）、`/close`。都要登录；`open` 不接受 tah 自己的地址（`/preview/` 除外）。见 [浏览器面板](./browser-pane.md)。
+
 上面设置的五个 POST 都返回新的 `GET /api/settings` 结果。模型存在 `~/.tah/settings.json`（权限 0600），所有文件夹共用；选中的模型优先于 `.env`。不填 `baseURL` 时，名字以 `deepseek` 开头用 `https://api.deepseek.com/v1`，否则用 `https://api.openai.com/v1`。API key 只进不出：网页只拿到 `keyHint`（如 `sk-…abcd`）。选中的模型（或它的 `vision`）变了，当前文件夹的 host 重新加载（会话保留，下一轮生效）；一轮进行中返回 409。没有任何 key 时 `tah serve` 照常启动，发消息时报「no model configured」。
 
 规则：
@@ -146,6 +148,7 @@ hub 维护：
 - `~/.tah/settings.json` 明文存 API key，只有当前用户可读写（0600）；接口从不返回完整 key。
 - 打开一个文件夹会加载它的 `tools/`、`plugins/`、`skills/` 与 `tah.config.json`，和在那里跑 `tah chat` 一样会执行其中代码；只添加信任的文件夹。
 - 文件预览接口只读、只限当前工作文件夹（`realpath` 后比较，软链接不能指向外面）；HTML 预览在 sandbox 不透明来源里运行，拿不到登录 cookie、调不了 `/api`，但能用预览令牌加载这个文件夹里的文件（图片、样式、脚本；`fetch()` 读不到内容）。只预览信任的 HTML。
+- 浏览器面板：Chrome 的调试端口只监听 `127.0.0.1`；面板不能打开 tah 自己的地址（`/preview/` 除外），Agent 的浏览器拿不到登录 cookie；用户在面板里的输入不写日志、不进会话。
 
 ## 命令
 

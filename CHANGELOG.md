@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+Web (`tah serve`): **browser panel** — the built-in browser now shows in a panel on the right instead of a separate Chrome window: watch the agent click and type, or take over yourself (click, scroll, type — including Chinese input methods — e.g. to log in or solve a captcha). It opens when the agent calls `browser_open`, when you click an http(s) link in the conversation (⌘ / Ctrl-click still opens a new tab), from **Open in browser** on an HTML file preview, or from **Browser** in the status bar (type a URL). The panel shares the right side with the file preview (File / Browser switch). Opening the browser yourself does not give the agent its browser tools: its first `browser_open` still asks. The panel cannot open tah's own address (except file previews), so the agent's browser never gets the tah sign-in; what you type goes only to Chrome. `tah serve` runs Chrome headless (Playwright MCP launches it with a random debugging port on 127.0.0.1, `--idle-timeout 0`, a 1280×720 viewport); `tah chat` still shows a window. New endpoints `GET /api/browser`, `GET /api/browser/stream` and `POST /api/browser/{open,nav,tab,input,close}`.
+
 ## 0.35.0 — 2026-10-14
 
 Desktop: **macOS app** (`apps/desktop`, Apple Silicon, built locally with `pnpm --filter desktop dist` → `apps/desktop/release/tah-<version>-arm64.dmg`, unsigned). It wraps `tah serve` in a window: double-click to open, reopens the last folder (first launch asks for one), and agent commands get the PATH from your login shell. It ships its own Node 22 and shares `~/.tah` with the command line. Closing the window keeps tah running; ⌘Q stops it. No changes to the published packages.

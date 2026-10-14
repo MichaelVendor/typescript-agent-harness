@@ -2530,7 +2530,7 @@ HOME="$SMOKE/home" node packages/cli/dist/cli.js serve --cwd "$SMOKE/work" --por
 
 - [ ] **Step 1: `docs/design/browser.md`**
 
-1. 状态行之后加一行：`v0.36 起 \`tah serve\` 不再弹出 Chrome 窗口，画面在网页的[浏览器面板](./browser-pane.md)里。`
+1. 状态行之后加一行：`` v0.36 起 `tah serve` 不再弹出 Chrome 窗口，画面在网页的[浏览器面板](./browser-pane.md)里。 ``
 2. 「目标」里 `- \`tah serve\` / \`tah chat\` 弹出可见的 Chrome 窗口，用户能看着它操作；\`tah run\` 用无界面模式。` 改为 `- \`tah chat\` 弹出可见的 Chrome 窗口；\`tah serve\` 在浏览器面板里显示画面（v0.36）；\`tah run\` 用无界面模式。`
 3. 「入口工具」里 `- 第一次打开且没给 \`url\` 时导航到 \`about:blank\`，让窗口立刻出现（Playwright MCP 在第一次工具调用时才启动 Chrome）。` 改为 `- 启动时先调一次 \`browser_tabs\`（\`action: "list"\`），让 Chrome 立刻启动（Playwright MCP 在第一次工具调用时才启动 Chrome）；没给 \`url\` 就停在当前页面。`
 4. 启动参数表：`--headless` 行改为 `| \`--headless\` | \`tah run\` 和 \`tah serve\`；只有 \`tah chat\`（含 \`--plain\`）弹出窗口 |`；表末加三行：

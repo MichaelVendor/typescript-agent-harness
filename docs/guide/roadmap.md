@@ -24,6 +24,7 @@
 | 18 | 看图：每个模型单独设能否看图，macOS `read_image_text` 识别图中文字 | ✅ `v0.33` |
 | 19 | macOS 客户端（`apps/desktop`，壳里跑 `tah serve`） | ✅ `v0.35` |
 | 20 | 文件预览：对话里的路径在右侧面板只读预览 | ✅ `v0.35` |
+| 21 | 浏览器面板：Agent 的浏览器画面放进工作台，用户可看可接手 | ✅ `v0.36` |
 
 ## Phase 1 — Runtime ✅
 
@@ -291,6 +292,16 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 - 图片 / PDF / 视频 / Markdown / 代码；HTML 在 sandbox 不透明来源里渲染，拿不到登录 cookie 和 `/api`
 - 写、改文件或跑命令后自动刷新；新接口 `GET /api/files/stat`、`GET /api/files/raw`、`GET /preview/<令牌>/<路径>`
 
+## Phase 21 — 浏览器面板 ✅（v0.36）
+
+设计见 [浏览器面板](/design/browser-pane)。
+
+交付物：
+
+- `tah serve` 的内置浏览器改为无界面，画面经 CDP 截屏流进右侧面板；点击、滚动、键盘（含中文输入法）转发给 Chrome
+- 入口：Agent 调 `browser_open`、对话里的 http(s) 链接、HTML 文件预览「Open in browser」、状态栏「Browser」
+- 用户先打开浏览器不等于授权 Agent；面板不能打开 tah 自己的地址；新接口 `/api/browser*`
+
 ## 非目标（刻意不做）
 
 - Phase 1–3 不做 Electron / 完整 Web IDE  
@@ -302,6 +313,6 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.35`）  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v0.36`）  
 - `v0.N`：当前小版本的开发分支，合入 `main` 后打 `v0.N.x`  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  
