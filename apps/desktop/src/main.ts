@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, shell } from "electron";
+import { appendFileSync, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { startServer, StartError, type Server } from "./server.js";
@@ -19,6 +20,18 @@ let shuttingDown = false;
 let stopped = false;
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/** stderr is invisible when the app is opened from the Dock, so also append to ~/Library/Logs/tah/main.log. */
+function log(line: string): void {
+  console.error(line);
+  try {
+    const dir = app.getPath("logs");
+    mkdirSync(dir, { recursive: true });
+    appendFileSync(path.join(dir, "main.log"), `${new Date().toISOString()} ${line}\n`);
+  } catch {
+    // Logging must never break the app.
+  }
+}
 
 function showWindow(): void {
   if (!win) return;
@@ -118,14 +131,17 @@ async function crashed(folder: string, stderr: string): Promise<void> {
 }
 
 async function boot(): Promise<void> {
-  const shellEnv = await loadShellEnv();
-  if (shellEnv.error) console.error(`[desktop] using the app's environment — login shell: ${shellEnv.error}`);
-  env = shellEnv.env;
+  const shellEnvPromise = loadShellEnv();
   const folder = readLastFolder(home) ?? (await pickFolder());
+  if (quitting) return;
   if (!folder) {
     app.quit();
     return;
   }
+  const shellEnv = await shellEnvPromise;
+  if (quitting) return;
+  if (shellEnv.error) log(`[desktop] using the app's environment — login shell: ${shellEnv.error}`);
+  env = shellEnv.env;
   await launch(folder);
 }
 
@@ -150,7 +166,7 @@ if (!app.requestSingleInstanceLock()) {
         try {
           if (active) writeLastFolder(home, active);
         } catch (err) {
-          console.error(`[desktop] could not save the last folder: ${message(err)}`);
+          log(`[desktop] could not save the last folder: ${message(err)}`);
         }
         await running.stop();
       }

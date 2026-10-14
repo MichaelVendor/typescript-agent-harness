@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-const OPEN_LINE = /^\[tah\] open (http:\/\/127\.0\.0\.1:(\d+)\/\?token=(\S+))$/m;
+const OPEN_LINE = /^\[tah\] open (http:\/\/127\.0\.0\.1:(\d+)\/\?token=(\S+))\r?\n/m;
 const TAIL_LINES = 20;
 
 export class StartError extends Error {
@@ -15,7 +15,7 @@ export type Server = {
   readonly url: string;
   /** The folder the web app has open now; undefined when tah does not answer. */
   activeFolder(): Promise<string | undefined>;
-  /** SIGINT, then SIGKILL after `stopTimeoutMs`; resolves once the process is gone. */
+  /** SIGINT to tah's process group, then SIGKILL after `stopTimeoutMs`; resolves once tah is gone. */
   stop(): Promise<void>;
 };
 
@@ -35,7 +35,16 @@ export function startServer(opts: ServerOptions): Promise<Server> {
     cwd: opts.cwd,
     env: opts.env,
     stdio: ["ignore", "pipe", "pipe"],
+    // Own process group, so stopping reaches the commands tah started, like Ctrl+C in a terminal.
+    detached: true,
   });
+  const signalGroup = (pid: number, signal: NodeJS.Signals) => {
+    try {
+      process.kill(-pid, signal);
+    } catch {
+      // ESRCH: the group is already gone.
+    }
+  };
   const exited = new Promise<void>((resolve) => child.once("close", () => resolve()));
   let stderr = "";
   child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
@@ -61,8 +70,10 @@ export function startServer(opts: ServerOptions): Promise<Server> {
     },
     async stop() {
       stopping = true;
-      child.kill("SIGINT");
-      const timer = setTimeout(() => child.kill("SIGKILL"), opts.stopTimeoutMs ?? 5000);
+      const pid = child.pid;
+      if (pid === undefined) return exited;
+      signalGroup(pid, "SIGINT");
+      const timer = setTimeout(() => signalGroup(pid, "SIGKILL"), opts.stopTimeoutMs ?? 5000);
       await exited;
       clearTimeout(timer);
     },
@@ -76,7 +87,8 @@ export function startServer(opts: ServerOptions): Promise<Server> {
       ready = true;
       stopping = true;
       clearTimeout(timer);
-      child.kill("SIGKILL");
+      if (child.pid === undefined) child.kill("SIGKILL");
+      else signalGroup(child.pid, "SIGKILL");
       void exited.then(() => reject(new StartError(message, tail())));
     };
     const timer = setTimeout(() => fail(`tah did not start within ${startTimeoutMs / 1000}s`), startTimeoutMs);
@@ -94,7 +106,7 @@ export function startServer(opts: ServerOptions): Promise<Server> {
     child.once("error", (err) => fail(err.message));
     child.once("exit", (code, signal) => {
       if (!ready) fail(`tah exited (${signal ?? `code ${code}`}) before it was ready`);
-      else if (!stopping) opts.onExit(tail());
+      else if (!stopping) void exited.then(() => opts.onExit(tail()));
     });
   });
 }

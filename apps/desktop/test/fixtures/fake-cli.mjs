@@ -1,3 +1,5 @@
+import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import http from "node:http";
 
 const mode = process.env.FAKE_MODE ?? "ok";
@@ -11,6 +13,11 @@ if (mode === "exit") {
 if (mode === "hang") {
   setInterval(() => {}, 1000);
 } else {
+  if (mode === "family") {
+    const grandchild = spawn("sleep", ["30"], { stdio: "ignore" });
+    writeFileSync(process.env.FAKE_PIDFILE, String(grandchild.pid));
+    console.log(`[fake] grandchild ${grandchild.pid}`);
+  }
   const token = "secret";
   const server = http.createServer((req, res) => {
     const { port } = server.address();
@@ -33,7 +40,7 @@ if (mode === "hang") {
     }
   });
   process.on("SIGINT", () => {
-    if (mode === "stubborn") return;
+    if (mode === "stubborn" || mode === "family") return;
     console.log("[tah] stopping…");
     server.close();
     process.exit(0);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -8,13 +8,16 @@ import { startServer, StartError } from "../dist/server.js";
 
 const cli = fileURLToPath(new URL("./fixtures/fake-cli.mjs", import.meta.url));
 
-function start(mode: string, extra: { onExit?: (stderr: string) => void; startTimeoutMs?: number; stopTimeoutMs?: number } = {}) {
+function start(
+  mode: string,
+  extra: { onExit?: (stderr: string) => void; startTimeoutMs?: number; stopTimeoutMs?: number; env?: NodeJS.ProcessEnv } = {},
+) {
   const cwd = mkdtempSync(path.join(os.tmpdir(), "tah-server-"));
   const server = startServer({
     node: process.execPath,
     cli,
     cwd,
-    env: { ...process.env, FAKE_MODE: mode },
+    env: { ...process.env, ...extra.env, FAKE_MODE: mode },
     onExit: extra.onExit ?? (() => {}),
     ...(extra.startTimeoutMs ? { startTimeoutMs: extra.startTimeoutMs } : {}),
     ...(extra.stopTimeoutMs ? { stopTimeoutMs: extra.stopTimeoutMs } : {}),
@@ -57,6 +60,23 @@ test("stop falls back to SIGKILL", async () => {
   await s.stop();
   assert.ok(Date.now() - started < 3000);
   assert.equal(await s.activeFolder(), undefined);
+});
+
+test("stop also stops tah's children", async () => {
+  const pidfile = path.join(mkdtempSync(path.join(os.tmpdir(), "tah-pid-")), "grandchild");
+  const s = await start("family", { stopTimeoutMs: 300, env: { FAKE_PIDFILE: pidfile } }).server;
+  const pid = Number(readFileSync(pidfile, "utf8"));
+  await s.stop();
+  const alive = () => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  for (const until = Date.now() + 1000; alive() && Date.now() < until; ) await new Promise((r) => setTimeout(r, 50));
+  assert.equal(alive(), false);
 });
 
 test("an unexpected exit calls onExit with the stderr tail", async () => {
