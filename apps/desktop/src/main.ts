@@ -11,6 +11,7 @@ const cli = path.join(process.resourcesPath, "tah", "dist", "cli.js");
 
 let env: NodeJS.ProcessEnv = process.env;
 let server: Server | undefined;
+let starting: Promise<Server | undefined> | undefined;
 let win: BrowserWindow | undefined;
 let origin = "";
 let quitting = false;
@@ -72,8 +73,12 @@ async function launch(folder: string): Promise<void> {
   for (;;) {
     let started: Server;
     try {
-      started = await startServer({ node, cli, cwd: folder, env, onExit: (stderr) => void crashed(folder, stderr) });
+      const pending = startServer({ node, cli, cwd: folder, env, onExit: (stderr) => void crashed(folder, stderr) });
+      starting = pending.then((s) => s, () => undefined);
+      started = await pending;
     } catch (err) {
+      starting = undefined;
+      if (quitting) return;
       const { response } = await dialog.showMessageBox({
         type: "error",
         message: `tah failed to start: ${message(err)}`,
@@ -88,7 +93,9 @@ async function launch(folder: string): Promise<void> {
       }
       continue;
     }
+    starting = undefined;
     server = started;
+    if (quitting) return;
     writeLastFolder(home, folder);
     load(started.url);
     return;
@@ -131,19 +138,22 @@ if (!app.requestSingleInstanceLock()) {
   app.on("window-all-closed", () => {});
   app.on("before-quit", (event) => {
     quitting = true;
-    const running = server;
-    if (stopped || !running) return;
+    const pendingStart = starting;
+    if (stopped || (!server && !pendingStart)) return;
     event.preventDefault();
     if (shuttingDown) return;
     shuttingDown = true;
     void (async () => {
-      const active = await running.activeFolder();
-      try {
-        if (active) writeLastFolder(home, active);
-      } catch (err) {
-        console.error(`[desktop] could not save the last folder: ${message(err)}`);
+      const running = server ?? (await pendingStart);
+      if (running) {
+        const active = await running.activeFolder();
+        try {
+          if (active) writeLastFolder(home, active);
+        } catch (err) {
+          console.error(`[desktop] could not save the last folder: ${message(err)}`);
+        }
+        await running.stop();
       }
-      await running.stop();
       stopped = true;
       app.quit();
     })();
