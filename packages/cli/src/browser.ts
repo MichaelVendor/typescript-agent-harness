@@ -192,7 +192,10 @@ export function createBrowser(o: BrowserOptions): Browser {
     agentAttached: () => mounted.length > 0,
     running: () => backend !== undefined,
     async launch() {
-      await ensure();
+      const wasRunning = backend !== undefined;
+      const b = await ensure();
+      // Playwright MCP relaunches a Chrome that crashed or was closed only on its next tool call.
+      if (wasRunning) mcpResultText(await b.callTool("browser_tabs", { action: "list" }));
     },
     cdpPort() {
       if (!backend) return undefined;

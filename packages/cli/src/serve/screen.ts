@@ -353,6 +353,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
     if (b?.running() && !cdp && listeners.size > 0) {
       try {
         await connect();
+        error = undefined;
       } catch (err) {
         error = message(err);
       }
