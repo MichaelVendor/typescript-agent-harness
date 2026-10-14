@@ -37,7 +37,10 @@ export function linkPath(href: string | undefined): string | null {
 /** `src` inside the previewed file `file` (folder-relative), as a folder-relative path; null for web / data / anchors or above the folder. */
 export function relativeTo(file: string, src: string): string | null {
   if (!src || src.startsWith("#") || src.startsWith("//") || SCHEME.test(src)) return null;
-  const clean = src.replace(/[?#].*$/, "");
+  let clean = src.replace(/[?#].*$/, "");
+  try {
+    clean = decodeURI(clean);
+  } catch {}
   if (clean.startsWith("/")) return clean;
   const parts = file.split("/").slice(0, -1);
   for (const seg of clean.split("/")) {

@@ -40,6 +40,9 @@ test("relative addresses inside a previewed file resolve against its folder", ()
   assert.equal(relativeTo("a.md", "b.md#part"), "b.md");
   assert.equal(relativeTo("a.md", "/abs/x.png"), "/abs/x.png");
   assert.equal(relativeTo("a.md", "../outside.png"), null);
+  assert.equal(relativeTo("a.md", "my%20pic.png"), "my pic.png");
+  assert.equal(relativeTo("docs/a.md", "%E6%88%AA%E5%9B%BE.png"), "docs/截图.png");
+  assert.equal(relativeTo("a.md", "%2e%2e/x.png"), null);
   for (const src of ["", "https://x.dev/a.png", "data:image/png;base64,AA", "//cdn.x/a.png", "#top"]) {
     assert.equal(relativeTo("a.md", src), null, src);
   }
