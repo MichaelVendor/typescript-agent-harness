@@ -53,10 +53,9 @@ Agent 写了报告、改了图片、生成了网页，用户现在只能自己�
 | `video` | `mp4` `webm` `mov` |
 | `html` | `html` `htm` |
 | `markdown` | `md` `markdown` |
-| `text` | 常见代码与文本扩展名（`ts` `tsx` `js` `json` `css` `py` `sh` `yaml` `toml` `txt` `log` `csv` …），以及没有扩展名的文件 |
-| `binary` | 其他 |
+| `text` / `binary` | 其他扩展名和没有扩展名的文件：读前 8KB，没有零字节算 `text`，有就算 `binary` |
 
-不认识的扩展名读前 8KB：没有零字节算 `text`，有就算 `binary`。只有 `html` 返回 `previewURL`（`/preview/<令牌>/<相对路径>`）。
+只有 `html` 返回 `previewURL`（`/preview/<令牌>/<相对路径>`）。
 
 ### `raw` 响应
 
@@ -93,9 +92,11 @@ Agent 写了报告、改了图片、生成了网页，用户现在只能自己�
 | 工具行 | 带 `path` 的工具行，路径可点 |
 | 用户消息的附件卡片 | 可点，按附件 `id` 打开 |
 | 助手正文的 Markdown 链接 | 目标不是 `scheme:` 开头（`http:`、`https:`、`mailto:` 等）也不是 `#` 锚点时，当作文件路径 |
-| 助手正文的行内代码 | 不含空白和括号，且含 `/` 或以 `kind` 表里的扩展名结尾时，当作文件路径 |
+| 助手正文的行内代码 | 不含空白、括号、引号，不以 `scheme:` 开头，且含 `/` 或以常见扩展名结尾（列表在 `preview-view.ts`）时，当作文件路径 |
 
-渲染时不请求服务端确认文件是否存在。点击后调 `stat`：404 时面板显示「在当前文件夹里找不到这个文件」，不在消息流里报红色错误。路径末尾的 `:行号` 去掉后再查。
+渲染时不请求服务端确认文件是否存在。点击后调 `stat`：404 时面板显示「Not found in this folder」，不在消息流里报红色错误。路径末尾的 `:行号`（`:12`、`:12:5`）去掉后再查。
+
+面板文字和网页其他部分一样用英文。
 
 ### 各类型的显示
 
@@ -105,22 +106,25 @@ Agent 写了报告、改了图片、生成了网页，用户现在只能自己�
 | `pdf` | `<iframe>`，浏览器自带的 PDF 查看器 |
 | `video` | `<video controls>` |
 | `html` | 渲染：`<iframe src={previewURL} sandbox="allow-scripts allow-forms allow-popups allow-modals">`（和服务端 CSP 双重保护）；源码：按 `text` 显示 |
-| `markdown` | 和对话相同的渲染（不渲染原始 HTML）；相对路径的图片改写成 `/api/files/raw` 地址 |
-| `text` | 按扩展名选语言高亮；超过 256KB 不高亮；超过 1MB 只显示前 1MB，并提示「文件太大，只显示开头」 |
-| `binary` | 「无法预览」和文件大小 |
+| `markdown` | 和对话相同的渲染（不渲染原始 HTML）；相对路径的图片改写成 `/api/files/raw` 地址；相对路径的链接在面板里打开，外部链接在新标签页打开（不让整个工作台跳走） |
+| `text` | 按扩展名选语言高亮；超过 256KB 不高亮；超过 1MB 只取前 1MB（`Range` 请求），并提示「File too large — showing the first 1 MB」 |
+| `binary` | 「No preview for this file」和文件大小 |
+
+`markdown`、`text` 和 HTML 的源码视图都只用 `Range: bytes=0-1048575` 取前 1MB；空文件不请求。
 
 ### 刷新
 
-- 面板打开时，收到 `tool.end`：`write_file` / `edit_file` 且 `path` 指向当前文件，或任何 `execute_command`，就重新 `stat`。
+- 面板打开时，收到 `write_file`、`edit_file` 或 `execute_command` 的 `tool.end`，就重新 `stat`（不比对路径：一次 `stat` 很便宜）。
 - `mtime` 变了才重新加载内容；`raw` 和 `previewURL` 都带 `v=<mtime>`，不会拿到旧缓存。
 - 刷新按钮无条件重新加载。
-- `stat` 404：面板显示「文件已被删除」。
+- 预览过的文件 `stat` 404：面板显示「This file was deleted」。
 
 ### 代码组织
 
 | 文件 | 内容 |
 | --- | --- |
-| `src/preview-view.ts`（新） | 纯函数：判断行内代码 / 链接是不是路径、去掉 `:行号`、Markdown 图片地址改写、哪些事件触发刷新 |
+| `src/preview-view.ts`（新） | 纯函数：判断行内代码 / 链接是不是路径、去掉 `:行号`、预览文件里相对地址的解析、代码块围栏、哪些事件触发刷新 |
+| `src/state.ts` | 工具条目带上 `path` |
 | `src/components/FilePreview.tsx`（新） | 面板 |
 | `src/components/Messages.tsx`、`ToolLine.tsx` | 路径可点 |
 | `src/App.tsx`、`styles.css` | 分栏布局 |
@@ -141,11 +145,11 @@ Agent 写了报告、改了图片、生成了网页，用户现在只能自己�
 
 | 情况 | 表现 |
 | --- | --- |
-| 出界、不存在、是目录 | 404；面板「在当前文件夹里找不到这个文件」 |
+| 出界、不存在、是目录 | 404；面板「Not found in this folder」 |
 | 未登录 | 401，沿用现有登录提示 |
 | 预览令牌不对 | 404 |
 | `--no-persist` | 照常可用 |
-| 预览中文件被删 | 面板「文件已被删除」 |
+| 预览中文件被删 | 面板「This file was deleted」 |
 | `Range` 不合法或越界 | 416 |
 | 读文件中途出错 | 断开连接；面板显示加载失败，可点刷新 |
 
@@ -161,7 +165,8 @@ Agent 写了报告、改了图片、生成了网页，用户现在只能自己�
   - `/preview`：错误令牌 404；正确令牌能读到 HTML 和同目录 CSS，带 sandbox CSP；
   - 切换文件夹后旧路径 404。
 - `packages/cli/test/host.test.ts`：四个文件工具的事件和历史带完整 `path`，其他工具不带。
-- `packages/web/test/preview-view.test.ts`：路径识别（正例、反例）、`:行号`、Markdown 图片改写、刷新判断。
+- `packages/web/test/preview-view.test.ts`：路径识别（正例、反例）、`:行号`、相对地址解析、代码块围栏、刷新判断。
+- `packages/web/test/state.test.ts`：工具条目保留 `path`。
 - 手动验收（网页和客户端各一次）：
   1. 点工具行、附件卡片、正文里的路径，分别打开图片、PDF、视频、Markdown、代码。
   2. 打开一个引用相对 CSS 和外网 CDN 图表库的 HTML，样式和图表正常。
