@@ -18,6 +18,7 @@ import {
   type AttachmentRef,
   type AttachmentStore,
 } from "./attachments/store.js";
+import type { Browser } from "./browser.js";
 import { loadProject, type Project } from "./project.js";
 import {
   bootRuntime,
@@ -68,6 +69,8 @@ export type HostEvent =
 export type ChatHost = {
   readonly sessionId: string;
   readonly approve: boolean;
+  /** The open folder's built-in browser (undefined when it is off); a reload replaces it. */
+  readonly browser: Browser | undefined;
   on(listener: (event: HostEvent) => void): () => void;
   /** Emits the startup notices and the first `session` event; call after subscribing. */
   open(): Promise<void>;
@@ -384,6 +387,7 @@ export async function createChatHost(
   let skills: SkillSummary[] = [];
   let skillWarnings: string[] = [];
   let images: ImageAccess = "none";
+  let browser: Browser | undefined;
   const boot = async (opts: { project?: Project | undefined } = {}) => {
     const booted = await bootRuntime(flags, { ask, print: false, homeDir, ...opts });
     runtime = booted.runtime;
@@ -392,6 +396,7 @@ export async function createChatHost(
     skills = booted.skills;
     skillWarnings = booted.warnings;
     images = booted.vision ? "vision" : booted.ocr ? "ocr" : "none";
+    browser = booted.browser;
     attach(runtime);
     return booted.startup;
   };
@@ -527,6 +532,9 @@ export async function createChatHost(
       return session.id;
     },
     approve: !flags.yes,
+    get browser() {
+      return browser;
+    },
     on(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

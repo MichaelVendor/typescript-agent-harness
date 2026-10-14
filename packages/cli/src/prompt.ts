@@ -49,7 +49,7 @@ const WEB_RULES = {
 };
 
 const BROWSER_RULES =
-  "For pages that need clicking, forms, logins, or JavaScript rendering, call browser_open first: it opens a Chrome window the user can see and adds browser_* tools. Understand pages with browser_snapshot or browser_find; screenshots are only saved for the user. For logins, captchas, payments, or anything that needs the user's confirmation, stop and ask the user to finish it in that window.";
+  "For pages that need clicking, forms, logins, or JavaScript rendering, call browser_open first: it opens a Chrome browser the user can watch and adds browser_* tools. Understand pages with browser_snapshot or browser_find; screenshots are only saved for the user. For logins, captchas, payments, or anything that needs the user's confirmation, stop and ask the user to finish it in that browser.";
 
 /** Without this the model guesses it runs in Cursor or Claude Code and gives their instructions. */
 export const ABOUT_TAH = [

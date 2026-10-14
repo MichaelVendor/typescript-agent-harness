@@ -27,7 +27,7 @@ import {
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
-import { createBrowser, type BrowserServer } from "./browser.js";
+import { createBrowser, type Browser, type BrowserServer } from "./browser.js";
 import { activeModel, defaultBaseURL, searchKey } from "./settings.js";
 import {
   loadTahConfig,
@@ -110,6 +110,8 @@ export async function bootRuntime(
   vision: boolean;
   /** `read_image_text` is mounted. */
   ocr: boolean;
+  /** The built-in browser; undefined when it is off (`capabilities.browser`, `--mock`). */
+  browser: Browser | undefined;
 }> {
   const ask = flags.yes ? undefined : opts.ask;
   const project = "project" in opts ? opts.project : await loadProject(flags.cwd);
@@ -125,7 +127,7 @@ export async function bootRuntime(
       ? createBrowser({
           cwd: flags.cwd,
           homeDir: opts.homeDir ?? os.homedir(),
-          headless: flags.command === "run",
+          headless: flags.command !== "chat",
           ...(opts.browserServer ? { server: opts.browserServer } : {}),
         })
       : undefined;
@@ -333,6 +335,7 @@ export async function bootRuntime(
     warnings: discovered.warnings,
     vision,
     ocr,
+    browser,
   };
 }
 

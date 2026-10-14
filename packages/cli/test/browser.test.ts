@@ -191,3 +191,38 @@ test("bootRuntime mounts browser_open (not with --mock); approval is asked until
     else process.env.DEEPSEEK_API_KEY = prev;
   }
 });
+
+test("bootRuntime: a browser the user launched still needs approval the first time the agent opens it", async () => {
+  const cwd = dir();
+  const homeDir = dir();
+  const prev = process.env.DEEPSEEK_API_KEY;
+  process.env.DEEPSEEK_API_KEY = "sk-test";
+  const asked: string[] = [];
+  try {
+    const live = await bootRuntime({ ...parseArgv(["--no-persist", "--quiet", "serve"]), cwd }, {
+      homeDir,
+      browserServer: { command: process.execPath, args: [fake] },
+      ask: async (c) => {
+        asked.push(c.name);
+        return "yes";
+      },
+    });
+    assert.ok(live.browser);
+    await live.browser.launch();
+    assert.equal(live.browser.agentAttached(), false);
+    const tools = live.runtime.get(TOOLS);
+    const ctx = (id: string) => ({ sessionId: "s", callId: id, signal: new AbortController().signal, runtime: live.runtime.context() });
+    await tools.execute({ id: "a", name: "browser_open", arguments: {} }, ctx("a"));
+    await tools.execute({ id: "b", name: "browser_open", arguments: {} }, ctx("b"));
+    assert.deepEqual(asked, ["browser_open"]);
+    assert.equal(live.browser.agentAttached(), true);
+    await live.runtime.stop();
+
+    const mock = await bootRuntime({ ...parseArgv(["--mock", "--no-persist", "--quiet", "serve"]), cwd }, { homeDir });
+    assert.equal(mock.browser, undefined);
+    await mock.runtime.stop();
+  } finally {
+    if (prev === undefined) delete process.env.DEEPSEEK_API_KEY;
+    else process.env.DEEPSEEK_API_KEY = prev;
+  }
+});
