@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -44,6 +44,18 @@ test("resolveInFolder: outside, symlinked out, directories and missing files are
       return true;
     });
   }
+});
+
+test("resolveInFolder: an unreadable file is not found", { skip: process.getuid?.() === 0 }, async () => {
+  const { root } = folder();
+  writeFileSync(path.join(root, "locked.txt"), "x");
+  chmodSync(path.join(root, "locked.txt"), 0o000);
+  await assert.rejects(resolveInFolder(root, "locked.txt"), NotInFolderError);
+});
+
+test("fileKind: a file that is gone is not found", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "tah-kind-"));
+  await assert.rejects(fileKind(path.join(root, "missing.txt")), NotInFolderError);
 });
 
 test("fileKind: by extension, else by a NUL byte in the first 8KB", async () => {

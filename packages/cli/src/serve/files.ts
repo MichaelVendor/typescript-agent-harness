@@ -1,7 +1,8 @@
-import { createReadStream } from "node:fs";
-import { open, realpath, stat } from "node:fs/promises";
+import { constants, createReadStream } from "node:fs";
+import { access, open, realpath, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
+import { pipeline } from "node:stream";
 import type { FileKind } from "./protocol.js";
 
 /** Outside the open folder, missing, a directory or unreadable: callers answer all of them as 404. */
@@ -22,6 +23,7 @@ export async function resolveInFolder(
     if (!abs.startsWith(root + path.sep)) throw new NotInFolderError();
     const info = await stat(abs);
     if (!info.isFile()) throw new NotInFolderError();
+    await access(abs, constants.R_OK);
     return { abs, rel: path.relative(root, abs).split(path.sep).join("/"), bytes: info.size, mtime: Math.floor(info.mtimeMs) };
   } catch {
     throw new NotInFolderError();
@@ -53,13 +55,17 @@ const ext = (file: string) => path.extname(file).slice(1).toLowerCase();
 export async function fileKind(abs: string): Promise<FileKind> {
   const known = KINDS[ext(abs)];
   if (known) return known;
-  const handle = await open(abs, "r");
   try {
-    const buf = Buffer.alloc(8192);
-    const { bytesRead } = await handle.read(buf, 0, buf.length, 0);
-    return buf.subarray(0, bytesRead).includes(0) ? "binary" : "text";
-  } finally {
-    await handle.close();
+    const handle = await open(abs, "r");
+    try {
+      const buf = Buffer.alloc(8192);
+      const { bytesRead } = await handle.read(buf, 0, buf.length, 0);
+      return buf.subarray(0, bytesRead).includes(0) ? "binary" : "text";
+    } finally {
+      await handle.close();
+    }
+  } catch {
+    throw new NotInFolderError();
   }
 }
 
@@ -144,7 +150,5 @@ export function sendFile(
     res.end();
     return;
   }
-  const stream = createReadStream(abs, range ?? {});
-  stream.on("error", () => res.destroy());
-  stream.pipe(res);
+  pipeline(createReadStream(abs, range ?? {}), res, () => {});
 }
