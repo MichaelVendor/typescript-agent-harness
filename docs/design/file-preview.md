@@ -7,7 +7,7 @@ Agent 写了报告、改了图片、生成了网页，用户现在只能自己�
 遵循的原则（见 [设计哲学](../guide/philosophy.md)、[`tah serve`](./serve.md)）：
 
 - 预览是给人看的界面，属于 Application 层：只改 `packages/cli/src/serve`、`host.ts` 和 `packages/web`；`core` / `agent` / `tools` 不改，也不给模型加工具。
-    10|- 前端只认协议类型，请求只走 `api.ts`。
+- 前端只认协议类型，请求只走 `api.ts`。
 - 权限在能力边界：接口只读、只限当前工作文件夹，和内置文件工具的边界一致。
 - 网页和 macOS 客户端表现一致，`packages/*` 不出现 Electron 代码。
 
