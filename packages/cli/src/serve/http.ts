@@ -263,7 +263,11 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     const unsubscribe = screen.subscribe((event) => {
       const chunk = `data: ${JSON.stringify(event)}\n\n`;
       if (event.type === "frame" && blocked) waiting = chunk;
-      else send(chunk);
+      else {
+        // A parked frame may be from the tab shown before this state.
+        if (event.type === "state") waiting = undefined;
+        send(chunk);
+      }
     });
     const heartbeat = setInterval(() => res.write(": ping\n\n"), HEARTBEAT_MS);
     req.on("close", () => {

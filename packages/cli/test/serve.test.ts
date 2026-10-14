@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -219,6 +220,7 @@ async function fakeServer(
   const base = await listen(server);
   return {
     ...fake,
+    handle,
     base,
     home,
     cwd,
@@ -977,6 +979,54 @@ test("browser panel over HTTP: open, stream frames, type; a browser tool event r
     assert.equal(fb.closes(), 1);
   } finally {
     watch.close();
+    await s.close();
+  }
+});
+
+test("browser stream: a frame parked behind a slow tab is dropped once a state event goes out", async () => {
+  const conn = fakeCdp();
+  const s = await fakeServer(undefined, undefined, async () => conn.cdp);
+  Object.assign(s.host, { browser: fakeBrowser().browser });
+  const port = Number(new URL(s.base).port);
+  const req = Object.assign(new EventEmitter(), {
+    method: "GET",
+    url: "/api/browser/stream",
+    headers: { host: `127.0.0.1:${port}`, cookie: s.cookie },
+    socket: { localPort: port },
+  });
+  const chunks: string[] = [];
+  let writable = true;
+  const res = Object.assign(new EventEmitter(), {
+    writableEnded: false,
+    headersSent: false,
+    writeHead() {
+      this.headersSent = true;
+      return this;
+    },
+    write(chunk: string) {
+      chunks.push(chunk);
+      return writable;
+    },
+    end() {
+      this.writableEnded = true;
+    },
+  });
+  try {
+    assert.equal((await client(s.base, s.cookie).post("/api/browser/open", { url: "https://example.com/" })).status, 200);
+    s.handle(req as never, res as never);
+    const frame = (data: string) =>
+      conn.event("Page.screencastFrame", { data, sessionId: 1, metadata: { deviceWidth: 1280, deviceHeight: 720 } }, "S-T1");
+    writable = false;
+    frame("OLD1");
+    frame("OLD2");
+    conn.event("Target.targetInfoChanged", { targetInfo: { targetId: "T1", type: "page", title: "New", url: "https://example.com/b" } });
+    writable = true;
+    res.emit("drain");
+    assert.ok(chunks.some((c) => c.includes('"OLD1"')));
+    assert.ok(chunks.at(-1)!.includes('"type":"state"'));
+    assert.equal(chunks.some((c) => c.includes('"OLD2"')), false);
+  } finally {
+    req.emit("close");
     await s.close();
   }
 });
