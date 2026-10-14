@@ -13,6 +13,7 @@ import { createServeHandler } from "../dist/serve/http.js";
 import { createHub } from "../dist/serve/hub.js";
 import { startServe } from "../dist/serve/run.js";
 import { createWorkspaces } from "../dist/serve/workspaces.js";
+import { fakeBrowser, fakeCdp } from "./fixtures/fake-cdp.ts";
 
 const TOKEN = "t".repeat(43);
 
@@ -70,6 +71,40 @@ function stream(base: string, cookie: string) {
       const check = () => {
         const i = events.findIndex((e, n) => n >= from && e.type === type);
         if (i >= 0) resolve(events.slice(0, i + 1));
+        else waiters.push(check);
+      };
+      check();
+    });
+  return { events, until, close: () => req.destroy() };
+}
+
+type BrowserEvent = { type: string; state?: { active: string | null }; data?: string };
+
+/** `GET /api/browser/stream`; `until(pred, from)` resolves with the first matching event at index `from` or later. */
+function browserEvents(base: string, cookie: string) {
+  const events: BrowserEvent[] = [];
+  const waiters: Array<() => void> = [];
+  const req = request(new URL("/api/browser/stream", base), { headers: { cookie } }, (res) => {
+    let buffer = "";
+    res.setEncoding("utf8");
+    res.on("data", (chunk: string) => {
+      buffer += chunk;
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() ?? "";
+      for (const part of parts) {
+        const data = part.split("\n").find((l) => l.startsWith("data: "));
+        if (data) events.push(JSON.parse(data.slice(6)));
+      }
+      for (const w of waiters.splice(0)) w();
+    });
+  });
+  req.on("error", () => {});
+  req.end();
+  const until = (pred: (e: BrowserEvent) => boolean, from = 0) =>
+    new Promise<BrowserEvent>((resolve) => {
+      const check = () => {
+        const e = events.find((x, i) => i >= from && pred(x));
+        if (e) resolve(e);
         else waiters.push(check);
       };
       check();
@@ -154,6 +189,7 @@ function fakeHost() {
 async function fakeServer(
   webDir = path.join(tmpdir(), "tah-no-web"),
   chooseFolder: (start?: string) => Promise<string | null> = async () => null,
+  connectCdp?: (port: number) => Promise<unknown>,
 ) {
   const fake = fakeHost();
   const hub = createHub(fake.host);
@@ -177,6 +213,7 @@ async function fakeServer(
     persist: true,
     home,
     chooseFolder,
+    ...(connectCdp ? { connectCdp } : {}),
   });
   const server = createServer(handle);
   const base = await listen(server);
@@ -871,6 +908,75 @@ test("files: after switching folders only the new folder is readable", async () 
     assert.equal((await api.get("/api/files/stat?path=old.txt")).status, 404);
     assert.equal((await api.get("/api/files/stat?path=new.txt")).status, 200);
   } finally {
+    await s.close();
+  }
+});
+
+test("browser endpoints need sign-in and same origin; a folder without the browser reports it off", async () => {
+  const s = await fakeServer();
+  try {
+    assert.equal((await client(s.base).get("/api/browser")).status, 401);
+    const cross = await raw(s.base, "POST", "/api/browser/open", {
+      headers: { cookie: s.cookie, origin: "http://evil.test", "content-type": "application/json" },
+      body: {},
+    });
+    assert.equal(cross.status, 403);
+    const api = client(s.base, s.cookie);
+    assert.deepEqual(JSON.parse((await api.get("/api/browser")).body), {
+      available: false,
+      running: false,
+      agent: false,
+      tabs: [],
+      active: null,
+    });
+    const open = await api.post("/api/browser/open", {});
+    assert.equal(open.status, 400);
+    assert.match(JSON.parse(open.body).error, /browser is off/);
+    const self = await api.post("/api/browser/open", { url: `${s.base}api/events` });
+    assert.equal(self.status, 400);
+    assert.match(JSON.parse(self.body).error, /not tah itself/);
+    assert.equal((await api.post("/api/browser/nav", { action: "forward" })).status, 400);
+    assert.equal((await api.post("/api/browser/input", { type: "mouse" })).status, 400);
+  } finally {
+    await s.close();
+  }
+});
+
+test("browser panel over HTTP: open, stream frames, type; a browser tool event reconnects it", async () => {
+  const conns = [fakeCdp(), fakeCdp()];
+  let n = 0;
+  const s = await fakeServer(undefined, undefined, async () => conns[n++]!.cdp);
+  const fb = fakeBrowser();
+  Object.assign(s.host, { browser: fb.browser });
+  const api = client(s.base, s.cookie);
+  const watch = browserEvents(s.base, s.cookie);
+  try {
+    await watch.until((e) => e.type === "state");
+    const opened = await api.post("/api/browser/open", { url: "https://example.com/" });
+    assert.equal(opened.status, 200);
+    assert.equal(JSON.parse(opened.body).active, "T1");
+    const navigations = () => conns[0]!.sent.filter((m) => m.method === "Page.navigate").map((m) => m.params.url);
+    assert.deepEqual(navigations(), ["https://example.com/"]);
+    assert.equal((await api.post("/api/browser/open", { url: "/preview/abc/a.html" })).status, 200);
+    assert.equal(navigations().at(-1), `${s.base}preview/abc/a.html`);
+
+    conns[0]!.event("Page.screencastFrame", { data: "AAAA", sessionId: 1, metadata: { deviceWidth: 1280, deviceHeight: 720 } }, "S-T1");
+    assert.deepEqual(await watch.until((e) => e.type === "frame"), { type: "frame", data: "AAAA", width: 1280, height: 720 });
+
+    assert.equal((await api.post("/api/browser/input", { type: "text", text: "hi" })).status, 204);
+    assert.deepEqual(conns[0]!.sent.at(-1), { method: "Input.insertText", params: { text: "hi" }, sessionId: "S-T1" });
+    assert.equal((await api.post("/api/browser/nav", { action: "reload" })).status, 204);
+
+    const from = watch.events.length;
+    conns[0]!.cdp.close();
+    s.emit({ type: "tool.end", callId: "c1", tool: "browser_click", summary: "", ok: true, result: "" });
+    await watch.until((e) => e.type === "state" && e.state?.active === "T1", from);
+    assert.equal(n, 2);
+
+    assert.equal((await api.post("/api/browser/close")).status, 204);
+    assert.equal(fb.closes(), 1);
+  } finally {
+    watch.close();
     await s.close();
   }
 });

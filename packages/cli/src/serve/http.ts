@@ -25,6 +25,7 @@ import {
 import { discoverSkills } from "../skills/discover.js";
 import { importSkills, removeSkill } from "../skills/install.js";
 import type { FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
+import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
 
 const COOKIE = "tah_token";
@@ -59,6 +60,8 @@ export type ServeOptions = {
   home: string;
   /** System folder dialog; defaults to the real one (tests inject a fake). */
   chooseFolder?: (start?: string) => Promise<string | null>;
+  /** Chrome DevTools connection for the browser panel; defaults to the real one (tests inject a fake). */
+  connectCdp?: (port: number) => Promise<Cdp>;
 };
 
 class HttpError extends Error {
@@ -148,6 +151,14 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const webDir = path.resolve(opts.webDir);
   let choosing = false;
   const previewToken = randomBytes(32).toString("base64url");
+  const screen = createScreen({
+    browser: () => host().browser,
+    ...(opts.connectCdp ? { connect: opts.connectCdp } : {}),
+  });
+  // The agent's browser tools and folder switches change the browser behind the panel.
+  const unsubscribeScreen = hub.subscribe((event) => {
+    if (event.type === "session" || (event.type === "tool.end" && event.tool.startsWith("browser_"))) void screen.sync();
+  });
 
   /** The file a `/api/files/*` query names (`path=` or `attachment=<id>`), inside the open folder. */
   const fileOf = async (req: IncomingMessage) => {
@@ -219,6 +230,41 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     res.write("retry: 1000\n\n");
     streams.add(res);
     const unsubscribe = hub.subscribe((event) => res.write(`data: ${JSON.stringify(event)}\n\n`));
+    const heartbeat = setInterval(() => res.write(": ping\n\n"), HEARTBEAT_MS);
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+      streams.delete(res);
+    });
+  };
+
+  /** Frames a slow tab cannot take are replaced by the newest one; `state` events always go out. */
+  const browserStream = (req: IncomingMessage, res: ServerResponse) => {
+    res.writeHead(200, {
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+    });
+    res.write("retry: 1000\n\n");
+    streams.add(res);
+    let blocked = false;
+    let waiting: string | undefined;
+    // Runs inside the browser connection's message handler, so it must not throw on an ended response.
+    const send = (chunk: string) => {
+      if (res.writableEnded) return;
+      blocked = !res.write(chunk);
+    };
+    res.on("drain", () => {
+      blocked = false;
+      const chunk = waiting;
+      waiting = undefined;
+      if (chunk) send(chunk);
+    });
+    const unsubscribe = screen.subscribe((event) => {
+      const chunk = `data: ${JSON.stringify(event)}\n\n`;
+      if (event.type === "frame" && blocked) waiting = chunk;
+      else send(chunk);
+    });
     const heartbeat = setInterval(() => res.write(": ping\n\n"), HEARTBEAT_MS);
     req.on("close", () => {
       clearInterval(heartbeat);
@@ -379,6 +425,34 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           ...(kind === "pdf" ? {} : { "content-security-policy": "sandbox" }),
         });
       }
+      case "GET /api/browser":
+        return json(res, 200, screen.state());
+      case "GET /api/browser/stream":
+        return browserStream(req, res);
+      case "POST /api/browser/open": {
+        const input = optStr(await readBody(req), "url");
+        const url = input === undefined ? undefined : browserURL(input, req.socket.localPort ?? 0);
+        if (input !== undefined && url === undefined) {
+          throw new HttpError(400, "only http(s) pages (not tah itself), about:blank or a file preview can be opened");
+        }
+        await screen.open(url);
+        return json(res, 200, screen.state());
+      }
+      case "POST /api/browser/nav": {
+        const action = (await readBody(req)).action;
+        if (action !== "back" && action !== "reload") throw new HttpError(400, '"action" must be "back" or "reload"');
+        await screen.nav(action);
+        return json(res, 204);
+      }
+      case "POST /api/browser/tab":
+        await screen.tab(str(await readBody(req), "id"));
+        return json(res, 204);
+      case "POST /api/browser/input":
+        await screen.input(parseInput(await readBody(req)));
+        return json(res, 204);
+      case "POST /api/browser/close":
+        await screen.close();
+        return json(res, 204);
       case "GET /api/fs": {
         const dir = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("path") ?? undefined;
         return json(res, 200, listDirs(dir, opts.home));
@@ -518,6 +592,8 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   return {
     handle,
     closeAll() {
+      unsubscribeScreen();
+      screen.dispose();
       for (const res of streams) res.end();
       streams.clear();
     },
