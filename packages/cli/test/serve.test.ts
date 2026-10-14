@@ -713,3 +713,144 @@ test("static files stay inside the web directory; a missing build answers 503", 
     await missing.close();
   }
 });
+
+const q = (p: string) => encodeURIComponent(p);
+
+test("files: stat and raw read inside the open folder only", async () => {
+  const s = await fakeServer();
+  try {
+    mkdirSync(path.join(s.cwd, "docs"));
+    writeFileSync(path.join(s.cwd, "docs", "a.md"), "# hi");
+    writeFileSync(path.join(s.cwd, "data.bin"), Buffer.from([1, 0, 2]));
+    writeFileSync(path.join(s.cwd, "notes"), "plain");
+    writeFileSync(path.join(s.cwd, "doc.pdf"), "%PDF-1.4");
+    const outside = mkdtempSync(path.join(tmpdir(), "tah-serve-out-"));
+    writeFileSync(path.join(outside, "secret.txt"), "s");
+    symlinkSync(path.join(outside, "secret.txt"), path.join(s.cwd, "link.txt"));
+    const anon = client(s.base);
+    const api = client(s.base, s.cookie);
+
+    assert.equal((await anon.get(`/api/files/stat?path=${q("docs/a.md")}`)).status, 401);
+    assert.equal((await anon.get(`/api/files/raw?path=${q("docs/a.md")}`)).status, 401);
+
+    const md = await api.get(`/api/files/stat?path=${q("docs/a.md")}`);
+    assert.equal(md.status, 200);
+    const view = JSON.parse(md.body);
+    assert.equal(view.path, "docs/a.md");
+    assert.equal(view.kind, "markdown");
+    assert.equal(view.bytes, 4);
+    assert.ok(Number.isInteger(view.mtime));
+    assert.equal("previewURL" in view, false);
+    assert.equal(JSON.parse((await api.get(`/api/files/stat?path=${q(path.join(s.cwd, "docs", "a.md"))}`)).body).path, "docs/a.md");
+    assert.equal(JSON.parse((await api.get("/api/files/stat?path=data.bin")).body).kind, "binary");
+    assert.equal(JSON.parse((await api.get("/api/files/stat?path=notes")).body).kind, "text");
+
+    for (const bad of [path.relative(s.cwd, path.join(outside, "secret.txt")), path.join(outside, "secret.txt"), "link.txt", "docs", "missing.txt"]) {
+      const r = await api.get(`/api/files/stat?path=${q(bad)}`);
+      assert.equal(r.status, 404, bad);
+      assert.deepEqual(JSON.parse(r.body), { error: "not found in this folder" });
+      assert.equal((await api.get(`/api/files/raw?path=${q(bad)}`)).status, 404, bad);
+    }
+    assert.equal((await api.get("/api/files/stat")).status, 400);
+
+    const body = await api.get(`/api/files/raw?path=${q("docs/a.md")}&v=${view.mtime}`);
+    assert.equal(body.status, 200);
+    assert.equal(body.body, "# hi");
+    assert.equal(body.headers["content-type"], "text/markdown; charset=utf-8");
+    assert.equal(body.headers["x-content-type-options"], "nosniff");
+    assert.equal(body.headers["content-security-policy"], "sandbox");
+    assert.equal(body.headers["cache-control"], "no-cache");
+    const pdf = await api.get("/api/files/raw?path=doc.pdf");
+    assert.equal(pdf.headers["content-type"], "application/pdf");
+    assert.equal(pdf.headers["content-security-policy"], undefined);
+  } finally {
+    await s.close();
+  }
+});
+
+test("files: raw honours one Range", async () => {
+  const s = await fakeServer();
+  try {
+    writeFileSync(path.join(s.cwd, "v.mp4"), "0123456789");
+    const get = (range: string) =>
+      raw(s.base, "GET", "/api/files/raw?path=v.mp4", { headers: { cookie: s.cookie, range } });
+    const part = await get("bytes=2-5");
+    assert.equal(part.status, 206);
+    assert.equal(part.body, "2345");
+    assert.equal(part.headers["content-range"], "bytes 2-5/10");
+    assert.equal(part.headers["accept-ranges"], "bytes");
+    assert.equal((await get("bytes=-3")).body, "789");
+    assert.equal((await get("bytes=8-")).body, "89");
+    assert.equal((await get("bytes=20-")).status, 416);
+    assert.equal((await get("bytes=0-1,4-5")).status, 416);
+  } finally {
+    await s.close();
+  }
+});
+
+test("files: attachments by id; unknown or malformed ids are not found", async () => {
+  const s = await fakeServer();
+  try {
+    const ref = createAttachmentStore(s.cwd).save({ name: "shot.png", mime: "image/png", data: Buffer.from("png") });
+    const api = client(s.base, s.cookie);
+    const view = JSON.parse((await api.get(`/api/files/stat?attachment=${ref.id}`)).body);
+    assert.equal(view.kind, "image");
+    assert.equal(view.path, `.tah/attachments/objects/${ref.sha256}/shot.png`);
+    assert.equal((await api.get(`/api/files/raw?attachment=${ref.id}`)).body, "png");
+    assert.equal((await api.get("/api/files/stat?attachment=nope")).status, 404);
+    assert.equal((await api.get(`/api/files/stat?attachment=${q("../../x")}`)).status, 404);
+  } finally {
+    await s.close();
+  }
+});
+
+test("preview: html and its folder files under a preview token, sandboxed, without the sign-in cookie", async () => {
+  const s = await fakeServer();
+  try {
+    mkdirSync(path.join(s.cwd, "site"));
+    writeFileSync(path.join(s.cwd, "site", "index.html"), '<link rel="stylesheet" href="style.css"><p>hi</p>');
+    writeFileSync(path.join(s.cwd, "site", "style.css"), "p{color:red}");
+    const outside = mkdtempSync(path.join(tmpdir(), "tah-serve-out-"));
+    writeFileSync(path.join(outside, "secret.txt"), "s");
+    symlinkSync(path.join(outside, "secret.txt"), path.join(s.cwd, "site", "link.txt"));
+    const api = client(s.base, s.cookie);
+    const anon = client(s.base);
+
+    const view = JSON.parse((await api.get("/api/files/stat?path=site/index.html")).body);
+    assert.equal(view.kind, "html");
+    assert.match(view.previewURL, /^\/preview\/[\w-]{43}\/site\/index\.html$/);
+
+    const page = await anon.get(view.previewURL);
+    assert.equal(page.status, 200);
+    assert.match(page.body, /<p>hi<\/p>/);
+    assert.equal(page.headers["content-type"], "text/html; charset=utf-8");
+    assert.equal(page.headers["content-security-policy"], "sandbox allow-scripts allow-forms allow-popups allow-modals");
+    assert.equal(page.headers["x-content-type-options"], "nosniff");
+    const css = await anon.get(view.previewURL.replace("index.html", "style.css"));
+    assert.equal(css.status, 200);
+    assert.equal(css.headers["content-type"], "text/css; charset=utf-8");
+
+    assert.equal((await anon.get(view.previewURL.replace("index.html", "link.txt"))).status, 404);
+    assert.equal((await anon.get(view.previewURL.replace(/^\/preview\/[^/]+/, `/preview/${"x".repeat(43)}`))).status, 404);
+    assert.equal((await anon.get(view.previewURL.replace(/^\/preview\/[^/]+/, "/preview/short"))).status, 404);
+    assert.equal((await raw(s.base, "POST", view.previewURL)).status, 405);
+  } finally {
+    await s.close();
+  }
+});
+
+test("files: after switching folders only the new folder is readable", async () => {
+  const s = await fakeServer();
+  try {
+    writeFileSync(path.join(s.cwd, "old.txt"), "old");
+    const other = mkdtempSync(path.join(tmpdir(), "tah-serve-other-"));
+    writeFileSync(path.join(other, "new.txt"), "new");
+    const api = client(s.base, s.cookie);
+    assert.equal((await api.post("/api/workspaces/add", { path: other })).status, 204);
+    assert.equal((await api.post("/api/reset", { cwd: other })).status, 204);
+    assert.equal((await api.get("/api/files/stat?path=old.txt")).status, 404);
+    assert.equal((await api.get("/api/files/stat?path=new.txt")).status, 200);
+  } finally {
+    await s.close();
+  }
+});

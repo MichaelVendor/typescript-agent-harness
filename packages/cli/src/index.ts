@@ -10,6 +10,8 @@ export type { SessionRow } from "./sessions.js";
 export type { AttachmentMeta } from "./attachments/store.js";
 export type {
   DirListing,
+  FileKind,
+  FileStat,
   RecentFolder,
   ServeError,
   ServeInfo,

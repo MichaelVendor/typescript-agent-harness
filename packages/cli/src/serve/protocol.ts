@@ -78,3 +78,6 @@ export type DirListing = { path: string; parent: string | null; dirs: string[]; 
 
 /** How the preview panel shows a file. */
 export type FileKind = "image" | "pdf" | "video" | "html" | "markdown" | "text" | "binary";
+
+/** `GET /api/files/stat`: `path` is relative to the open folder (`/`-separated); `mtime` in ms; `previewURL` only for `html`. */
+export type FileStat = { path: string; kind: FileKind; bytes: number; mtime: number; previewURL?: string };

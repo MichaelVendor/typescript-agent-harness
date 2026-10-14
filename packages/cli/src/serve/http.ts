@@ -1,12 +1,13 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import type { IncomingMessage, RequestListener, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
-import { AttachmentError, MAX_FILE_BYTES } from "../attachments/store.js";
+import { AttachmentError, createAttachmentStore, MAX_FILE_BYTES } from "../attachments/store.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
+import { contentType, fileKind, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
 import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
 import {
@@ -23,7 +24,7 @@ import {
 } from "../settings.js";
 import { discoverSkills } from "../skills/discover.js";
 import { importSkills, removeSkill } from "../skills/install.js";
-import type { ServeInfo, SettingsView, SkillsView } from "./protocol.js";
+import type { FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
 
 const COOKIE = "tah_token";
@@ -43,6 +44,8 @@ const TYPES: Record<string, string> = {
 };
 /** The page can approve commands, so nothing it renders may load scripts or send data elsewhere. */
 const CSP = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'";
+/** Agent-made pages run as an opaque origin: no sign-in cookie, no `/api`. */
+const PREVIEW_CSP = "sandbox allow-scripts allow-forms allow-popups allow-modals";
 
 export type ServeOptions = {
   workspaces: Workspaces;
@@ -144,6 +147,21 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const streams = new Set<ServerResponse>();
   const webDir = path.resolve(opts.webDir);
   let choosing = false;
+  const previewToken = randomBytes(32).toString("base64url");
+
+  /** The file a `/api/files/*` query names (`path=` or `attachment=<id>`), inside the open folder. */
+  const fileOf = async (req: IncomingMessage) => {
+    const query = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+    const id = query.get("attachment");
+    if (id !== null) {
+      const ref = /^[\w-]+$/.test(id) ? createAttachmentStore(workspaces.cwd).get(id) : undefined;
+      if (!ref) throw new NotInFolderError();
+      return resolveInFolder(workspaces.cwd, ref.path);
+    }
+    const file = query.get("path");
+    if (!file) throw new HttpError(400, '"path" or "attachment" is required');
+    return resolveInFolder(workspaces.cwd, file);
+  };
 
   const settingsView = (): SettingsView => {
     const s = loadSettings(opts.home);
@@ -346,6 +364,21 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "POST /api/workspaces/remove":
         workspaces.remove(str(await readBody(req), "path"));
         return json(res, 204);
+      case "GET /api/files/stat": {
+        const file = await fileOf(req);
+        const kind = await fileKind(file.abs);
+        const view: FileStat = { path: file.rel, kind, bytes: file.bytes, mtime: file.mtime };
+        if (kind === "html") view.previewURL = `/preview/${previewToken}/${file.rel.split("/").map(encodeURIComponent).join("/")}`;
+        return json(res, 200, view);
+      }
+      case "GET /api/files/raw": {
+        const file = await fileOf(req);
+        const kind = await fileKind(file.abs);
+        return sendFile(req, res, file.abs, file.bytes, {
+          "content-type": contentType(file.abs, kind),
+          ...(kind === "pdf" ? {} : { "content-security-policy": "sandbox" }),
+        });
+      }
       case "GET /api/fs": {
         const dir = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("path") ?? undefined;
         return json(res, 200, listDirs(dir, opts.home));
@@ -421,6 +454,18 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     throw new HttpError(404, `no such endpoint: ${key}`);
   };
 
+  const preview = async (req: IncomingMessage, res: ServerResponse, pathname: string) => {
+    if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "method not allowed");
+    const [, , token = "", ...rest] = pathname.split("/");
+    if (!sameToken(token, previewToken)) throw new NotInFolderError();
+    const file = await resolveInFolder(workspaces.cwd, rest.join("/"));
+    const kind = await fileKind(file.abs);
+    sendFile(req, res, file.abs, file.bytes, {
+      "content-type": contentType(file.abs, kind),
+      "content-security-policy": PREVIEW_CSP,
+    });
+  };
+
   const page = async (req: IncomingMessage, res: ServerResponse, pathname: string) => {
     if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "method not allowed");
     if (!existsSync(webDir)) {
@@ -455,10 +500,13 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         ? Promise.reject(new HttpError(403, "unexpected Host header"))
         : pathname.startsWith("/api/")
           ? api(req, res, pathname)
-          : page(req, res, pathname);
+          : pathname.startsWith("/preview/")
+            ? preview(req, res, pathname)
+            : page(req, res, pathname);
     work.catch((err: unknown) => {
       if (res.headersSent) return void res.end();
       if (err instanceof HttpError) return json(res, err.status, { error: err.message });
+      if (err instanceof NotInFolderError) return json(res, 404, { error: err.message });
       if (err instanceof BusyError) return json(res, 409, { error: err.message });
       if (err instanceof AttachmentError) return json(res, 400, { error: err.message });
       if (err instanceof ConflictError) return json(res, 409, { error: err.message });
