@@ -23,6 +23,19 @@ test("save deduplicates object bytes and returns distinct ids", () => {
   assert.deepEqual(store.getMany([a.id, b.id]).map((r) => r.id), [a.id, b.id]);
 });
 
+test("keeps non-ASCII file names and caps the stored name in bytes", () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-att-"));
+  const store = createAttachmentStore(cwd);
+  const ref = store.save({ name: "设计说明 v2.md", mime: "text/markdown", data: Buffer.from("x") });
+  assert.equal(ref.name, "设计说明 v2.md");
+  assert.equal(path.basename(ref.path), "设计说明 v2.md");
+  assert.equal(store.get(ref.id)?.path, ref.path);
+  assert.equal(store.save({ name: "../a/b?.txt", mime: "text/plain", data: Buffer.from("y") }).name, "b_.txt");
+  const long = store.save({ name: `${"中".repeat(150)}.md`, mime: "text/markdown", data: Buffer.from("z") });
+  assert.ok(Buffer.byteLength(long.name) <= 200);
+  assert.equal(readFileSync(long.path, "utf8"), "z");
+});
+
 test("rejects oversized files and unknown attachment ids", () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-att-"));
   const store = createAttachmentStore(cwd);

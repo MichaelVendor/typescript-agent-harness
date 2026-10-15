@@ -33,8 +33,10 @@ export class AttachmentError extends Error {
 }
 
 function safeName(name: string): string {
-  const base = path.basename(name).replace(/[^\w.\-()+ ]+/g, "_").slice(0, 180);
-  return base || "file";
+  const chars = [...path.basename(name).replace(/[^\p{L}\p{M}\p{N}_.\-()+ ]+/gu, "_")];
+  // File systems cap names in bytes (255 on most), and CJK takes 3 bytes per character.
+  while (Buffer.byteLength(chars.join("")) > 200) chars.pop();
+  return chars.join("") || "file";
 }
 
 function kindOf(mime: string): AttachmentKind {
