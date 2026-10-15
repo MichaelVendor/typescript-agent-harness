@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.37.4 — 2026-10-15
 
 Tools: **`web_search` works without a key.** With no Tavily key it asks Exa's public MCP service first (free, rate-limited, 10-second timeout) and falls back to Bing's results page when Exa fails or finds nothing; if both fail, the error names both reasons and suggests `browser_open` on a Bing search page. Queries are sent to these third parties. A Tavily key (Settings → **Web search** or `TAVILY_API_KEY`) still means Tavily only, with no fallback. Results add `engine` (`tavily` / `exa` / `bing`). With `capabilities.web` on, `web_search` is always mounted and the startup line always shows `web=on` (`web=fetch` is gone). Settings shows "Exa + Bing · no key needed" when no key is set.
 
