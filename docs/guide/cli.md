@@ -175,7 +175,7 @@ my-agent/
 }
 ```
 
-合并顺序：内置默认 → config → CLI / 环境变量。键位、与 `tools/` 的关系、上网（`capabilities.web`：`web_fetch` 默认开，`web_search` 填 Tavily key 后开；`capabilities.browser`：内置浏览器，`browser_open` 批准后弹出 Chrome）见配置参考：**[tah.config.json](/design/config)**。
+合并顺序：内置默认 → config → CLI / 环境变量。键位、与 `tools/` 的关系、上网（`capabilities.web`：`web_fetch` / `web_search` 默认开，搜索不需要 key；`capabilities.browser`：内置浏览器，`browser_open` 批准后弹出 Chrome）见配置参考：**[tah.config.json](/design/config)**。
 
 工具文件：
 
@@ -255,7 +255,7 @@ tah serve --yes --port 8000 --no-open
 
 `tah serve` 在本机起服务并打开浏览器，网页里操作的就是当前目录的 Agent：流式 Markdown、工具调用行、审批卡片（允许一次 / 总是允许 / 拒绝）、步数上限的「继续」、会话侧栏（切换 / 新建 / 分叉）、停止当前轮。和 TUI 一样同一时间只有一个当前会话；开多个标签页看到的是同一个会话，操作实时同步，刷新或断线重连后从服务端补齐。`tah chat` 的其他参数（`--yes`、`--max-steps`、`--no-persist`、`--session`、`--mock` …）照常可用。
 
-工作文件夹（v0.30）：侧栏按文件夹分组列出会话（Pinned 跨文件夹置顶）；「Workspaces」标题旁的文件夹图标有两项：「Open project…」先列最近移除过的项目，「Choose folder…」弹系统的选文件夹对话框（macOS / Windows；其他系统用网页里的目录浏览器），「New folder…」默认在桌面新建（可换位置）并直接打开。左下角齿轮打开 Settings：Models 管理模型，Web search 填 Tavily key 打开 `web_search`（v0.31），Skills 列出已加载的 skill，并可把 `~/.cursor/skills` 这类文件夹里的 skill 导入 `~/.tah/skills`（v0.30.1，见 [Skills](/design/skills#网页导入-v0-30-1)）。文件夹列表存在 `~/.tah/workspaces.json`。打开另一个文件夹里的会话（或点该组的 `+`）时，Agent 的工作目录随之切换；运行中的一轮结束前不能切换。`.env` 始终用启动时那个目录的。见 [工作文件夹设计](/design/workspaces)。
+工作文件夹（v0.30）：侧栏按文件夹分组列出会话（Pinned 跨文件夹置顶）；「Workspaces」标题旁的文件夹图标有两项：「Open project…」先列最近移除过的项目，「Choose folder…」弹系统的选文件夹对话框（macOS / Windows；其他系统用网页里的目录浏览器），「New folder…」默认在桌面新建（可换位置）并直接打开。左下角齿轮打开 Settings：Models 管理模型，Web search 可填 Tavily key 让 `web_search` 改用 Tavily（v0.31；v0.37.4 起不填也能搜），Skills 列出已加载的 skill，并可把 `~/.cursor/skills` 这类文件夹里的 skill 导入 `~/.tah/skills`（v0.30.1，见 [Skills](/design/skills#网页导入-v0-30-1)）。文件夹列表存在 `~/.tah/workspaces.json`。打开另一个文件夹里的会话（或点该组的 `+`）时，Agent 的工作目录随之切换；运行中的一轮结束前不能切换。`.env` 始终用启动时那个目录的。见 [工作文件夹设计](/design/workspaces)。
 
 侧栏（v0.32）：标题旁的放大镜按标题和文件夹名搜索会话；视图选项可以改成「One list」，所有文件夹的会话按时间平铺；每个文件夹先显示 5 个会话，其余点「Show N more」；当前会话在跑时显示转圈，等你审批时显示「needs approval」。侧栏顶部 tah 右边的按钮把侧栏收成一列图标，再点展开。
 

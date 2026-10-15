@@ -252,7 +252,7 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 交付物：
 
 - `edit_file`（精确替换，需审批）、`todo_write`（任务列表，网页显示在输入框上方）
-- `web_fetch`（不要 key，只取公网地址）、`web_search`（Tavily key）；`capabilities.web` 控制
+- `web_fetch`（不要 key，只取公网地址）、`web_search`（Tavily key；v0.37.4 起没 key 也能用，走 Exa + Bing）；`capabilities.web` 控制
 - 内置浏览器：`browser_open` 获批后挂 `browser_*` 工具，驱动本机 Chrome（见 [内置浏览器](/design/browser)）
 - 上下文超预算时先让模型总结早先的轮次，失败再裁剪；`/compact` 或网页 **Compact** 手动压缩
 

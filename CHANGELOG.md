@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+Tools: **`web_search` works without a key.** With no Tavily key it asks Exa's public MCP service first (free, rate-limited, 10-second timeout) and falls back to Bing's results page when Exa fails or finds nothing; if both fail, the error names both reasons and suggests `browser_open` on a Bing search page. Queries are sent to these third parties. A Tavily key (Settings → **Web search** or `TAVILY_API_KEY`) still means Tavily only, with no fallback. Results add `engine` (`tavily` / `exa` / `bing`). With `capabilities.web` on, `web_search` is always mounted and the startup line always shows `web=on` (`web=fetch` is gone). Settings shows "Exa + Bing · no key needed" when no key is set.
+
 ## 0.37.3 — 2026-10-15
 
 Web (`tah serve`) / `tah chat`: **queue messages while the agent works** (like Cursor). Press Enter during a turn and the message (with its attachments) waits above the input box; it goes out as the next turn once this one ends. Stopping a turn, a failed turn or the step limit pauses what is queued — paused messages show "paused" and wait for you to send or remove them. In the web workbench each queued message has × to remove it (and Send when paused); in `tah chat`, ↑ on an empty input takes the last queued message back to edit. Switching sessions clears the queue. New host event `queue` `{ items }`, `ChatHost.sendQueued` / `removeQueued`, and endpoint `POST /api/queue` `{ id, send: true }` or `{ id, remove: true }`; `POST /api/send` during a turn now queues instead of answering 409.

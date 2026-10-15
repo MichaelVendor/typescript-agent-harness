@@ -55,7 +55,7 @@
 | 键 | 含义 |
 | --- | --- |
 | `capabilities.coding` | `true` / `false`，或 `{ "exec": boolean }`（默认 `exec: true`）。挂 `list_files` / `read_file` / `grep` / `write_file` / `edit_file`，以及可选的 `execute_command` |
-| `capabilities.web` | 官方 `web_fetch`（读网页）与 `web_search`（Tavily 搜索，有 key 才挂）。省略时跟随 `coding`；写 `false` 关掉（v0.31） |
+| `capabilities.web` | 官方 `web_fetch`（读网页）与 `web_search`（搜索；没 key 用 Exa + Bing，有 Tavily key 用 Tavily，v0.37.4）。省略时跟随 `coding`；写 `false` 关掉（v0.31） |
 | `capabilities.browser` | 内置浏览器（Playwright MCP）：先只挂 `browser_open`，调用并经用户批准后才启动 Chrome、挂上 18 个浏览器工具。省略时跟随 `web`；写 `false` 关掉；`--mock` 时不挂（v0.31，见 [内置浏览器](/design/browser)） |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |
 | `extensions.mcp` | `{ "command": string, "args"?: string[] }`，stdio MCP（同 `--mcp` / `--mcp-arg`），用来接其他搜索、抓取等第三方 MCP |
@@ -111,7 +111,7 @@ npx tah serve          # 有 tools/ 时仍挂内置文件工具，且开启 visi
 npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.exec
 ```
 
-`web` 默认随 `coding` 打开：`web_fetch` 不需要 key；`web_search` 用 Tavily，key 在 `tah serve` 的 Settings → Web search 里填（存 `~/.tah/settings.json`），或写 `.env` 的 `TAVILY_API_KEY`，两者都有时 Settings 优先。没有 key 时只挂 `web_fetch`，启动行显示 `web=fetch`；有 key 显示 `web=on`。
+`web` 默认随 `coding` 打开，`web_fetch` 和 `web_search` 都不需要 key，启动行显示 `web=on`。`web_search` 没 key 时先问 Exa、再查 Bing（查询会发给这两家，见 [工具](/guide/tools)）；想用 Tavily，key 在 `tah serve` 的 Settings → Web search 里填（存 `~/.tah/settings.json`），或写 `.env` 的 `TAVILY_API_KEY`，两者都有时 Settings 优先。
 
 `web_fetch` 只读公网 http(s)：解析域名后拒绝回环、内网、链路本地等地址（每次重定向都重新检查，最多 5 次），20 秒超时、最多读 2MB，HTML 转成带标题 / 列表 / 链接的纯文本，默认返回前 3 万字符。
 

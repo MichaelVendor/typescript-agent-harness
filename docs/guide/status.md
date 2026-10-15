@@ -14,7 +14,7 @@
 | --- | --- |
 | `@typescript-agent-harness/core` | Runtime / Plugin / Context / Service / EventBus + waterfall 拦截 |
 | `@typescript-agent-harness/llm` | mock + OpenAI 兼容（DeepSeek）+ 图片消息（不能看图的模型用 `images: false`，v0.33） |
-| `@typescript-agent-harness/tools` | registry + list/read/write/edit/grep + execute_command + `todo_write` + `web_fetch` / `web_search`（v0.31） |
+| `@typescript-agent-harness/tools` | registry + list/read/write/edit/grep + execute_command + `todo_write` + `web_fetch` / `web_search`（v0.31；搜索免 key，v0.37.4） |
 | `@typescript-agent-harness/agent` | Session + DefaultLoop + resume + `run_subagent` + 上下文压缩与裁剪（v0.31） |
 | `@typescript-agent-harness/storage` | SQLite / memory、事件日志、checkpoint |
 | `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |

@@ -104,7 +104,7 @@ type HostEvent =
 | `POST /api/settings/models/remove` `{id}` | 删除；删的是选中的就退回 `.env` |
 | `POST /api/settings/models/vision` `{id, vision}` | 标记模型能不能看图（v0.33）；`vision` 必须是布尔值 |
 | `POST /api/settings/active` `{id \| null}` | 选中模型；`null` 用 `.env` |
-| `POST /api/settings/search` `{apiKey \| null}` | 保存 Tavily key（开 `web_search`，v0.31）；`null` 删除，退回 `.env` 的 `TAVILY_API_KEY`；host 重新加载 |
+| `POST /api/settings/search` `{apiKey \| null}` | 保存 Tavily key（`web_search` 改用 Tavily，v0.31）；`null` 删除，退回 `.env` 的 `TAVILY_API_KEY`，都没有时用 Exa + Bing（v0.37.4）；host 重新加载 |
 
 Skills（v0.30.1）：`GET /api/skills` 列出当前文件夹加载的 skill（`source`: `home` / `folder`）；`POST /api/skills/import` `{path}` 把一个 skill 文件夹（或一层子文件夹里的全部 skill）复制进 `~/.tah/skills`，返回列表加 `imported` / `skipped`；`POST /api/skills/remove` `{name}` 只删 `~/.tah/skills` 里的。导入 / 删除后 host 重新加载；一轮进行中返回 409。见 [Skills](./skills.md#网页导入-v0-30-1)。
 

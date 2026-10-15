@@ -110,13 +110,33 @@ Main Agent
 | `edit_file` | 0.31 | 按原文替换片段：`old_string` 必须恰好出现一次，否则报出现次数；`replace_all: true` 全部替换；需要审批 |
 | `todo_write` | 0.31 | 任务清单：每次传整份 `todos`（`content` + `pending` / `in_progress` / `completed`，最多 50 项），全量替换；不需要审批。提示词要求 3 步以上的任务使用 |
 | `web_fetch` | 0.31 | 读公网网页（拒绝内网 / 回环地址，重定向逐跳检查），HTML 转纯文本，默认 3 万字符、`max_chars` 最多 10 万；不需要审批。见 [tah.config.json](/design/config) |
-| `web_search` | 0.31 | Tavily 搜索，返回标题 / 链接 / 摘要（`max_results` 1–10，默认 5）；有 Tavily key 才挂 |
+| `web_search` | 0.31 | 搜索网页，返回标题 / 链接 / 摘要（`max_results` 1–10，默认 5）和实际用的 `engine`。0.37.4 起不需要 key：先问 Exa，失败或没结果再查 Bing；配了 Tavily key 只用 Tavily。见下文 |
 | `browser_open` | 0.31 | 启动内置浏览器（Playwright MCP + 本机 Chrome），可带 `url`；浏览器没开时需要审批，已开时直接放行。打开后挂上 18 个 `browser_*` 工具（`browser_navigate` / `browser_snapshot` / `browser_find` / `browser_click` / `browser_type` / `browser_fill_form` / `browser_take_screenshot` / `browser_close` 等），结果超过 3 万字符截断，截图不回传给模型；`browser_file_upload` 每次审批，`browser_close` 后撤下这些工具。见 [内置浏览器](/design/browser) |
 | `ask_user` | 0.37 | 向用户提 1–4 个选择题（每题 2–5 个选项，可多选，用户也能自己输入），等回答后把答案交回模型；只在 `tah serve` / `tah chat` 挂，`--yes` 不影响。见 [让用户选择](/design/ask-user) |
 | `execute_command` | 9 | 工作区 cwd 起进程（非 shell；无 sandbox）；默认 30 秒超时，模型可按次传 `timeoutMs`（最长 10 分钟） |
 | `grep` | 11 | 工作区正则搜索（跳过 `node_modules` / `dist` / 点文件） |
 | MCP ping | 4 | `inProcessPingBackend` |
 | MCP stdio | 6 | `stdioMcpBackend` |
+
+### `web_search` 的搜索来源（0.37.4）
+
+- **没配 key**：查询发给 Exa 的公开 MCP 服务（`mcp.exa.ai`，免费但限流，10 秒超时）；Exa 出错、限流或 0 条结果时改查 Bing 结果页。两边都失败时报错，并建议用 `browser_open` 打开 Bing 搜索页。注意查询内容会发给这两家第三方。
+- **配了 Tavily key**（`tah serve` 的 Settings → Web search，或 `.env` 的 `TAVILY_API_KEY`）：只用 Tavily，失败直接报错，不回退。
+
+想换别的搜索服务，可以在 `tah.config.json` 里挂第三方 MCP，例如 [open-websearch](https://www.npmjs.com/package/open-websearch)（多引擎，首次 `npx` 安装较慢）：
+
+```json
+{
+  "extensions": {
+    "mcp": {
+      "command": "env",
+      "args": ["MODE=stdio", "npx", "-y", "open-websearch@latest"]
+    }
+  }
+}
+```
+
+`env` 写法适用于 macOS / Linux。
 
 ## 设计约束
 
