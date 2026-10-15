@@ -7,8 +7,8 @@ export function buildSystemPrompt(opts: {
   role?: string;
   /** false: only the project's tools are mounted, so the file / command rules are left out. */
   builtinTools?: boolean;
-  /** "search": web_search and web_fetch; "fetch": web_fetch only (no search key). */
-  web?: "search" | "fetch" | "off";
+  /** "search": web_search and web_fetch. */
+  web?: "search" | "off";
   browser?: boolean;
   /** `ask_user` is mounted (someone is there to answer). */
   askUser?: boolean;
@@ -48,8 +48,6 @@ export function buildSystemPrompt(opts: {
 const WEB_RULES = {
   search:
     "Use web_search for current or external information (docs, versions, news) and web_fetch to read a page; cite the URLs you rely on.",
-  fetch:
-    "Use web_fetch to read a web page the user gives you; cite the URL. web_search is off until a Tavily API key is set (web app: Settings → Web search, or TAVILY_API_KEY in .env) — say so if the user needs a search.",
 };
 
 const BROWSER_RULES =

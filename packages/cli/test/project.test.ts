@@ -56,6 +56,7 @@ const BUILTIN = [
   ...(process.platform === "darwin" ? ["read_image_text"] : []),
   "todo_write",
   "web_fetch",
+  "web_search",
   "write_file",
 ];
 

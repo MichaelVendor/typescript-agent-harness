@@ -178,7 +178,7 @@ export async function bootRuntime(
   const discovered = discoverSkills({ cwd: flags.cwd, homeDir: opts.homeDir ?? os.homedir() });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? (webKey ? " web=on" : " web=fetch") : ""}${browser ? " browser=on" : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? " web=on" : ""}${browser ? " browser=on" : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -238,7 +238,7 @@ export async function bootRuntime(
         ...(ocr ? [readImageTextTool(flags.cwd)] : []),
       ]
     : [];
-  if (caps.web) tools.push(webFetchTool(), ...(webKey ? [webSearchTool({ apiKey: webKey })] : []));
+  if (caps.web) tools.push(webFetchTool(), webSearchTool(webKey ? { apiKey: webKey } : {}));
   const mountSkill = discovered.skills.some((s) => s.modelInvocable);
   for (const { file, tool } of project?.tools ?? []) {
     if (tool.name === "skill") {
@@ -316,7 +316,7 @@ export async function bootRuntime(
         exec,
         mcp: mcpOn,
         builtinTools: builtin,
-        web: caps.web ? (webKey ? "search" : "fetch") : "off",
+        web: caps.web ? "search" : "off",
         browser: Boolean(browser),
         askUser: Boolean(opts.question),
         ...(role !== undefined ? { role } : {}),

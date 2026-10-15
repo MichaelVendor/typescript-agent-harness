@@ -156,7 +156,7 @@ test("bootRuntime loads tah.config.json coding with tools/", async () => {
   assert.match(startup, /vision=on/);
   const names = runtime.get(TOOLS).list().map((t) => t.name).sort();
   const ocr = process.platform === "darwin" ? ["read_image_text"] : [];
-  assert.deepEqual(names, ["echo", "edit_file", "execute_command", "grep", "list_files", "read_file", ...ocr, "todo_write", "web_fetch", "write_file"]);
+  assert.deepEqual(names, ["echo", "edit_file", "execute_command", "grep", "list_files", "read_file", ...ocr, "todo_write", "web_fetch", "web_search", "write_file"]);
   await runtime.stop();
 });
 
@@ -178,14 +178,14 @@ test("bootRuntime: the active saved model's flag decides vision, not --vision", 
   await on.runtime.stop();
 });
 
-test("bootRuntime mounts web_fetch for capabilities.web; web_search needs a Tavily key", async () => {
+test("bootRuntime mounts web_fetch and web_search for capabilities.web, with or without a Tavily key", async () => {
   const cwd = projectDir({
     "tah.config.json": JSON.stringify({ capabilities: { web: true } }),
   });
   const mock = await bootRuntime({ ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd }, { homeDir });
   const mockNames = mock.runtime.get(TOOLS).list().map((t) => t.name);
-  assert.match(mock.startup, /web=fetch/);
-  assert.ok(mockNames.includes("web_fetch") && !mockNames.includes("web_search"));
+  assert.match(mock.startup, /web=on/);
+  assert.ok(mockNames.includes("web_fetch") && mockNames.includes("web_search"));
   await mock.runtime.stop();
 
   const home = mkdtempSync(path.join(tmpdir(), "tah-home-"));
