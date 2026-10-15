@@ -1074,6 +1074,49 @@ button.question-option.picked {
 .composer-wrap {
   padding: 8px max(16px, calc((100% - 860px) / 2));
 }
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px max(16px, calc((100% - 860px) / 2)) 0;
+}
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 13px;
+}
+.queue-item.held {
+  border-color: var(--warn);
+}
+.queue-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.queue-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.queue-item.held .queue-meta {
+  color: var(--warn);
+}
+.queue-item button {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+.queue-remove {
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
 .todos {
   margin: 0 max(16px, calc((100% - 860px) / 2));
   padding: 6px 10px;

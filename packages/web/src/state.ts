@@ -1,4 +1,4 @@
-import type { AttachmentMeta, HistoryItem, HostEvent, Question, Todo } from "@typescript-agent-harness/cli";
+import type { AttachmentMeta, HistoryItem, HostEvent, Question, QueuedMessage, Todo } from "@typescript-agent-harness/cli";
 
 export type Entry =
   | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
@@ -20,6 +20,8 @@ export type State = {
   retry: string | undefined;
   /** The latest `todo_write` list of this session. */
   todos: Todo[];
+  /** Messages sent during a turn, waiting for it to end. */
+  queue: QueuedMessage[];
   /** The last turn hit the step limit; the page offers to continue it. */
   stepLimit: boolean;
   busy: boolean;
@@ -45,6 +47,7 @@ export const initialState: State = {
   question: undefined,
   retry: undefined,
   todos: [],
+  queue: [],
   stepLimit: false,
   busy: false,
   turnsEnded: 0,
@@ -162,6 +165,8 @@ export function applyEvent(state: State, action: Action): State {
       return state.question?.id === action.id ? { ...state, question: undefined } : state;
     case "todos":
       return { ...state, todos: action.todos };
+    case "queue":
+      return { ...state, queue: action.items };
     case "retry":
       return { ...running(state), retry: action.text };
     case "notice":

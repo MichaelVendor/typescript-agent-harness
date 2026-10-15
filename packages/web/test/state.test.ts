@@ -22,6 +22,16 @@ test("startup notices survive the first session; a session switch starts a clean
   assert.equal(second.sessionId, "s2");
 });
 
+test("queue events replace the queue; it is neither a message nor cleared by a session event", () => {
+  const items = [{ id: "queued_1", text: "next", held: false }];
+  const s = run([session("s1"), { type: "user", text: "hi" }, { type: "queue", items }]);
+  assert.deepEqual(s.queue, items);
+  assert.equal(s.entries.length, 1);
+  assert.deepEqual(run([session("s2")], s).queue, items);
+  assert.deepEqual(run([{ type: "queue", items: [] }], s).queue, []);
+  assert.deepEqual(run([{ type: "local.reset" }], s).queue, []);
+});
+
 test("todos come from the session event and are replaced by todos events", () => {
   const list = [{ content: "fix bug", status: "in_progress" as const }];
   const resumed = run([{ ...session("s1"), todos: list } as Action]);

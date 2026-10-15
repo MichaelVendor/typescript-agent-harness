@@ -6,6 +6,7 @@ import { ApprovalCard } from "./components/ApprovalCard";
 import { QuestionCard } from "./components/QuestionCard";
 import { BrowserPane } from "./components/BrowserPane";
 import { Composer } from "./components/Composer";
+import { QueueList } from "./components/QueueList";
 import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
 import { Messages } from "./components/Messages";
@@ -229,6 +230,12 @@ export function App() {
           ) : null}
         </Messages>
         <TodoPanel todos={state.todos} />
+        <QueueList
+          items={state.queue}
+          busy={state.busy}
+          onSend={(id) => run(api.queue({ id, send: true }))}
+          onRemove={(id) => run(api.queue({ id, remove: true }))}
+        />
         <Composer
           cwd={workspaces?.find((w) => w.active)?.path}
           busy={state.busy}

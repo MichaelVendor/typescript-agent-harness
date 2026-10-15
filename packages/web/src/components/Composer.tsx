@@ -44,7 +44,7 @@ export function Composer(props: {
 
   const uploading = drafts.some((d) => d.status === "uploading");
   const readyIds = drafts.filter((d) => d.status === "ready").map((d) => d.id);
-  const canSend = !props.busy && !props.disabled && !uploading && (Boolean(text.trim()) || readyIds.length > 0);
+  const canSend = !props.disabled && !uploading && (Boolean(text.trim()) || readyIds.length > 0);
 
   const uploadFiles = async (files: FileList | File[]) => {
     for (const file of [...files]) {
@@ -109,7 +109,7 @@ export function Composer(props: {
       }}
       onDrop={(e) => {
         e.preventDefault();
-        if (props.disabled || props.busy) return;
+        if (props.disabled) return;
         if (e.dataTransfer.files.length) void uploadFiles(e.dataTransfer.files);
       }}
     >
@@ -146,12 +146,16 @@ export function Composer(props: {
           ref={ref}
           rows={1}
           value={text}
-          placeholder="Message the agent — Enter to send, Shift+Enter for a new line; drop or paste files"
+          placeholder={
+            props.busy
+              ? "Queue a message — it is sent when this turn ends"
+              : "Message the agent — Enter to send, Shift+Enter for a new line; drop or paste files"
+          }
           disabled={props.disabled}
           onChange={(e) => setText(e.target.value)}
           onPaste={(e) => {
             const files = [...e.clipboardData.files];
-            if (files.length === 0 || props.disabled || props.busy) return;
+            if (files.length === 0 || props.disabled) return;
             e.preventDefault();
             void uploadFiles(files);
           }}
@@ -165,7 +169,7 @@ export function Composer(props: {
           <button
             type="button"
             className="attach-btn"
-            disabled={props.disabled || props.busy}
+            disabled={props.disabled}
             title="Attach files"
             onClick={() => fileRef.current?.click()}
           >
