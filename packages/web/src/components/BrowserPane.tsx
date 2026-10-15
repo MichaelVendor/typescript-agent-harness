@@ -25,7 +25,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const image = useRef<HTMLImageElement>(null);
   const keys = useRef<HTMLTextAreaElement>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
-  const lastMove = useRef(0);
+  const moving = useRef<BrowserInput | undefined>(undefined);
   const wheel = useRef<{ x: number; y: number; dx: number; dy: number; modifiers: number } | undefined>(undefined);
   const composing = useRef(false);
   /** The button pressed on the frame; until it is released, moves and the release outside the frame count at its edge. */
@@ -46,14 +46,25 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
     [],
   );
 
+  const fail = (err: unknown) => setFailed(err instanceof Error ? err.message : String(err));
   const run = (pending: Promise<unknown>) => {
     setFailed(undefined);
-    pending.catch((err: unknown) => setFailed(err instanceof Error ? err.message : String(err)));
+    pending.catch(fail);
   };
   /** One at a time, so a click's press and release reach the page in order. */
   const send = (input: BrowserInput) => {
-    queue.current = queue.current.then(() => api.browserInput(input)).catch(() => {});
+    queue.current = queue.current.then(() => api.browserInput(input)).catch(fail);
   };
+
+  const live = Boolean(state?.running && frame);
+  useEffect(() => {
+    const el = keys.current;
+    if (!live || !el) return;
+    // React's wheel listener is passive; without this the panel scrolls along with the page.
+    const stop = (e: WheelEvent) => e.preventDefault();
+    el.addEventListener("wheel", stop, { passive: false });
+    return () => el.removeEventListener("wheel", stop);
+  }, [live]);
 
   const tab = state?.tabs.find((t) => t.id === state.active);
   const dialog = state?.dialog;
@@ -68,6 +79,11 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
     const y = Math.min(Math.max(e.clientY, rect.top), rect.bottom);
     return toPage(x, y, rect, frame);
   };
+  const flushMove = () => {
+    const m = moving.current;
+    moving.current = undefined;
+    if (m) send(m);
+  };
   const press = (e: ReactMouseEvent, event: "down" | "up") => {
     const button = mouseButton(e.button);
     if (!button || (event === "up" && held.current === undefined)) return;
@@ -75,14 +91,16 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
     if (!p) return;
     if (event === "down") held.current ??= e.button;
     else if (held.current === e.button) held.current = undefined;
+    flushMove();
     send({ type: "mouse", event, ...p, button, clickCount: Math.max(e.detail, 1), modifiers: modifiers(e) });
   };
+  /** Sends the latest position once per throttle window, so the pointer ends where the mouse stopped. */
   const move = (e: ReactMouseEvent) => {
-    if (Date.now() - lastMove.current < THROTTLE_MS) return;
     const p = point(e);
     if (!p) return;
-    lastMove.current = Date.now();
-    send({ type: "mouse", event: "move", ...p, button: e.buttons & 1 ? "left" : "none", clickCount: 0, modifiers: modifiers(e) });
+    const scheduled = moving.current !== undefined;
+    moving.current = { type: "mouse", event: "move", ...p, button: e.buttons & 1 ? "left" : "none", clickCount: 0, modifiers: modifiers(e) };
+    if (!scheduled) setTimeout(flushMove, THROTTLE_MS);
   };
   const turn = (e: ReactWheelEvent) => {
     const pending = wheel.current;
@@ -224,7 +242,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
         </form>
       ) : null}
       <div className="browser-screen">
-        {state?.running && frame ? (
+        {live && frame ? (
           <div className="browser-frame">
             <img ref={image} src={frame.src} alt={tab?.title || "Page"} draggable={false} />
             <textarea
