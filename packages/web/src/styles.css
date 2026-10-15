@@ -999,6 +999,43 @@ main {
   display: flex;
   gap: 8px;
 }
+.card.question {
+  border-color: var(--accent);
+}
+.question-item {
+  margin-bottom: 12px;
+}
+.question-hint {
+  font-weight: 400;
+  color: var(--muted);
+}
+.question-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+button.question-option {
+  text-align: left;
+  background: var(--bg);
+}
+button.question-option:not(:disabled):hover,
+button.question-option.picked {
+  border-color: var(--accent);
+}
+button.question-option.picked {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
+.question-other {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
 
 .composer-wrap {
   padding: 8px max(16px, calc((100% - 860px) / 2));

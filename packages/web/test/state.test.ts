@@ -85,6 +85,16 @@ test("a call rejected at approval never starts but still gets a failed tool line
   assert.equal(after.entries.at(-1)?.kind, "tool");
 });
 
+test("an ask_user question shows until its question.end, and a stopped turn drops it", () => {
+  const questions = [{ question: "Which?", options: ["a", "b"] }];
+  const s = run([session("s1"), { type: "user", text: "do it" }, { type: "question", id: "q1", questions }]);
+  assert.deepEqual(s.question, { id: "q1", questions });
+  assert.equal(s.busy, true);
+  assert.deepEqual(run([{ type: "question.end", id: "other" }], s).question, s.question);
+  assert.equal(run([{ type: "question.end", id: "q1" }], s).question, undefined);
+  assert.equal(run([{ type: "turn.error", cancelled: true, message: "" }], s).question, undefined);
+});
+
 test("every finished turn counts, even one whose events arrive in a single batch", () => {
   const turn = (end: Action): Action => ({ type: "batch", actions: [{ type: "user", text: "x" }, end] });
   const s = run([

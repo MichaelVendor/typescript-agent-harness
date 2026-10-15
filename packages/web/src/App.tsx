@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { api, connect, type Connection } from "./api";
 import { agentBrowsing, opensBrowser } from "./browser-view";
 import { ApprovalCard } from "./components/ApprovalCard";
+import { QuestionCard } from "./components/QuestionCard";
 import { BrowserPane } from "./components/BrowserPane";
 import { Composer } from "./components/Composer";
 import { FilePreview } from "./components/FilePreview";
@@ -147,7 +148,7 @@ export function App() {
 
   const last = state.entries.at(-1);
   const toolRunning = state.entries.some((e) => e.kind === "tool" && e.status === "running");
-  const thinking = state.busy && !state.approval && !toolRunning && last?.kind !== "assistant";
+  const thinking = state.busy && !state.approval && !state.question && !toolRunning && last?.kind !== "assistant";
   const fileOpen = preview !== undefined;
   const browserOpen = browserShown && browserAvailable;
   const side = fileOpen && browserOpen ? view : fileOpen ? "file" : browserOpen ? "browser" : undefined;
@@ -159,7 +160,7 @@ export function App() {
         unavailable={sessionsError}
         current={state.sessionId}
         busy={state.busy}
-        approval={Boolean(state.approval)}
+        waiting={state.approval ? "needs approval" : state.question ? "needs answer" : undefined}
         onNew={(cwd) => run(api.reset(cwd ? { cwd } : {}))}
         onFork={(id, cwd) => run(api.fork({ id, ...(cwd ? { cwd } : {}) }))}
         onPick={(id, cwd) => run(api.resume({ ref: id, cwd }))}
@@ -193,6 +194,13 @@ export function App() {
             <ApprovalCard
               approval={state.approval}
               onAnswer={(answer) => state.approval && run(api.answer({ id: state.approval.id, answer }))}
+            />
+          ) : null}
+          {state.question ? (
+            <QuestionCard
+              key={state.question.id}
+              question={state.question}
+              onAnswer={(answers) => state.question && run(api.question({ id: state.question.id, answers }))}
             />
           ) : null}
           {state.stepLimit && !state.busy ? (

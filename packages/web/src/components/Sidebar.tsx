@@ -149,8 +149,8 @@ export function Sidebar(props: {
   unavailable: string | undefined;
   current: string;
   busy: boolean;
-  /** The current session is waiting for an approval answer. */
-  approval: boolean;
+  /** Why the current session is waiting on the user ("needs approval", "needs answer"), if it is. */
+  waiting: string | undefined;
   onNew(cwd?: string): void;
   onFork(id: string, cwd?: string): void;
   onPick(id: string, cwd: string): void;
@@ -251,7 +251,7 @@ export function Sidebar(props: {
   const row = (item: Item, showFolder: boolean) => {
     const s = item.session;
     const isCurrent = item.ws.active && s.id === props.current;
-    const waiting = isCurrent && props.approval;
+    const waiting = isCurrent ? props.waiting : undefined;
     return (
       <li
         key={keyOf(item)}
@@ -288,7 +288,7 @@ export function Sidebar(props: {
           <div className="session">
             <span className="session-status">
               {waiting ? (
-                <span className="status-dot" aria-label="needs approval" />
+                <span className="status-dot" aria-label={waiting} />
               ) : isCurrent && props.busy ? (
                 <span className="spinner" aria-label="running" />
               ) : null}
@@ -308,7 +308,7 @@ export function Sidebar(props: {
                 {splitMatch(label(s), query ?? "").map((p, i) => (p.hit ? <mark key={i}>{p.text}</mark> : p.text))}
               </span>
             </button>
-            {waiting ? <span className="session-badge">needs approval</span> : null}
+            {waiting ? <span className="session-badge">{waiting}</span> : null}
             {showFolder ? <span className="session-folder">{item.ws.name}</span> : null}
             {waiting ? null : <span className="session-time">{ago(s.updatedAt)}</span>}
             <span className="session-tools">

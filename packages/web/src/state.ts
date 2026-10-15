@@ -1,4 +1,4 @@
-import type { AttachmentMeta, HistoryItem, HostEvent, Todo } from "@typescript-agent-harness/cli";
+import type { AttachmentMeta, HistoryItem, HostEvent, Question, Todo } from "@typescript-agent-harness/cli";
 
 export type Entry =
   | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
@@ -8,10 +8,14 @@ export type Entry =
 
 export type Approval = { id: string; tool: string; input: unknown };
 
+export type PendingQuestion = { id: string; questions: Question[] };
+
 export type State = {
   sessionId: string;
   entries: Entry[];
   approval: Approval | undefined;
+  /** An `ask_user` call waiting for the answers. */
+  question: PendingQuestion | undefined;
   /** The latest `todo_write` list of this session. */
   todos: Todo[];
   /** The last turn hit the step limit; the page offers to continue it. */
@@ -36,6 +40,7 @@ export const initialState: State = {
   sessionId: "",
   entries: [],
   approval: undefined,
+  question: undefined,
   todos: [],
   stepLimit: false,
   busy: false,
@@ -93,7 +98,7 @@ export function applyEvent(state: State, action: Action): State {
       // Notices before the first session are startup lines; a session switch starts a clean view.
       const kept = state.sessionId ? { ...state, entries: [] } : state;
       return push(
-        { ...kept, sessionId: action.id, busy: false, approval: undefined, stepLimit: false, rounds: 0, todos: action.todos ?? [] },
+        { ...kept, sessionId: action.id, busy: false, approval: undefined, question: undefined, stepLimit: false, rounds: 0, todos: action.todos ?? [] },
         ...action.history.map(fromHistory),
       );
     }
@@ -144,6 +149,10 @@ export function applyEvent(state: State, action: Action): State {
       return { ...running(state), approval: { id: action.id, tool: action.tool, input: action.input } };
     case "approval.end":
       return state.approval?.id === action.id ? { ...state, approval: undefined } : state;
+    case "question":
+      return { ...running(state), question: { id: action.id, questions: action.questions } };
+    case "question.end":
+      return state.question?.id === action.id ? { ...state, question: undefined } : state;
     case "todos":
       return { ...state, todos: action.todos };
     case "notice":
@@ -154,12 +163,13 @@ export function applyEvent(state: State, action: Action): State {
         busy: false,
         turnsEnded: state.turnsEnded + 1,
         approval: undefined,
+        question: undefined,
         rounds: action.rounds,
         stepLimit: action.finishReason === "max_steps",
       };
     case "turn.error":
       return push(
-        { ...state, busy: false, approval: undefined, turnsEnded: state.turnsEnded + 1 },
+        { ...state, busy: false, approval: undefined, question: undefined, turnsEnded: state.turnsEnded + 1 },
         action.cancelled
           ? { kind: "notice", text: "turn cancelled — history kept", error: false }
           : { kind: "notice", text: `turn failed: ${action.message} — history kept; try again`, error: true },

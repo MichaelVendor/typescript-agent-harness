@@ -70,6 +70,7 @@ export const api = {
   compact: () => post("/api/compact"),
   cancel: () => post("/api/cancel"),
   answer: (body: ServeRequest["answer"]) => post("/api/answer", body),
+  question: (body: ServeRequest["question"]) => post("/api/question", body),
   reset: (body: ServeRequest["reset"] = {}) => post("/api/reset", body),
   workspaces: async () => (await (await call("GET", "/api/workspaces")).json()) as WorkspaceView[],
   recent: async () => (await (await call("GET", "/api/workspaces/recent")).json()) as RecentFolder[],
