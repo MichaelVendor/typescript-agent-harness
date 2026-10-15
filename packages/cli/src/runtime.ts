@@ -27,6 +27,7 @@ import {
 import type { CliFlags } from "./args.js";
 import type { StorageService } from "@typescript-agent-harness/storage";
 import { APPROVAL_TOOLS } from "./approve.js";
+import { askUserTool, type AskUser } from "./ask-user.js";
 import { createBrowser, type Browser, type BrowserServer } from "./browser.js";
 import { activeModel, defaultBaseURL, searchKey } from "./settings.js";
 import {
@@ -93,6 +94,8 @@ export async function bootRuntime(
   flags: CliFlags,
   opts: {
     ask?: ApprovalPluginOptions["ask"];
+    /** Mounts `ask_user`; only front ends with someone to answer pass it (not `--yes`-dependent). */
+    question?: AskUser;
     print?: boolean;
     project?: Project | undefined;
     homeDir?: string;
@@ -243,12 +246,16 @@ export async function bootRuntime(
         `tah: tools/${file}: tool "skill" is reserved by the CLI skills tool; rename the file or set name`,
       );
     }
+    if (tool.name === "ask_user") {
+      throw new ProjectError(`tah: tools/${file}: tool "ask_user" is reserved by the CLI; rename the file or set name`);
+    }
     if (tools.some((t) => t.name === tool.name)) {
       throw new ProjectError(`tah: tools/${file}: tool "${tool.name}" is built in; rename the file or set name`);
     }
   }
   tools.push(...(project?.tools.map((t) => t.tool) ?? []));
   if (mountSkill) tools.push(createSkillTool(discovered.skills));
+  if (opts.question) tools.push(askUserTool(opts.question));
 
   if (exec || flags.allow.length > 0 || flags.deny.length > 0) {
     const perms: PermissionsPluginOptions = {};
@@ -311,6 +318,7 @@ export async function bootRuntime(
         builtinTools: builtin,
         web: caps.web ? (webKey ? "search" : "fetch") : "off",
         browser: Boolean(browser),
+        askUser: Boolean(opts.question),
         ...(role !== undefined ? { role } : {}),
         ...(skillsCatalog !== undefined ? { skillsCatalog } : {}),
       }),

@@ -129,6 +129,7 @@ function fakeHost() {
   const store = createAttachmentStore(mkdtempSync(path.join(tmpdir(), "tah-serve-att-")));
   let finish = () => {};
   let reloads = 0;
+  const answered: { id: string; answers: string[][] }[] = [];
   const host: ChatHost = {
     sessionId: "s1",
     approve: true,
@@ -173,6 +174,10 @@ function fakeHost() {
     answer(id, answer) {
       emit({ type: "approval.end", id, answer });
     },
+    answerQuestion(id, answers) {
+      answered.push({ id, answers });
+      emit({ type: "question.end", id });
+    },
     reset: async () => {},
     resume: async () => {},
     fork: async () => {},
@@ -184,7 +189,7 @@ function fakeHost() {
     },
     close: async () => {},
   };
-  return { host, emit, finish: () => finish(), reloads: () => reloads };
+  return { host, emit, finish: () => finish(), reloads: () => reloads, answered };
 }
 
 async function fakeServer(
@@ -334,6 +339,39 @@ test("Host, Origin and content-type are checked before anything else", async () 
       body: { token: TOKEN },
     });
     assert.equal(form.status, 415);
+  } finally {
+    await s.close();
+  }
+});
+
+test("ask_user questions replay to a new tab until answered; /api/question checks the answers", async () => {
+  const s = await fakeServer();
+  const { cookie } = s;
+  const api = client(s.base, cookie);
+  try {
+    const first = stream(s.base, cookie);
+    await first.until("session");
+    assert.equal((await api.post("/api/send", { text: "hi" })).status, 202);
+    const asked = { type: "question", id: "q1", questions: [{ question: "Which?", options: ["A", "B"] }] } as const;
+    s.emit(asked);
+
+    const second = stream(s.base, cookie);
+    assert.deepEqual((await second.until("question")).at(-1), asked);
+
+    assert.equal((await api.post("/api/question", { id: "q1", answers: "A" })).status, 400);
+    assert.equal((await api.post("/api/question", { id: "q1", answers: [[1]] })).status, 400);
+    assert.equal((await api.post("/api/question", { id: "q1", answers: [["A", "my own"]] })).status, 204);
+    assert.deepEqual(s.answered, [{ id: "q1", answers: [["A", "my own"]] }]);
+    assert.deepEqual((await first.until("question.end")).at(-1), { type: "question.end", id: "q1" });
+    assert.deepEqual((await second.until("question.end")).at(-1), { type: "question.end", id: "q1" });
+
+    const third = stream(s.base, cookie);
+    await new Promise((r) => setTimeout(r, 50));
+    assert.ok(!third.events.some((e) => e.type === "question"));
+
+    s.finish();
+    await first.until("turn.end");
+    for (const t of [first, second, third]) t.close();
   } finally {
     await s.close();
   }

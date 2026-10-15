@@ -50,6 +50,52 @@ test("a long reply streamed in back-to-back microtasks renders without hitting R
   }
 });
 
+test("ask_user questions are answered by number keys or typed text, one question at a time", async () => {
+  const answered: unknown[] = [];
+  const transcript = new Transcript(renderMarkdown);
+  const app = render(
+    createElement(App, {
+      host: { ...host, answerQuestion: (id: string, answers: string[][]) => answered.push({ id, answers }) },
+      transcript,
+      maxSteps: Infinity,
+      color: false,
+    } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 50));
+  try {
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    transcript.apply({ type: "user", text: "build it" });
+    transcript.apply({
+      type: "question",
+      id: "q1",
+      questions: [
+        { question: "Which database?", options: ["Postgres", "SQLite"] },
+        { question: "Also add?", options: ["tests", "docs", "CI"], multiple: true },
+      ],
+    });
+    await settle();
+    assert.match(app.lastFrame() ?? "", /Which database\? \(1\/2\)[\s\S]*1\. Postgres[\s\S]*2\. SQLite/);
+    app.stdin.write("2");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /Also add\? \(2\/2\)/);
+    app.stdin.write("1");
+    await settle();
+    app.stdin.write("3");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /\[x\] 1\. tests[\s\S]*\[ \] 2\. docs[\s\S]*\[x\] 3\. CI/);
+    app.stdin.write("lint");
+    await settle();
+    app.stdin.write("\r");
+    await settle();
+    assert.deepEqual(answered, [{ id: "q1", answers: [["SQLite"], ["tests", "CI", "lint"]] }]);
+    transcript.apply({ type: "question.end", id: "q1" });
+    await settle();
+    assert.doesNotMatch(app.lastFrame() ?? "", /Also add\?/);
+  } finally {
+    app.unmount();
+  }
+});
+
 test("a notice flagged as an error shows as an error", () => {
   const transcript = new Transcript(renderMarkdown);
   transcript.apply({ type: "notice", text: "[tah] reloaded" });

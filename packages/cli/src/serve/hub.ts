@@ -48,6 +48,9 @@ export function createHub(first: ChatHost): Hub {
       case "approval.end":
         turn = turn.filter((e) => !(e.type === "approval" && e.id === event.id));
         return;
+      case "question.end":
+        turn = turn.filter((e) => !(e.type === "question" && e.id === event.id));
+        return;
       case "text": {
         const last = turn.at(-1);
         if (last?.type === "text") return void (turn[turn.length - 1] = { type: "text", delta: last.delta + event.delta });

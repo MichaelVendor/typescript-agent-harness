@@ -1,4 +1,5 @@
 import type { Todo } from "@typescript-agent-harness/tools";
+import type { Question } from "../ask-user.js";
 import type { HistoryItem, HostEvent } from "../host.js";
 import { createMarkdownStream, type MarkdownStream } from "../markdown.js";
 
@@ -19,6 +20,8 @@ export type Snapshot = {
   live: string;
   tools: RunningTool[];
   approval: { id: string; tool: string; input: unknown } | undefined;
+  /** An `ask_user` call waiting for the answers. */
+  question: { id: string; questions: Question[] } | undefined;
   /** The last turn hit the step limit; Enter continues it. */
   stepLimit: boolean;
   busy: boolean;
@@ -36,6 +39,7 @@ export class Transcript {
     live: "",
     tools: [],
     approval: undefined,
+    question: undefined,
     stepLimit: false,
     busy: false,
     sessionId: "",
@@ -137,6 +141,13 @@ export class Transcript {
       case "approval.end":
         if (this.snapshot.approval?.id === event.id) this.set({ approval: undefined });
         return;
+      case "question":
+        this.settle();
+        this.set({ question: { id: event.id, questions: event.questions } });
+        return;
+      case "question.end":
+        if (this.snapshot.question?.id === event.id) this.set({ question: undefined });
+        return;
       case "notice":
         this.settle();
         this.push({ kind: event.error ? "error" : "notice", text: event.text });
@@ -147,6 +158,7 @@ export class Transcript {
           busy: false,
           tools: [],
           approval: undefined,
+          question: undefined,
           rounds: event.rounds,
           stepLimit: event.finishReason === "max_steps",
           ...(event.model ? { model: event.model } : {}),
@@ -159,7 +171,7 @@ export class Transcript {
             ? { kind: "notice", text: "[tah] turn cancelled — history kept; keep chatting or /exit" }
             : { kind: "error", text: `[tah] turn failed: ${event.message} — history kept; try again` },
         );
-        this.set({ busy: false, tools: [], approval: undefined });
+        this.set({ busy: false, tools: [], approval: undefined, question: undefined });
         return;
     }
   }

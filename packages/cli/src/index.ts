@@ -5,6 +5,7 @@ export type { Context, Plugin } from "@typescript-agent-harness/core";
 export type { Tool, ToolContext } from "@typescript-agent-harness/tools";
 export type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 export type { HistoryItem, HostEvent, SessionEvent } from "./host.js";
+export type { Question } from "./ask-user.js";
 export type { Todo, TodoStatus } from "@typescript-agent-harness/tools";
 export type { SessionRow } from "./sessions.js";
 export type { AttachmentMeta } from "./attachments/store.js";

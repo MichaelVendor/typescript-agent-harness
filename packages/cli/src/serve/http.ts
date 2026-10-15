@@ -354,6 +354,15 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         host().answer(str(body, "id"), answer);
         return json(res, 204);
       }
+      case "POST /api/question": {
+        const body = await readBody(req);
+        const answers = body.answers;
+        if (!Array.isArray(answers) || !answers.every((a) => Array.isArray(a) && a.every((s) => typeof s === "string"))) {
+          throw new HttpError(400, '"answers" must be a list of string lists');
+        }
+        host().answerQuestion(str(body, "id"), answers as string[][]);
+        return json(res, 204);
+      }
       case "POST /api/reset": {
         const cwd = optStr(await readBody(req), "cwd");
         hub.assertIdle();

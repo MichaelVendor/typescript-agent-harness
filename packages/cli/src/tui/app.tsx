@@ -1,6 +1,7 @@
 import { Box, Static, Text, useApp, useBoxMetrics, useCursor, useInput, usePaste, useWindowSize } from "ink";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatContinuePrompt, formatPrompt } from "../approve.js";
+import type { Question } from "../ask-user.js";
 import type { ChatHost } from "../host.js";
 import type { SessionRow } from "../sessions.js";
 import { matchCommands, parseCommand, type ParsedCommand, type SlashCommand } from "./commands.js";
@@ -132,6 +133,28 @@ function Picker({ rows, index, current }: { rows: SessionRow[]; index: number; c
   );
 }
 
+function QuestionPrompt({ questions, progress }: { questions: Question[]; progress: { answers: string[][]; picked: number[] } }) {
+  const index = progress.answers.length;
+  const q = questions[index];
+  if (!q) return null;
+  const count = questions.length > 1 ? ` (${index + 1}/${questions.length})` : "";
+  const hint = q.multiple
+    ? `1–${q.options.length} toggle · Enter confirm · or type your own answer`
+    : `1–${q.options.length} pick · or type your own answer and press Enter`;
+  return (
+    <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
+      <Text bold>{`? ${q.question}${count}`}</Text>
+      {q.options.map((o, i) => (
+        <Text key={i}>
+          {q.multiple ? (progress.picked.includes(i) ? "[x] " : "[ ] ") : ""}
+          <Text color="cyan">{`${i + 1}.`}</Text> {o}
+        </Text>
+      ))}
+      <Text dimColor>{hint}</Text>
+    </Box>
+  );
+}
+
 export type AppProps = { host: ChatHost; transcript: Transcript; maxSteps: number; color: boolean };
 
 export function App({ host, transcript, maxSteps, color }: AppProps) {
@@ -200,6 +223,23 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
 
   const answer = (id: string, a: "yes" | "always" | "no") => host.answer(id, a);
 
+  /** Progress through the pending `ask_user` card; a new card id starts over. */
+  type Progress = { id: string; answers: string[][]; picked: number[] };
+  const [, setAsked] = useState<Progress>();
+  const askedRef = useRef<Progress | undefined>(undefined);
+  const progressOf = (id: string): Progress =>
+    askedRef.current?.id === id ? askedRef.current : { id, answers: [], picked: [] };
+  const setProgress = (p: Progress) => {
+    askedRef.current = p;
+    setAsked(p);
+  };
+  const nextQuestion = (id: string, total: number, answer: string[]) => {
+    const answers = [...progressOf(id).answers, answer];
+    setProgress({ id, answers, picked: [] });
+    if (answers.length >= total) host.answerQuestion(id, answers);
+  };
+  const progress = progressOf(snap.question?.id ?? "");
+
   usePaste((text) => update((e) => insert(e, text)), { isActive: !snap.approval && !picker && !exiting });
 
   useInput((input, key) => {
@@ -222,6 +262,26 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
       else if (a === "a") answer(s.approval.id, "always");
       else if (a === "n" || key.return || key.escape) answer(s.approval.id, "no");
       return;
+    }
+
+    const p = s.question && progressOf(s.question.id);
+    const current = p && s.question?.questions[p.answers.length];
+    if (s.question && p && current) {
+      const { id, questions } = s.question;
+      const typed = editorText(editorRef.current).trim();
+      const n = Number(input);
+      if (!typed && /^[1-9]$/.test(input) && n <= current.options.length) {
+        if (!current.multiple) return nextQuestion(id, questions.length, [current.options[n - 1]!]);
+        const picked = p.picked.includes(n - 1) ? p.picked.filter((i) => i !== n - 1) : [...p.picked, n - 1];
+        return setProgress({ ...p, picked });
+      }
+      if (key.return && !key.meta && !key.shift) {
+        const chosen = [...p.picked].sort((a, b) => a - b).map((i) => current.options[i]!);
+        const answer = typed ? [...chosen, typed] : chosen;
+        if (answer.length === 0) return;
+        update(() => emptyEditor());
+        return nextQuestion(id, questions.length, answer);
+      }
     }
 
     if (picker) {
@@ -307,6 +367,7 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
               {withoutAnswerMark(formatPrompt({ name: snap.approval.tool, arguments: snap.approval.input }, color))}
             </Text>
           ) : null}
+          {snap.question ? <QuestionPrompt questions={snap.question.questions} progress={progress} /> : null}
           {snap.stepLimit && !snap.busy ? <Text>{withoutAnswerMark(formatContinuePrompt(maxSteps, color))}</Text> : null}
           {picker ? <Picker rows={picker.rows} index={picker.index} current={snap.sessionId} /> : null}
           {matches.length > 0 && typing ? <Menu matches={matches} index={Math.min(menuIndex, matches.length - 1)} /> : null}

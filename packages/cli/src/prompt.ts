@@ -10,6 +10,8 @@ export function buildSystemPrompt(opts: {
   /** "search": web_search and web_fetch; "fetch": web_fetch only (no search key). */
   web?: "search" | "fetch" | "off";
   browser?: boolean;
+  /** `ask_user` is mounted (someone is there to answer). */
+  askUser?: boolean;
   skillsCatalog?: string;
 }): string {
   const role = opts.role?.trim();
@@ -20,6 +22,7 @@ export function buildSystemPrompt(opts: {
     }
     if (opts.web && opts.web !== "off") systemPrompt += `\n\n${WEB_RULES[opts.web]}`;
     if (opts.browser) systemPrompt += `\n\n${BROWSER_RULES}`;
+    if (opts.askUser) systemPrompt += `\n\n${ASK_USER_RULES}`;
     return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
   }
   const rules =
@@ -37,6 +40,7 @@ export function buildSystemPrompt(opts: {
   }
   if (opts.web && opts.web !== "off") systemPrompt += ` ${WEB_RULES[opts.web]}`;
   if (opts.browser) systemPrompt += ` ${BROWSER_RULES}`;
+  if (opts.askUser) systemPrompt += ` ${ASK_USER_RULES}`;
   systemPrompt += `\n\n${ABOUT_TAH}`;
   return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
 }
@@ -50,6 +54,9 @@ const WEB_RULES = {
 
 const BROWSER_RULES =
   "For pages that need clicking, forms, logins, or JavaScript rendering, call browser_open first: it opens a Chrome browser the user can watch and adds browser_* tools. Understand pages with browser_snapshot or browser_find; screenshots are only saved for the user. For logins, captchas, payments, or anything that needs the user's confirmation, stop and ask the user to finish it in that browser.";
+
+const ASK_USER_RULES =
+  "When a request is ambiguous or has several reasonable approaches, ask with ask_user (short questions, 2–5 concrete options, the recommended one first) before doing the work instead of guessing or asking in plain text; when the request is clear, just do it.";
 
 /** Without this the model guesses it runs in Cursor or Claude Code and gives their instructions. */
 export const ABOUT_TAH = [

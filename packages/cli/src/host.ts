@@ -5,6 +5,7 @@ import type { ChatMessage } from "@typescript-agent-harness/llm";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import type { Todo } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
+import type { AskUser, Question } from "./ask-user.js";
 import {
   composeAttachmentPrompt,
   parseUserContent,
@@ -62,6 +63,8 @@ export type HostEvent =
   | { type: "todos"; todos: Todo[] }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "approval.end"; id: string; answer: ApprovalAnswer }
+  | { type: "question"; id: string; questions: Question[] }
+  | { type: "question.end"; id: string }
   | { type: "notice"; text: string; error?: boolean }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
   | { type: "turn.error"; cancelled: boolean; message: string };
@@ -85,6 +88,8 @@ export type ChatHost = {
   compact(): Promise<void>;
   cancel(): void;
   answer(id: string, answer: ApprovalAnswer): void;
+  /** Answers an `ask_user` card: one list per question (picked options and / or typed text). */
+  answerQuestion(id: string, answers: string[][]): void;
   reset(): Promise<void>;
   resume(ref: string): Promise<void>;
   fork(turns?: number): Promise<void>;
@@ -134,6 +139,10 @@ export function toolSummary(tool: string, input: unknown): string {
     const current = (a.todos as Partial<Todo>[]).find((t) => t?.status === "in_progress");
     return clip(current?.content ?? `${a.todos.length} tasks`);
   }
+  if (tool === "ask_user" && Array.isArray(a.questions)) {
+    const first = String((a.questions[0] as { question?: unknown } | undefined)?.question ?? "");
+    return clip(a.questions.length > 1 ? `${first} (+${a.questions.length - 1})` : first);
+  }
   return clip(JSON.stringify(input ?? {}));
 }
 
@@ -167,6 +176,9 @@ export function toolResult(tool: string, ok: boolean, output: unknown): string {
   }
   if (tool === "read_image_text" && typeof output === "string") {
     return output.startsWith("(no text") ? "no text" : `${output.split("\n").length} lines`;
+  }
+  if (tool === "ask_user" && Array.isArray(o.answers)) {
+    return clip((o.answers as { answer?: unknown }[]).map((a) => (Array.isArray(a.answer) ? a.answer.join(", ") : "")).join(" · "));
   }
   if (tool === "browser_open") return o.opened ? "opened" : "already open";
   if (tool.startsWith("browser_") && typeof output === "string") {
@@ -274,6 +286,37 @@ export function approvalQueue(emit: (event: HostEvent) => void): {
   };
 }
 
+/** Like `approvalQueue` for `ask_user`: a stopped turn settles with no answers; each settle emits `question.end`. */
+export function questionQueue(emit: (event: HostEvent) => void): {
+  ask: AskUser;
+  answer(id: string, answers: string[][]): void;
+  rejectAll(): void;
+} {
+  const pending = new Map<string, (answers: string[][] | undefined) => void>();
+  let count = 0;
+  return {
+    ask: (questions, signal) =>
+      new Promise((resolve) => {
+        if (signal.aborted) return resolve(undefined);
+        const id = `question_${++count}`;
+        const settle = (answers: string[][] | undefined) => {
+          if (!pending.delete(id)) return;
+          resolve(answers);
+          emit({ type: "question.end", id });
+        };
+        pending.set(id, settle);
+        signal.addEventListener("abort", () => settle(undefined), { once: true });
+        emit({ type: "question", id, questions });
+      }),
+    answer(id, answers) {
+      pending.get(id)?.(answers);
+    },
+    rejectAll() {
+      for (const settle of [...pending.values()]) settle(undefined);
+    },
+  };
+}
+
 /** "always" outlives a reload: the approval plugin's own memory goes away with its runtime. */
 export function rememberAlways(ask: ApprovalPluginOptions["ask"]): ApprovalPluginOptions["ask"] {
   const always = new Set<string>();
@@ -314,7 +357,11 @@ export async function createChatHost(
     for (const listener of listeners) listener(event);
   };
   const approvals = approvalQueue(emit);
-  const rejectPending = () => approvals.rejectAll();
+  const questions = questionQueue(emit);
+  const rejectPending = () => {
+    approvals.rejectAll();
+    questions.rejectAll();
+  };
 
   /** A call rejected at approval never starts, so how it is shown is kept from the question. */
   const calls = new Map<string, { summary: string; path?: string }>();
@@ -389,7 +436,7 @@ export async function createChatHost(
   let images: ImageAccess = "none";
   let browser: Browser | undefined;
   const boot = async (opts: { project?: Project | undefined } = {}) => {
-    const booted = await bootRuntime(flags, { ask, print: false, homeDir, ...opts });
+    const booted = await bootRuntime(flags, { ask, question: questions.ask, print: false, homeDir, ...opts });
     runtime = booted.runtime;
     sessions = runtime.get(SESSION);
     project = booted.project;
@@ -605,6 +652,7 @@ export async function createChatHost(
       if (busy) void session.cancel();
     },
     answer: approvals.answer,
+    answerQuestion: questions.answer,
     reset: () =>
       ready(async () => {
         idle();
