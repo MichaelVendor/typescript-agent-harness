@@ -1,7 +1,7 @@
 import type { HostEvent } from "@typescript-agent-harness/cli";
 
 /** A file the preview panel can open: a path in the open folder, or an uploaded attachment. */
-export type FileTarget = { path: string } | { attachment: string };
+export type FileTarget = { path: string } | { attachment: string; name?: string };
 
 export function fileQuery(target: FileTarget): string {
   return "attachment" in target

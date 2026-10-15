@@ -76,7 +76,7 @@ export function FilePreview(props: {
     };
   }, [stat, wantsText, nonce]);
 
-  const title = stat?.path ?? ("path" in target ? target.path : "attachment");
+  const title = "path" in target ? (stat?.path ?? target.path) : (target.name ?? stat?.path ?? "attachment");
   const browsable = stat?.kind === "html" ? stat.previewURL : undefined;
   return (
     <>

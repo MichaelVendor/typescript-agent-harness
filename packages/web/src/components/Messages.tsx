@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "reac
 import Markdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
+import { fileRawURL } from "../api";
 import { opensInPanel } from "../browser-view";
 import { codePath, linkPath, type FileTarget } from "../preview-view";
 import type { Entry } from "../state";
@@ -102,10 +103,19 @@ const Row = memo(function Row({ entry, onOpen, onBrowse }: { entry: Entry; onOpe
                 <button
                   type="button"
                   key={a.id}
-                  className={`user-attach-chip ${a.kind} file-link`}
-                  onClick={() => onOpen({ attachment: a.id })}
+                  className={`attach-card sent ${a.kind}`}
+                  title={a.name}
+                  onClick={() => onOpen({ attachment: a.id, name: a.name })}
                 >
-                  {a.kind === "image" ? "img" : "file"} · {a.name} · {formatSize(a.bytes)}
+                  {a.kind === "image" ? (
+                    <img src={fileRawURL({ attachment: a.id }, 0)} alt="" loading="lazy" />
+                  ) : (
+                    <span className="attach-ext">{a.name.split(".").pop()?.toUpperCase() ?? "FILE"}</span>
+                  )}
+                  <span className="attach-meta">
+                    <span className="attach-name">{a.name}</span>
+                    <span className="attach-sub">{formatSize(a.bytes)}</span>
+                  </span>
                 </button>
               ))}
             </div>

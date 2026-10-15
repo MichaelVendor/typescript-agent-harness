@@ -829,16 +829,6 @@ main {
   gap: 6px;
   margin-bottom: 6px;
 }
-.user-attach-chip {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
 .reply {
   word-break: break-word;
 }
@@ -1116,6 +1106,20 @@ main {
   font-size: 11px;
   color: var(--muted);
 }
+button.attach-card.sent {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg);
+}
+button.attach-card.sent:hover {
+  border-color: var(--accent);
+}
+.attach-card.sent .attach-name,
+.attach-card.sent .attach-sub {
+  display: block;
+}
 .attach-card.error .attach-sub {
   color: var(--fail);
 }
@@ -1307,14 +1311,6 @@ button.file-link {
   padding: 0;
   text-align: left;
 }
-button.user-attach-chip {
-  font-size: 12px;
-  padding: 2px 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--muted);
-}
-
 .side-panel {
   position: relative;
   flex: none;
