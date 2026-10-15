@@ -49,6 +49,7 @@ type HostEvent =
   | { type: "tool.end"; callId: string; ok: boolean; result: string }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "notice"; text: string }
+  | { type: "retry"; text: string }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number }
   | { type: "turn.error"; cancelled: boolean; message: string };
 
@@ -76,7 +77,8 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 - **审批变成事件。** 审批插件的 `ask(call, signal)` 发出 `approval` 事件，等 `answer(id, …)`。`cancel()` 或这一轮被中止时，未回答的审批按 `no` 处理，和现在一致。`--yes` 时不发审批事件。
 - **步数上限。** `turn.end` 的 `finishReason` 为 `max_steps` 时，界面问是否继续，继续就调 `continueTurn()`（对应 `session.resume()`）。
 - **会话切换。** `reset` / `resume` / `fork` 和打开时都会发一条 `session` 事件。`history` 只带最近 3 轮，更早的轮数放在 `hiddenTurns`。
-- **`notice`** 承接现在打印成灰色日志的内容：LLM 重试、上下文裁剪、项目加载结果、启动参数行（`--quiet` 时不发）。
+- **`notice`** 承接现在打印成灰色日志的内容：上下文裁剪、项目加载结果、启动参数行（`--quiet` 时不发）。
+- **`retry`**（`{ type: "retry"; text: string }`）是 LLM 重试的临时状态，界面放在思考行上，下一个有进展的事件（文本、工具、审批、提问、这一轮结束等）到来时清掉，不进对话（`--quiet` 时不发）。
 - **事件全是纯 JSON。** 测试里对每个事件做 `JSON.parse(JSON.stringify(e))` 应深相等。`tool.start.summary` 和 `tool.end.result` 由 host 预先生成字符串，界面不需要理解各工具的参数。
 - **工具事件的归属。** 运行时的 `tool.started` / `tool.finished` 不带 sessionId。TUI 同一时间只有一个会话，所以 v0.24 不处理；v0.25 一个服务跑多个会话时要补上。
 
