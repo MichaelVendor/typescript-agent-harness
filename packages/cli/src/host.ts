@@ -68,8 +68,13 @@ export type HostEvent =
   | { type: "notice"; text: string; error?: boolean }
   /** The model request failed and is retried; front ends show it until the next sign of progress. */
   | { type: "retry"; text: string }
+  /** The whole queue of messages sent during a turn; front ends replace theirs. */
+  | { type: "queue"; items: QueuedMessage[] }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
   | { type: "turn.error"; cancelled: boolean; message: string };
+
+/** `held`: queued before a turn was stopped or failed; it waits for `sendQueued` instead of going out by itself. */
+export type QueuedMessage = { id: string; text: string; attachments?: AttachmentMeta[]; held: boolean };
 
 export type ChatHost = {
   readonly sessionId: string;
@@ -81,7 +86,11 @@ export type ChatHost = {
   open(): Promise<void>;
   /** The current session as a `session` event, without emitting it. */
   snapshot(): SessionEvent;
+  /** While a turn runs the message is queued and goes out after the turn ends normally. */
   send(text: string, attachmentIds?: string[]): Promise<void>;
+  /** Sends a queued message now; only between turns. */
+  sendQueued(id: string): Promise<void>;
+  removeQueued(id: string): void;
   /** Persist an uploaded file; used by `tah serve`. */
   saveAttachment(input: { name: string; mime: string; data: Buffer }): AttachmentRef;
   /** After `turn.end` with `finishReason: "max_steps"`: run the same turn with a fresh step budget. */
@@ -612,9 +621,85 @@ export async function createChatHost(
     }
     busy = false;
     emit(event);
+    const normal = event.type === "turn.end" && event.finishReason !== "max_steps";
+    if (!normal && queue.some((q) => !q.held)) {
+      queue = queue.map((q) => ({ ...q, held: true }));
+      showQueue();
+    }
     reloadWhenIdle();
+    if (normal) sendNext();
   }
   const ready = <T>(command: () => Promise<T>): Promise<T> => (reloading ? settled().then(command) : command());
+
+  let queue: (QueuedMessage & { attachmentIds: string[] })[] = [];
+  let queued = 0;
+  const showQueue = () => emit({ type: "queue", items: queue.map(({ attachmentIds: _ids, ...item }) => item) });
+  const clearQueue = () => {
+    if (queue.length === 0) return;
+    queue = [];
+    showQueue();
+  };
+
+  /** Throws on an empty message or bad attachments, so a queued message fails when it is sent, not later. */
+  const checked = (text: string, attachmentIds: string[]) => {
+    const refs = attachmentIds.length ? attachments.getMany(attachmentIds) : [];
+    checkMessageLimits(refs);
+    const display = text.trim();
+    if (!display && refs.length === 0) throw new Error("message is empty");
+    const meta: AttachmentMeta[] = refs.map(({ id, kind, name, mime, bytes, sha256 }) => ({
+      id,
+      kind,
+      name,
+      mime,
+      bytes,
+      sha256,
+    }));
+    return { refs, display, meta };
+  };
+
+  const sendNow = async (text: string, attachmentIds: string[]) => {
+    const { refs, display, meta } = checked(text, attachmentIds);
+    const prompt = composeAttachmentPrompt(display, refs, images);
+    const { modelText, suffix } = promptWithSkills(prompt, display, skills);
+    const run = async () => {
+      if (images === "vision" && refs.some((r) => r.kind === "image")) {
+        const images = await Promise.all(
+          refs.filter((r) => r.kind === "image").map(async (r) => ({
+            mime: r.mime,
+            data: await attachments.readBytes(r.id),
+          })),
+        );
+        const content = userContentForVision(display, refs, images);
+        if (suffix) {
+          const first = content[0];
+          if (first && first.type === "text") {
+            content[0] = { type: "text", text: `${first.text}\n\n${suffix}` };
+          }
+        }
+        return session.run({ text: display, content });
+      }
+      return session.run(modelText);
+    };
+    return turn(run, { text: display, ...(meta.length ? { attachments: meta } : {}) });
+  };
+
+  const submit = (text: string, attachmentIds: string[]) =>
+    ready(async () => {
+      if (!busy) return sendNow(text, attachmentIds);
+      const { display, meta } = checked(text, attachmentIds);
+      queue.push({ id: `queued_${++queued}`, text: display, attachmentIds, held: false, ...(meta.length ? { attachments: meta } : {}) });
+      showQueue();
+    });
+
+  function sendNext(): void {
+    const next = queue.find((q) => !q.held);
+    if (!next) return;
+    queue = queue.filter((q) => q !== next);
+    showQueue();
+    submit(next.text, next.attachmentIds).catch((err) =>
+      emit({ type: "notice", text: `[tah] queued message not sent: ${reason(err)}`, error: true }),
+    );
+  }
 
   const host: ChatHost = {
     get sessionId() {
@@ -643,43 +728,21 @@ export async function createChatHost(
     saveAttachment(input) {
       return attachments.save(input);
     },
-    send: (text, attachmentIds = []) =>
+    send: (text, attachmentIds = []) => submit(text, attachmentIds),
+    sendQueued: (id) =>
       ready(async () => {
-        const refs = attachmentIds.length ? attachments.getMany(attachmentIds) : [];
-        checkMessageLimits(refs);
-        const display = text.trim();
-        if (!display && refs.length === 0) throw new Error("message is empty");
-        const meta: AttachmentMeta[] = refs.map(({ id, kind, name, mime, bytes, sha256 }) => ({
-          id,
-          kind,
-          name,
-          mime,
-          bytes,
-          sha256,
-        }));
-        const prompt = composeAttachmentPrompt(display, refs, images);
-        const { modelText, suffix } = promptWithSkills(prompt, display, skills);
-        const run = async () => {
-          if (images === "vision" && refs.some((r) => r.kind === "image")) {
-            const images = await Promise.all(
-              refs.filter((r) => r.kind === "image").map(async (r) => ({
-                mime: r.mime,
-                data: await attachments.readBytes(r.id),
-              })),
-            );
-            const content = userContentForVision(display, refs, images);
-            if (suffix) {
-              const first = content[0];
-              if (first && first.type === "text") {
-                content[0] = { type: "text", text: `${first.text}\n\n${suffix}` };
-              }
-            }
-            return session.run({ text: display, content });
-          }
-          return session.run(modelText);
-        };
-        return turn(run, { text: display, ...(meta.length ? { attachments: meta } : {}) });
+        idle();
+        const item = queue.find((q) => q.id === id);
+        if (!item) throw new Error(`no queued message "${id}"`);
+        queue = queue.filter((q) => q !== item);
+        showQueue();
+        return sendNow(item.text, item.attachmentIds);
       }),
+    removeQueued(id) {
+      const before = queue.length;
+      queue = queue.filter((q) => q.id !== id);
+      if (queue.length !== before) showQueue();
+    },
     continueTurn: () => ready(() => turn(() => session.resume())),
     compact: () =>
       ready(() =>
@@ -701,18 +764,21 @@ export async function createChatHost(
         idle();
         session = await sessions.create();
         showSession(false);
+        clearQueue();
       }),
     resume: (ref) =>
       ready(async () => {
         idle();
         session = await openSessionByRef(runtime, ref);
         showSession(true);
+        clearQueue();
       }),
     fork: (turns) =>
       ready(async () => {
         idle();
         session = await sessions.fork(session.id, turns === undefined ? {} : { turns });
         showSession(true);
+        clearQueue();
       }),
     listSessions: () =>
       ready(async () => toRows(await (await storageOf(runtime)).listSessions(), flags.cwd)),

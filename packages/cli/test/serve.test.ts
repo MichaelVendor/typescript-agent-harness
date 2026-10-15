@@ -8,7 +8,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { parseArgv } from "../dist/args.js";
 import { createAttachmentStore } from "../dist/attachments/store.js";
-import type { ChatHost, HostEvent, SessionEvent } from "../dist/host.js";
+import type { ChatHost, HostEvent, QueuedMessage, SessionEvent } from "../dist/host.js";
 import { chooseFolder, UnsupportedError } from "../dist/serve/choose.js";
 import { createServeHandler } from "../dist/serve/http.js";
 import { createHub } from "../dist/serve/hub.js";
@@ -129,6 +129,8 @@ function fakeHost() {
   const store = createAttachmentStore(mkdtempSync(path.join(tmpdir(), "tah-serve-att-")));
   let finish = () => {};
   let reloads = 0;
+  let busy = false;
+  let queue: QueuedMessage[] = [];
   const answered: { id: string; answers: string[][] | "skipped" }[] = [];
   const host: ChatHost = {
     sessionId: "s1",
@@ -146,6 +148,12 @@ function fakeHost() {
     },
     send(text, attachmentIds = []) {
       const refs = attachmentIds.length ? store.getMany(attachmentIds) : [];
+      if (busy) {
+        queue.push({ id: `queued_${queue.length + 1}`, text, held: false });
+        emit({ type: "queue", items: [...queue] });
+        return Promise.resolve();
+      }
+      busy = true;
       emit({
         type: "user",
         text,
@@ -164,10 +172,21 @@ function fakeHost() {
       });
       return new Promise<void>((resolve) => {
         finish = () => {
+          busy = false;
           emit({ type: "turn.end", state: "idle", finishReason: "stop", rounds: 1 });
           resolve();
         };
       });
+    },
+    sendQueued(id) {
+      const item = queue.find((q) => q.id === id);
+      queue = queue.filter((q) => q.id !== id);
+      emit({ type: "queue", items: [...queue] });
+      return host.send(item?.text ?? "");
+    },
+    removeQueued(id) {
+      queue = queue.filter((q) => q.id !== id);
+      emit({ type: "queue", items: [...queue] });
     },
     continueTurn: async () => {},
     cancel() {},
@@ -383,6 +402,38 @@ test("ask_user questions replay to a new tab until answered; /api/question check
   }
 });
 
+test("a message sent mid-turn is queued, replays to a new tab, and /api/queue sends or removes it", async () => {
+  const s = await fakeServer();
+  const { cookie } = s;
+  const api = client(s.base, cookie);
+  try {
+    const first = stream(s.base, cookie);
+    await first.until("session");
+    assert.equal((await api.post("/api/send", { text: "hi" })).status, 202);
+    assert.equal((await api.post("/api/send", { text: "next" })).status, 202);
+    assert.equal((await api.post("/api/send", { text: "later" })).status, 202);
+    assert.equal((await api.post("/api/send", { text: "x", attachmentIds: ["missing"] })).status, 400);
+    const queued = { type: "queue", items: [{ id: "queued_1", text: "next", held: false }, { id: "queued_2", text: "later", held: false }] };
+
+    const second = stream(s.base, cookie);
+    assert.deepEqual((await second.until("queue")).at(-1), queued);
+
+    assert.equal((await api.post("/api/queue", { id: "queued_2" })).status, 400);
+    assert.equal((await api.post("/api/queue", { id: "queued_2", remove: true })).status, 204);
+    assert.equal((await api.post("/api/queue", { id: "queued_1", send: true })).status, 409);
+    s.finish();
+    await first.until("turn.end");
+    const mark = first.events.length;
+    assert.equal((await api.post("/api/queue", { id: "queued_1", send: true })).status, 204);
+    const user = (await first.until("user", mark)).at(-1);
+    assert.deepEqual(user, { type: "user", text: "next" });
+    s.finish();
+    for (const t of [first, second]) t.close();
+  } finally {
+    await s.close();
+  }
+});
+
 test("a tab opened mid-turn gets the turn so far; approvals settle on every tab; busy is 409", async () => {
   const s = await fakeServer();
   const { cookie } = s;
@@ -395,7 +446,6 @@ test("a tab opened mid-turn gets the turn so far; approvals settle on every tab;
     s.emit({ type: "text", delta: "lo" });
     s.emit({ type: "approval", id: "a1", tool: "write_file", input: { path: "x" } });
 
-    assert.equal((await api.post("/api/send", { text: "again" })).status, 409);
     assert.equal((await api.post("/api/reset")).status, 409);
 
     const second = stream(s.base, cookie);

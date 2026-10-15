@@ -103,10 +103,78 @@ test("only one turn at a time", async () => {
   const { host } = await openHost(cwd, ["--quiet"]);
   try {
     const first = host.send("one");
-    await assert.rejects(host.send("two"), /a turn is running/);
     await assert.rejects(host.reset(), /a turn is running/);
     await first;
     await host.send("three");
+  } finally {
+    await host.close();
+  }
+});
+
+const queues = (events: HostEvent[]) =>
+  events.flatMap((e) => (e.type === "queue" ? [e.items.map((i) => `${i.text}${i.held ? " (held)" : ""}`)] : []));
+
+async function until(events: HostEvent[], done: (events: HostEvent[]) => boolean) {
+  for (let i = 0; i < 200 && !done(events); i++) await new Promise((r) => setTimeout(r, 10));
+  assert.ok(done(events), "timed out");
+}
+
+const ends = (events: HostEvent[]) => events.filter((e) => e.type === "turn.end").length;
+
+test("a message sent during a turn is queued and goes out after the turn ends", async () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-host-"));
+  const { host, events } = await openHost(cwd, ["--quiet"]);
+  try {
+    const first = host.send("one");
+    await host.send("two");
+    await host.send("three");
+    await assert.rejects(host.send("   "), /message is empty/);
+    await first;
+    await until(events, (e) => ends(e) === 3);
+    assert.deepEqual(
+      events.filter((e) => e.type === "user").map((e) => (e as { text: string }).text),
+      ["one", "two", "three"],
+    );
+    assert.deepEqual(queues(events), [["two"], ["two", "three"], ["three"], []]);
+    for (const e of events) assert.deepEqual(JSON.parse(JSON.stringify(e)), e);
+  } finally {
+    await host.close();
+  }
+});
+
+test("a turn that hits the step limit holds the queue; held messages are sent or removed by hand", async () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-host-"));
+  const { host, events } = await openHost(cwd, ["--quiet", "--max-steps", "1"]);
+  try {
+    const first = host.send("one");
+    await host.send("two");
+    await host.send("three");
+    await first;
+    assert.equal(ends(events), 1);
+    assert.deepEqual(queues(events).at(-1), ["two (held)", "three (held)"]);
+    const [two, three] = (events.filter((e) => e.type === "queue").at(-1) as { items: { id: string }[] }).items;
+    host.removeQueued(three!.id);
+    assert.deepEqual(queues(events).at(-1), ["two (held)"]);
+    await host.sendQueued(two!.id);
+    assert.deepEqual(queues(events).at(-1), []);
+    assert.deepEqual(events.filter((e) => e.type === "user").at(-1), { type: "user", text: "two" });
+    await assert.rejects(host.sendQueued(two!.id), /no queued message/);
+  } finally {
+    await host.close();
+  }
+});
+
+test("switching sessions clears the queue", async () => {
+  const cwd = mkdtempSync(path.join(tmpdir(), "tah-host-"));
+  const { host, events } = await openHost(cwd, ["--quiet", "--max-steps", "1"]);
+  try {
+    const first = host.send("one");
+    await host.send("two");
+    await first;
+    assert.deepEqual(queues(events).at(-1), ["two (held)"]);
+    await host.reset();
+    assert.deepEqual(queues(events).at(-1), []);
+    assert.equal(events.at(-1)?.type, "queue");
   } finally {
     await host.close();
   }

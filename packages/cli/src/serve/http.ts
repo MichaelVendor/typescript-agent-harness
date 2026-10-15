@@ -335,8 +335,25 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
             })
           : [];
         if (!text.trim() && attachmentIds.length === 0) throw new HttpError(400, "text or attachmentIds required");
-        hub.start(() => host().send(text, attachmentIds));
+        if (!hub.busy) {
+          hub.start(() => host().send(text, attachmentIds));
+          return json(res, 202);
+        }
+        try {
+          await host().send(text, attachmentIds);
+        } catch (err) {
+          if (err instanceof AttachmentError) throw new HttpError(400, err.message);
+          throw err;
+        }
         return json(res, 202);
+      }
+      case "POST /api/queue": {
+        const body = await readBody(req);
+        const id = str(body, "id");
+        if (body.remove === true) host().removeQueued(id);
+        else if (body.send === true) hub.start(() => host().sendQueued(id));
+        else throw new HttpError(400, 'pass "send": true or "remove": true');
+        return json(res, 204);
       }
       case "POST /api/continue":
         hub.start(() => host().continueTurn());

@@ -217,10 +217,11 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
 
   const submit = () => {
     const current = editorRef.current;
-    if (isBlank(current) || transcript.snapshot.busy) return;
+    if (isBlank(current)) return;
     const text = editorText(current);
-    update(() => emptyEditor());
     const cmd = parseCommand(text);
+    if (cmd && transcript.snapshot.busy) return;
+    update(() => emptyEditor());
     if (cmd) return runCommand(cmd);
     host.send(text).catch(fail);
   };
@@ -342,6 +343,11 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
     }
     if (key.leftArrow) return update((e) => move(e, "left"));
     if (key.rightArrow) return update((e) => move(e, "right"));
+    const last = s.queue.at(-1);
+    if (key.upArrow && last && isBlank(editorRef.current)) {
+      host.removeQueued(last.id);
+      return update(() => insert(emptyEditor(), last.text));
+    }
     if (key.upArrow) return update((e) => move(e, "up"));
     if (key.downArrow) return update((e) => move(e, "down"));
     if (key.home || (key.ctrl && input === "a")) return update((e) => move(e, "home"));
@@ -361,7 +367,10 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
       : undefined,
   );
 
-  const hint = snap.busy ? "Ctrl+C stop" : "Enter send · Alt+Enter newline · / commands";
+  const hint = [
+    ...(snap.queue.length && isBlank(editor) ? ["↑ edit queued"] : []),
+    snap.busy ? "Enter queue · Ctrl+C stop" : "Enter send · Alt+Enter newline · / commands",
+  ].join(" · ");
   const status = [snap.model ?? "tah", snap.sessionId, `${snap.rounds} rounds`, ...(host.approve ? [] : ["approve=off"])];
 
   return (
@@ -379,6 +388,12 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
           {snap.stepLimit && !snap.busy ? <Text>{withoutAnswerMark(formatContinuePrompt(maxSteps, color))}</Text> : null}
           {picker ? <Picker rows={picker.rows} index={picker.index} current={snap.sessionId} /> : null}
           {matches.length > 0 && typing ? <Menu matches={matches} index={Math.min(menuIndex, matches.length - 1)} /> : null}
+          {snap.queue.map((q) => (
+            <Text key={q.id} dimColor={!q.held} {...(q.held ? { color: "yellow" } : {})} wrap="truncate">
+              {q.held ? "  paused  " : "  queued  "}
+              {q.text}
+            </Text>
+          ))}
           <Box ref={inputRef} borderStyle="round" borderColor={typing ? "cyan" : "gray"} paddingX={1} flexDirection="column">
             {layout.rows.map((row, i) => (
               <Text key={i} wrap="truncate">

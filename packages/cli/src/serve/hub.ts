@@ -9,6 +9,7 @@ export class BusyError extends Error {
 export type Hub = {
   /** Replays the state so far (startup notices, session, last turn.end, this turn), then streams live. */
   subscribe(listener: (event: HostEvent) => void): () => void;
+  readonly busy: boolean;
   /** Throws `BusyError` while a turn runs. */
   assertIdle(): void;
   /** Starts a turn (`send` / `continueTurn`) without waiting for it; throws `BusyError` while one runs. */
@@ -26,10 +27,18 @@ export function createHub(first: ChatHost): Hub {
   /** Kept so a new tab still sees the step-limit prompt and the status line. */
   let lastEnd: HostEvent | undefined;
   let turn: HostEvent[] = [];
+  let queue: HostEvent | undefined;
   let busy = false;
 
   const record = (event: HostEvent) => {
     switch (event.type) {
+      case "queue":
+        queue = event;
+        return;
+      case "user":
+        // A queued message starts its turn from inside the host, without `start`.
+        busy = true;
+        break;
       case "session":
         base = event;
         lastEnd = undefined;
@@ -72,11 +81,14 @@ export function createHub(first: ChatHost): Hub {
 
   return {
     subscribe(listener) {
-      for (const event of [...startup, ...(base ? [base] : []), ...(lastEnd ? [lastEnd] : []), ...turn]) {
+      for (const event of [...startup, ...(base ? [base] : []), ...(lastEnd ? [lastEnd] : []), ...turn, ...(queue ? [queue] : [])]) {
         listener(event);
       }
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    get busy() {
+      return busy;
     },
     assertIdle,
     start(run) {
@@ -94,6 +106,9 @@ export function createHub(first: ChatHost): Hub {
       base = undefined;
       lastEnd = undefined;
       turn = [];
+      // The queue stays with the old host.
+      if (queue) forward({ type: "queue", items: [] });
+      queue = undefined;
       host = next;
       // Open tabs clear their view on `session`, so the new folder's startup notices go after it.
       const notices = buffered.filter((event) => event.type === "notice");

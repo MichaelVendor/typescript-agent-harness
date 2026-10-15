@@ -12,6 +12,8 @@ export type ServeRequest = {
   answer: { id: string; answer: ApprovalAnswer };
   /** Answers a `question` event (one list per question, in order), or skips it: the questions become text and the turn ends. */
   question: { id: string; answers: string[][] } | { id: string; skip: true };
+  /** Sends a held queued message now (between turns), or removes one. */
+  queue: { id: string; send: true } | { id: string; remove: true };
   /** `cwd`: start the session in that folder (switching to it first). */
   reset: { cwd?: string };
   resume: { ref: string; cwd?: string };

@@ -40,6 +40,31 @@ test("swap replays only the new host (session before its startup notices) and st
   assert.deepEqual(late, [{ type: "notice", text: "boot b" }, b.snap, { type: "text", delta: "fresh" }]);
 });
 
+test("the latest queue replays after the turn; a queued turn the host starts makes the hub busy; swap empties the queue", () => {
+  const a = stubHost("a");
+  const hub = createHub(a.host);
+  a.emit(a.snap);
+  const queue: HostEvent = { type: "queue", items: [{ id: "queued_1", text: "next", held: false }] };
+  a.emit({ type: "user", text: "hi" });
+  a.emit(queue);
+  a.emit({ type: "text", delta: "Hello" });
+  const late: HostEvent[] = [];
+  hub.subscribe((e) => late.push(e));
+  assert.deepEqual(late.slice(1), [{ type: "user", text: "hi" }, { type: "text", delta: "Hello" }, queue]);
+
+  a.emit({ type: "turn.end", state: "idle", finishReason: "stop", rounds: 1 });
+  assert.equal(hub.busy, false);
+  a.emit({ type: "queue", items: [] });
+  a.emit({ type: "user", text: "next" });
+  assert.equal(hub.busy, true);
+  a.emit({ type: "turn.end", state: "idle", finishReason: "stop", rounds: 1 });
+
+  a.emit(queue);
+  late.length = 0;
+  hub.swap(stubHost("b").host, []);
+  assert.deepEqual(late, [{ type: "queue", items: [] }]);
+});
+
 test("swap is refused while a turn runs", () => {
   const a = stubHost("a");
   const hub = createHub(a.host);

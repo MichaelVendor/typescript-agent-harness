@@ -107,6 +107,40 @@ test("ask_user questions are answered by number keys or typed text, one question
   }
 });
 
+test("Enter during a turn queues the message; ↑ on an empty editor takes the last one back", async () => {
+  const sent: string[] = [];
+  const removed: string[] = [];
+  const transcript = new Transcript(renderMarkdown);
+  const app = render(
+    createElement(App, {
+      host: { ...host, send: async (text: string) => void sent.push(text), removeQueued: (id: string) => void removed.push(id) },
+      transcript,
+      maxSteps: Infinity,
+      color: false,
+    } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 50));
+  try {
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    transcript.apply({ type: "user", text: "first" });
+    await settle();
+    app.stdin.write("also this");
+    await settle();
+    app.stdin.write("\r");
+    await settle();
+    assert.deepEqual(sent, ["also this"]);
+    transcript.apply({ type: "queue", items: [{ id: "queued_1", text: "also this", held: false }, { id: "queued_2", text: "and that", held: true }] });
+    await settle();
+    assert.match(app.lastFrame() ?? "", /queued {2}also this[\s\S]*paused {2}and that[\s\S]*↑ edit queued/);
+    app.stdin.write("\x1b[A");
+    await settle();
+    assert.deepEqual(removed, ["queued_2"]);
+    assert.match(app.lastFrame() ?? "", /> and that/);
+  } finally {
+    app.unmount();
+  }
+});
+
 test("a retry shows on the spinner line and leaves nothing in the transcript", () => {
   const transcript = new Transcript(renderMarkdown);
   transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });

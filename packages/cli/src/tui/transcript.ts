@@ -1,6 +1,6 @@
 import type { Todo } from "@typescript-agent-harness/tools";
 import type { Question } from "../ask-user.js";
-import type { HistoryItem, HostEvent } from "../host.js";
+import type { HistoryItem, HostEvent, QueuedMessage } from "../host.js";
 import { createMarkdownStream, type MarkdownStream } from "../markdown.js";
 
 /** Finished output, printed once into the terminal's scrollback. */
@@ -24,6 +24,8 @@ export type Snapshot = {
   retry: string | undefined;
   /** An `ask_user` call waiting for the answers. */
   question: { id: string; questions: Question[] } | undefined;
+  /** Messages sent during a turn, waiting for it to end. */
+  queue: QueuedMessage[];
   /** The last turn hit the step limit; Enter continues it. */
   stepLimit: boolean;
   busy: boolean;
@@ -45,6 +47,7 @@ export class Transcript {
     tools: [],
     approval: undefined,
     question: undefined,
+    queue: [],
     retry: undefined,
     stepLimit: false,
     busy: false,
@@ -157,6 +160,9 @@ export class Transcript {
         return;
       case "retry":
         this.set({ retry: event.text });
+        return;
+      case "queue":
+        this.set({ queue: event.items });
         return;
       case "notice":
         this.settle();
