@@ -298,6 +298,41 @@ test("connectCdp: a command sent after the connection closed fails at once", asy
   }
 });
 
+test("connectCdp gives up on a port that never answers, or answers without a debugger address", async () => {
+  const sockets: Socket[] = [];
+  let answer: string | undefined;
+  const server = createServer((_req, res) => {
+    if (answer !== undefined) res.end(answer);
+  });
+  server.on("upgrade", (_req, socket: Socket) => void sockets.push(socket));
+  server.on("connection", (socket) => void sockets.push(socket));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  try {
+    await within(assert.rejects(connectCdp(port, 100), /could not connect to the browser/));
+    answer = "{}";
+    await within(assert.rejects(connectCdp(port, 100), /could not connect to the browser/));
+    answer = JSON.stringify({ webSocketDebuggerUrl: `ws://127.0.0.1:${port}/devtools/browser/x` });
+    await within(assert.rejects(connectCdp(port, 100), /could not connect to the browser/));
+  } finally {
+    for (const s of sockets) s.destroy();
+    server.close();
+  }
+});
+
+test("a tab that cannot be shown is reported; showing another one clears it", async () => {
+  const fb = fakeBrowser();
+  const fc = fakeCdp({ failAttach: "T2" });
+  const screen = createScreen({ browser: () => fb.browser, connect: async () => fc.cdp });
+  await screen.open();
+  fc.event("Target.targetCreated", { targetInfo: { targetId: "T2", type: "page", title: "", url: "about:blank" } });
+  await tick();
+  assert.match(screen.state().error ?? "", /could not show the tab: No target/);
+  await screen.tab("T1");
+  assert.equal(screen.state().error, undefined);
+  screen.dispose();
+});
+
 test("a connection that closes while a tab is being shown does not leave open hanging", async () => {
   const fb = fakeBrowser();
   const conns = [fakeCdp(), fakeCdp()];

@@ -14,13 +14,24 @@ export type Cdp = {
   close(): void;
 };
 
-/** Connects to the browser-level endpoint Chrome lists at `/json/version`. */
-export async function connectCdp(port: number): Promise<Cdp> {
-  const version = (await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()) as { webSocketDebuggerUrl: string };
+/** Connects to the browser-level endpoint Chrome lists at `/json/version`; gives up after `timeoutMs` (a stale port may never answer). */
+export async function connectCdp(port: number, timeoutMs = 5000): Promise<Cdp> {
+  const fail = () => new Error(`could not connect to the browser on port ${port}`);
+  const signal = AbortSignal.timeout(timeoutMs);
+  const version = (await fetch(`http://127.0.0.1:${port}/json/version`, { signal })
+    .then((res) => res.json())
+    .catch(() => {
+      throw fail();
+    })) as { webSocketDebuggerUrl?: string };
+  if (!version.webSocketDebuggerUrl) throw fail();
   const ws = new WebSocket(version.webSocketDebuggerUrl);
   await new Promise<void>((resolve, reject) => {
-    ws.addEventListener("open", () => resolve(), { once: true });
-    ws.addEventListener("error", () => reject(new Error(`could not connect to the browser on port ${port}`)), { once: true });
+    const timer = setTimeout(() => {
+      ws.close();
+      reject(fail());
+    }, timeoutMs);
+    ws.addEventListener("open", () => (clearTimeout(timer), resolve()), { once: true });
+    ws.addEventListener("error", () => (clearTimeout(timer), reject(fail())), { once: true });
   });
   let id = 0;
   const pending = new Map<number, { resolve(result: Params): void; reject(err: Error): void }>();
@@ -288,10 +299,18 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
         return;
       }
       session = sessionId;
+      if (error !== undefined) {
+        error = undefined;
+        push();
+      }
       await c.send("Target.activateTarget", { targetId: id }).catch(() => {});
       await c.send("Page.enable", {}, sessionId).catch(() => {});
       if (listeners.size > 0) await cast(true);
-    })().catch(() => {});
+    })().catch((err: unknown) => {
+      if (active !== id || cdp !== c) return;
+      error = `could not show the tab: ${message(err)}`;
+      push();
+    });
     return showing;
   }
 

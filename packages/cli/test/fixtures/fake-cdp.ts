@@ -24,8 +24,8 @@ export function fakeBrowser(opts: { failLaunch?: string } = {}) {
   return { browser, launches: () => launches, closes: () => closes, crash: () => void (running = false) };
 }
 
-/** Starts with one page tab `T1`; attaching to tab X gives session `S-X`. */
-export function fakeCdp() {
+/** Starts with one page tab `T1`; attaching to tab X gives session `S-X`, except `failAttach`. */
+export function fakeCdp(opts: { failAttach?: string } = {}) {
   const sent: Sent[] = [];
   const targets = [{ targetId: "T1", type: "page", title: "Blank", url: "about:blank" }];
   let listener: Listener = () => {};
@@ -36,6 +36,7 @@ export function fakeCdp() {
       if (closed) throw new Error("the browser connection closed");
       sent.push(sessionId ? { method, params, sessionId } : { method, params });
       if (method === "Target.getTargets") return { targetInfos: targets.map((t) => ({ ...t })) };
+      if (method === "Target.attachToTarget" && params.targetId === opts.failAttach) throw new Error("No target with given id found");
       if (method === "Target.attachToTarget") return { sessionId: `S-${String(params.targetId)}` };
       if (method === "Page.getNavigationHistory") return { currentIndex: 1, entries: [{ id: 10 }, { id: 11 }] };
       return {};

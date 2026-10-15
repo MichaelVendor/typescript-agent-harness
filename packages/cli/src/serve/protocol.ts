@@ -99,7 +99,7 @@ export type BrowserState = {
   tabs: { id: string; title: string; url: string }[];
   /** The tab the panel shows. */
   active: string | null;
-  /** Why the browser last failed to start. */
+  /** Why the browser last failed to start, or to show the active tab. */
   error?: string;
   /** A JavaScript dialog the shown tab is waiting on; the page takes no input until it is answered. */
   dialog?: BrowserDialog;
