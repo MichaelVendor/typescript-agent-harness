@@ -92,7 +92,7 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 | `web_search` / `web_fetch` | 查询词 / 网址 | 结果条数 / 字符数（截断时标 truncated）/ 错误信息 |
 | `browser_open` / `browser_navigate` | 网址 | `opened` / `already open` / 页面标题 / 错误信息 |
 | 其他 `browser_*` | 元素描述（`element` 参数），没有则参数 JSON | 页面标题，没有标题时显示字符数 / 错误信息 |
-| `ask_user` | 第一个问题（多题时加"(+N)"） | 各题答案，用 ` · ` 隔开 / 错误信息 |
+| `ask_user` | 第一个问题（多题时加"(+N)"） | 各题答案，用 ` · ` 隔开 / `skipped`（之后另起一段列出问题）/ 错误信息 |
 | 其他（项目工具、MCP 工具） | 参数 JSON，截到 60 字符 | `done` / 错误信息 |
 
 ### `bootRuntime` 的拆分
