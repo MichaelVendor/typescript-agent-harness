@@ -83,6 +83,7 @@ function sidebarDesign() {
         { text: "macOS 客户端", link: "/design/desktop" },
         { text: "文件预览", link: "/design/file-preview" },
         { text: "浏览器面板", link: "/design/browser-pane" },
+        { text: "让用户选择", link: "/design/ask-user" },
       ],
     },
     {

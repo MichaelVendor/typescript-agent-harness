@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+Tools: **`ask_user`** — when a request is ambiguous or has several reasonable approaches, the agent asks 1–4 multiple-choice questions instead of guessing (like Claude Code's AskUserQuestion). Each question has 2–5 options and may allow several picks; you can always type your own answer. The web workbench shows a card with clickable options (one single-choice question submits on click) and the sidebar marks the session "needs answer"; `tah chat` shows numbered options — press a number, or type an answer and press Enter. The answers go back to the model and the turn continues; stopping the turn drops the questions. Only `tah serve` and `tah chat` mount it (not `tah run` or `--plain`), and `--yes` does not turn it off. A project tool may not be named `ask_user`. New host events `question` / `question.end`, `ChatHost.answerQuestion` and endpoint `POST /api/question` `{ id, answers }`.
+
 Web (`tah serve`): attachments in sent messages show as cards like in the composer — a thumbnail for images, the file extension for other files, with name and size — instead of a line of text; the preview panel titles an attachment with its original name instead of its storage path.
 
 Web (`tah serve`): browser panel fixes — tab names show the page's title (and follow title changes) instead of the host and port; the page gets the last mouse position when you stop moving, so hover menus open where the pointer is; the scroll wheel scrolls only the page, not the panel; a failed click or keystroke shows its error under the address bar. Connecting to Chrome gives up after 5 seconds with an error instead of spinning forever, and a tab the panel cannot show says why instead of staying blank.
