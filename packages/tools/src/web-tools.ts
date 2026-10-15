@@ -190,19 +190,130 @@ export function webFetchTool(
 export type WebSearchResult = { title: string; url: string; content: string };
 
 export type WebSearchOptions = {
-  apiKey: string;
-  /** Tests point this at a local server. */
+  /** Tavily key; without one the tool uses Exa's keyless endpoint, then Bing. */
+  apiKey?: string;
+  /** Tests point these at local servers. */
   endpoint?: string;
+  exaEndpoint?: string;
+  bingEndpoint?: string;
 };
 
+const EXCERPT_CHARS = 1000;
+const EXA_TIMEOUT_MS = 10_000;
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+
+async function searchTavily(endpoint: string, apiKey: string, query: string, max: number, signal: AbortSignal): Promise<WebSearchResult[]> {
+  const res = await fetch(endpoint, {
+    method: "POST",
+    signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]),
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({ query, max_results: max, search_depth: "basic", include_answer: false }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    let detail = text.slice(0, 300);
+    try {
+      const body = JSON.parse(text) as { detail?: { error?: string } | string };
+      detail = typeof body.detail === "string" ? body.detail : (body.detail?.error ?? detail);
+    } catch {}
+    throw new Error(`web search failed: HTTP ${res.status}${detail ? ` — ${detail}` : ""}`);
+  }
+  const body = JSON.parse(text) as { results?: Array<{ title?: string; url?: string; content?: string }> };
+  return (body.results ?? [])
+    .filter((r) => typeof r.url === "string")
+    .map((r) => ({ title: r.title ?? "", url: r.url!, content: (r.content ?? "").slice(0, EXCERPT_CHARS) }));
+}
+
+type ExaReply = {
+  error?: { message?: string };
+  result?: { isError?: boolean; _meta?: Record<string, unknown>; content?: Array<{ type?: string; text?: string }> };
+};
+
+/** Exa's hosted MCP server; it answers one JSON-RPC call as JSON or as a server-sent event. */
+async function searchExa(endpoint: string, query: string, max: number, signal: AbortSignal): Promise<WebSearchResult[]> {
+  const res = await fetch(endpoint, {
+    method: "POST",
+    signal: AbortSignal.any([signal, AbortSignal.timeout(EXA_TIMEOUT_MS)]),
+    headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "web_search_exa", arguments: { query, numResults: max } } }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = text
+    .split("\n")
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice(5).trim());
+  const reply = JSON.parse(data.length ? data.at(-1)! : text) as ExaReply;
+  if (reply.error) throw new Error(reply.error.message ?? "error");
+  const body = reply.result?.content?.map((c) => c.text ?? "").join("\n") ?? "";
+  if (reply.result?._meta?.["ai.exa/rateLimited"]) throw new Error("rate limited");
+  if (reply.result?.isError) throw new Error(body.slice(0, 200) || "error");
+  return body
+    .split(/\n\n---\n\n/)
+    .flatMap((block) => {
+      const url = block.match(/^URL:\s*(\S+)/m)?.[1];
+      if (!url || !/^https?:\/\//.test(url)) return [];
+      const title = block.match(/^Title:\s*(.*)$/m)?.[1]?.trim() ?? "";
+      const highlights = block.indexOf("Highlights:");
+      const content = highlights >= 0 ? block.slice(highlights + "Highlights:".length) : block.replace(/^(Title|URL|Published Date|Author):.*$/gm, "");
+      return [{ title, url, content: content.trim().slice(0, EXCERPT_CHARS) }];
+    })
+    .slice(0, max);
+}
+
+const inlineText = (html: string) => decodeEntities(html.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+
+/** Bing wraps result links as `bing.com/ck/a?…&u=a1<base64url>`; anything that is not http(s) is dropped. */
+function bingTarget(href: string): string | undefined {
+  let url = decodeEntities(href);
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.endsWith("bing.com") && parsed.pathname === "/ck/a") {
+      const u = parsed.searchParams.get("u");
+      if (!u?.startsWith("a1")) return undefined;
+      url = Buffer.from(u.slice(2), "base64url").toString("utf8");
+    }
+    return /^https?:$/.test(new URL(url).protocol) ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function searchBing(endpoint: string, query: string, max: number, signal: AbortSignal): Promise<WebSearchResult[]> {
+  const res = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&count=${max}`, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]),
+    headers: { "user-agent": BROWSER_UA, "accept-language": "zh-CN,zh;q=0.9,en;q=0.8", accept: "text/html" },
+  });
+  if (!res.ok) {
+    await res.body?.cancel();
+    throw new Error(`HTTP ${res.status}`);
+  }
+  const html = await res.text();
+  const seen = new Set<string>();
+  const results: WebSearchResult[] = [];
+  for (const item of html.split(/<li class="b_algo"/).slice(1)) {
+    const link = item.match(/<h2\b[^>]*>\s*<a\b[^>]*?href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/);
+    const url = link && bingTarget(link[1]!);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    const caption = item.match(/class="b_caption"[\s\S]*?<p\b[^>]*>([\s\S]*?)<\/p>/) ?? item.match(/<p\b[^>]*>([\s\S]*?)<\/p>/);
+    results.push({ title: inlineText(link[2]!), url, content: inlineText(caption?.[1] ?? "").slice(0, EXCERPT_CHARS) });
+    if (results.length >= max) break;
+  }
+  return results;
+}
+
 export function webSearchTool(
-  options: WebSearchOptions,
-): Tool<{ query: string; max_results?: number }, { query: string; results: WebSearchResult[] }> {
+  options: WebSearchOptions = {},
+): Tool<{ query: string; max_results?: number }, { query: string; engine: "tavily" | "exa" | "bing"; results: WebSearchResult[] }> {
   const endpoint = options.endpoint ?? "https://api.tavily.com/search";
+  const exaEndpoint = options.exaEndpoint ?? "https://mcp.exa.ai/mcp";
+  const bingEndpoint = options.bingEndpoint ?? "https://www.bing.com/search";
   return {
     name: "web_search",
     description:
-      "Search the web (Tavily) for current information. Returns titles, URLs and short excerpts; read a page in full with web_fetch. Cite the URLs you use.",
+      "Search the web for current information. Returns titles, URLs and short excerpts; read a page in full with web_fetch. Cite the URLs you use.",
     inputSchema: {
       type: "object",
       properties: {
@@ -216,26 +327,26 @@ export function webSearchTool(
       const query = typeof input.query === "string" ? input.query.trim() : "";
       if (!query || query.length > 400) throw new Error("query must be 1–400 characters");
       const max = Math.min(Math.max(1, Math.floor(input.max_results ?? 5)), 10);
-      const res = await fetch(endpoint, {
-        method: "POST",
-        signal: AbortSignal.any([ctx.signal, AbortSignal.timeout(TIMEOUT_MS)]),
-        headers: { "content-type": "application/json", authorization: `Bearer ${options.apiKey}` },
-        body: JSON.stringify({ query, max_results: max, search_depth: "basic", include_answer: false }),
-      });
-      const text = await res.text();
-      if (!res.ok) {
-        let detail = text.slice(0, 300);
-        try {
-          const body = JSON.parse(text) as { detail?: { error?: string } | string };
-          detail = typeof body.detail === "string" ? body.detail : (body.detail?.error ?? detail);
-        } catch {}
-        throw new Error(`web search failed: HTTP ${res.status}${detail ? ` — ${detail}` : ""}`);
+      if (options.apiKey) {
+        return { query, engine: "tavily", results: await searchTavily(endpoint, options.apiKey, query, max, ctx.signal) };
       }
-      const body = JSON.parse(text) as { results?: Array<{ title?: string; url?: string; content?: string }> };
-      const results = (body.results ?? [])
-        .filter((r) => typeof r.url === "string")
-        .map((r) => ({ title: r.title ?? "", url: r.url!, content: (r.content ?? "").slice(0, 1000) }));
-      return { query, results };
+      const reasons: string[] = [];
+      for (const [engine, search] of [
+        ["exa", () => searchExa(exaEndpoint, query, max, ctx.signal)],
+        ["bing", () => searchBing(bingEndpoint, query, max, ctx.signal)],
+      ] as const) {
+        try {
+          const results = await search();
+          if (results.length) return { query, engine, results };
+          reasons.push(`${engine}: no results`);
+        } catch (err) {
+          if (ctx.signal.aborted) throw err;
+          reasons.push(`${engine}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      throw new Error(
+        `web search failed (${reasons.join("; ")}) — try browser_open https://www.bing.com/search?q=${encodeURIComponent(query)}`,
+      );
     },
   };
 }
