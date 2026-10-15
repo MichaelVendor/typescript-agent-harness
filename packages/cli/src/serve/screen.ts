@@ -193,6 +193,9 @@ export type Screen = {
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+/** Chrome sends no event when a page changes its title, so titles are re-read this often while someone watches. */
+const RETITLE_MS = 1000;
+
 /** The browser panel's side of the open folder's browser. */
 export function createScreen(opts: { browser(): Browser | undefined; connect?: (port: number) => Promise<Cdp> }): Screen {
   const listeners = new Set<(event: BrowserStreamEvent) => void>();
@@ -207,6 +210,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
   let lastFrame: Frame | undefined;
   let error: string | undefined;
   let dialog: BrowserDialog | undefined;
+  let retitling: NodeJS.Timeout | undefined;
   let disposed = false;
 
   const state = (): BrowserState => {
@@ -248,6 +252,21 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
     if (!c || !s || casting === on) return;
     casting = on;
     await c.send(on ? "Page.startScreencast" : "Page.stopScreencast", on ? { format: "jpeg", quality: 70 } : {}, s).catch(() => {});
+  }
+
+  async function retitle() {
+    const c = cdp;
+    if (!c) return;
+    const { targetInfos } = (await c.send("Target.getTargets")) as { targetInfos: TargetInfo[] };
+    if (c !== cdp) return;
+    let changed = false;
+    for (const t of targetInfos) {
+      const tab = tabs.get(t.targetId);
+      if (!tab || tab.title === t.title) continue;
+      tabs.set(t.targetId, { ...tab, title: t.title });
+      changed = true;
+    }
+    if (changed) push();
   }
 
   /** Shows tab `id`: attaches to it (detaching the previous one) and streams it while someone watches. */
@@ -379,10 +398,14 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       listeners.add(listener);
       listener({ type: "state", state: state() });
       if (lastFrame) listener(lastFrame);
-      if (listeners.size === 1) void (cdp ? cast(true) : sync());
+      if (listeners.size === 1) {
+        void (cdp ? cast(true) : sync());
+        retitling = setInterval(() => void retitle().catch(() => {}), RETITLE_MS).unref();
+      }
       return () => {
-        listeners.delete(listener);
-        if (listeners.size === 0) void cast(false);
+        if (!listeners.delete(listener) || listeners.size > 0) return;
+        clearInterval(retitling);
+        void cast(false);
       };
     },
     sync,
@@ -438,6 +461,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
     dispose() {
       disposed = true;
       listeners.clear();
+      clearInterval(retitling);
       drop();
     },
   };

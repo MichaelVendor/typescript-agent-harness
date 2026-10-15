@@ -27,6 +27,7 @@ export function fakeBrowser(opts: { failLaunch?: string } = {}) {
 /** Starts with one page tab `T1`; attaching to tab X gives session `S-X`. */
 export function fakeCdp() {
   const sent: Sent[] = [];
+  const targets = [{ targetId: "T1", type: "page", title: "Blank", url: "about:blank" }];
   let listener: Listener = () => {};
   let closer = () => {};
   let closed = false;
@@ -34,9 +35,7 @@ export function fakeCdp() {
     async send(method: string, params: Record<string, unknown> = {}, sessionId?: string): Promise<Record<string, unknown>> {
       if (closed) throw new Error("the browser connection closed");
       sent.push(sessionId ? { method, params, sessionId } : { method, params });
-      if (method === "Target.getTargets") {
-        return { targetInfos: [{ targetId: "T1", type: "page", title: "Blank", url: "about:blank" }] };
-      }
+      if (method === "Target.getTargets") return { targetInfos: targets.map((t) => ({ ...t })) };
       if (method === "Target.attachToTarget") return { sessionId: `S-${String(params.targetId)}` };
       if (method === "Page.getNavigationHistory") return { currentIndex: 1, entries: [{ id: 10 }, { id: 11 }] };
       return {};
@@ -56,6 +55,8 @@ export function fakeCdp() {
   return {
     cdp,
     sent,
+    /** What `Target.getTargets` reports; change a title here to play a page renaming itself. */
+    targets,
     event: (method: string, params: Record<string, unknown>, sessionId?: string) => listener(method, params, sessionId),
     closed: () => closed,
   };

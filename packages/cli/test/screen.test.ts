@@ -146,6 +146,27 @@ test("frames: screencast only while someone watches; a late watcher gets the las
   screen.dispose();
 });
 
+test("tab titles are re-read while someone watches, since Chrome does not report title changes", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const fb = fakeBrowser();
+  const fc = fakeCdp();
+  const screen = createScreen({ browser: () => fb.browser, connect: async () => fc.cdp });
+  await screen.open();
+  const off = screen.subscribe(() => {});
+  await tick();
+  fc.targets[0]!.title = "Docs";
+  t.mock.timers.tick(1000);
+  await tick();
+  assert.equal(screen.state().tabs[0]?.title, "Docs");
+  off();
+  fc.targets[0]!.title = "Later";
+  const reads = fc.sent.filter((m) => m.method === "Target.getTargets").length;
+  t.mock.timers.tick(5000);
+  await tick();
+  assert.equal(fc.sent.filter((m) => m.method === "Target.getTargets").length, reads);
+  screen.dispose();
+});
+
 test("a new tab takes over the panel; closing it goes back to the remaining one", async () => {
   const fb = fakeBrowser();
   const fc = fakeCdp();
