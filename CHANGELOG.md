@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.37.2 — 2026-10-15
 
 Web (`tah serve`) / `tah chat`: model request retries (`HTTP 503`, rate limits, timeouts) show as a temporary status on the thinking line — "HTTP 503 — retry 2 in 2.0s" — that disappears once the reply starts, instead of piling up `[llm] … retry` lines in the conversation. New host event `retry` `{ text }`; it no longer comes as a `notice`.
+
+Attachments keep non-ASCII file names — a Chinese name like `设计说明.md` used to become `_.md`. Stored names are capped at 200 bytes instead of 180 characters. Files attached before this keep their old name.
 
 ## 0.37.1 — 2026-10-15
 
