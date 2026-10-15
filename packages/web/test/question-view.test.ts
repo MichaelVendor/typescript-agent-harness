@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { answerOf, answersOf, emptyDrafts, pick, typeOther } from "../src/question-view.ts";
+import { answerOf, answersOf, emptyDrafts, firstUnanswered, pick, typeOther } from "../src/question-view.ts";
 
 const single = { question: "Which?", options: ["a", "b", "c"] };
 const multiple = { question: "Also?", options: ["x", "y", "z"], multiple: true };
@@ -24,12 +24,14 @@ test("multiple choice: picks toggle, keep option order, and the typed answer is 
   assert.deepEqual(answerOf(multiple, d), ["x", "z", "w"]);
 });
 
-test("answers are ready only when every question has one", () => {
+test("answers are ready only when every question has one; Submit jumps to the first unanswered", () => {
   const questions = [single, multiple];
   const drafts = emptyDrafts(questions);
   assert.equal(answersOf(questions, drafts), undefined);
+  assert.equal(firstUnanswered(questions, drafts), 0);
   drafts[0] = pick(single, drafts[0]!, 0);
   assert.equal(answersOf(questions, drafts), undefined);
+  assert.equal(firstUnanswered(questions, drafts), 1);
   drafts[1] = typeOther(multiple, drafts[1]!, "w");
   assert.deepEqual(answersOf(questions, drafts), [["a"], ["w"]]);
 });

@@ -22,6 +22,11 @@ export function answerOf(question: Question, draft: Draft): string[] {
   return other ? [...chosen, other] : chosen;
 }
 
+/** The first question without an answer, or -1. */
+export function firstUnanswered(questions: Question[], drafts: Draft[]): number {
+  return questions.findIndex((q, i) => answerOf(q, drafts[i] ?? { picked: [], other: "" }).length === 0);
+}
+
 /** The answers to send, or undefined while a question is still unanswered. */
 export function answersOf(questions: Question[], drafts: Draft[]): string[][] | undefined {
   const answers = questions.map((q, i) => answerOf(q, drafts[i] ?? { picked: [], other: "" }));

@@ -201,6 +201,7 @@ export function App() {
               key={state.question.id}
               question={state.question}
               onAnswer={(answers) => state.question && run(api.question({ id: state.question.id, answers }))}
+              onSkip={() => state.question && run(api.question({ id: state.question.id, skip: true }))}
             />
           ) : null}
           {state.stepLimit && !state.busy ? (
