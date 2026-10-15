@@ -960,6 +960,9 @@ main {
   color: var(--muted);
   margin: 8px 0;
 }
+.thinking.retry {
+  color: var(--warn);
+}
 
 .spinner {
   display: inline-block;

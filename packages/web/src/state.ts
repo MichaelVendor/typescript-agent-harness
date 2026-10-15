@@ -16,6 +16,8 @@ export type State = {
   approval: Approval | undefined;
   /** An `ask_user` call waiting for the answers. */
   question: PendingQuestion | undefined;
+  /** The model request is being retried; shown until the next sign of progress. */
+  retry: string | undefined;
   /** The latest `todo_write` list of this session. */
   todos: Todo[];
   /** The last turn hit the step limit; the page offers to continue it. */
@@ -41,6 +43,7 @@ export const initialState: State = {
   entries: [],
   approval: undefined,
   question: undefined,
+  retry: undefined,
   todos: [],
   stepLimit: false,
   busy: false,
@@ -82,7 +85,11 @@ function fromHistory(h: HistoryItem): NewEntry {
 /** Any sign of a running turn: busy, and no pending step-limit prompt. */
 const running = (state: State): State => ({ ...state, busy: true, stepLimit: false });
 
+/** Events that mean the retried request got through (or the turn is over). */
+const PROGRESS = new Set<Action["type"]>(["session", "user", "text", "tool.start", "approval", "question", "turn.end", "turn.error", "local.reset"]);
+
 export function applyEvent(state: State, action: Action): State {
+  if (state.retry !== undefined && PROGRESS.has(action.type)) state = { ...state, retry: undefined };
   switch (action.type) {
     case "batch":
       return action.actions.reduce(applyEvent, state);
@@ -155,6 +162,8 @@ export function applyEvent(state: State, action: Action): State {
       return state.question?.id === action.id ? { ...state, question: undefined } : state;
     case "todos":
       return { ...state, todos: action.todos };
+    case "retry":
+      return { ...running(state), retry: action.text };
     case "notice":
       return push(state, { kind: "notice", text: action.text, error: action.error ?? false });
     case "turn.end":

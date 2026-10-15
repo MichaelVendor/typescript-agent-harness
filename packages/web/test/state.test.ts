@@ -85,6 +85,16 @@ test("a call rejected at approval never starts but still gets a failed tool line
   assert.equal(after.entries.at(-1)?.kind, "tool");
 });
 
+test("a retry shows as a status, not a message, until the request gets through", () => {
+  const s = run([session("s1"), { type: "user", text: "hi" }, { type: "retry", text: "HTTP 503 — retry 1 in 1.0s" }]);
+  assert.equal(s.retry, "HTTP 503 — retry 1 in 1.0s");
+  assert.equal(s.entries.length, 1);
+  const again = run([{ type: "retry", text: "HTTP 503 — retry 2 in 2.0s" }, { type: "notice", text: "x" }], s);
+  assert.equal(again.retry, "HTTP 503 — retry 2 in 2.0s");
+  assert.equal(run([{ type: "text", delta: "Hel" }], again).retry, undefined);
+  assert.equal(run([{ type: "turn.error", cancelled: false, message: "HTTP 503" }], again).retry, undefined);
+});
+
 test("an ask_user question shows until its question.end, and a stopped turn drops it", () => {
   const questions = [{ question: "Which?", options: ["a", "b"] }];
   const s = run([session("s1"), { type: "user", text: "do it" }, { type: "question", id: "q1", questions }]);

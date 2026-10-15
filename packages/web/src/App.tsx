@@ -185,7 +185,11 @@ export function App() {
       <main>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
         <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse}>
-          {thinking ? (
+          {state.retry ? (
+            <div className="thinking retry">
+              <span className="spinner" /> {state.retry}
+            </div>
+          ) : thinking ? (
             <div className="thinking">
               <span className="spinner" /> thinking…
             </div>
