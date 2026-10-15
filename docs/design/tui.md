@@ -50,6 +50,7 @@ type HostEvent =
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "notice"; text: string }
   | { type: "retry"; text: string }
+  | { type: "queue"; items: { id: string; text: string; held: boolean }[] }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number }
   | { type: "turn.error"; cancelled: boolean; message: string };
 
@@ -72,7 +73,7 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 
 规则：
 
-- **同一时间只跑一轮。** 一轮进行中再调 `send` / `continueTurn` / `reset` / `resume` / `fork` 直接抛错；界面负责在进行中禁用这些操作。
+- **同一时间只跑一轮。** 一轮进行中再调 `continueTurn` / `reset` / `resume` / `fork` 直接抛错；界面负责在进行中禁用这些操作。`send` 不抛错，消息排队，这一轮正常结束后自动发出（v0.38，见 [忙时排队发消息](./queue.md)）。
 - **`send` 的结果全走事件。** 一轮正常结束发 `turn.end`；失败或被取消发 `turn.error`，`send` 本身不 reject（只有上一条的误用会抛）。
 - **审批变成事件。** 审批插件的 `ask(call, signal)` 发出 `approval` 事件，等 `answer(id, …)`。`cancel()` 或这一轮被中止时，未回答的审批按 `no` 处理，和现在一致。`--yes` 时不发审批事件。
 - **步数上限。** `turn.end` 的 `finishReason` 为 `max_steps` 时，界面问是否继续，继续就调 `continueTurn()`（对应 `session.resume()`）。
@@ -176,7 +177,7 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
   - 一轮带工具调用（mock 模型会先调 `list_files` 再回复）：事件顺序 `tool.start` → `tool.end` → `text` … → `turn.end`；
   - 审批（同 `approve.test.ts`，直接经 `TOOLS.execute` 触发 `write_file`）：发出 `approval` 事件，`answer(yes)` 后文件写入，`answer(no)` 后不写；审批挂起时 `cancel()` 按 `no` 处理；
   - `reset` / `resume` / `fork` 各发一条 `session`，`history` 最多 3 轮；
-  - 一轮进行中再 `send` 抛错；
+  - 一轮进行中再 `send` 排队，结束后自动发出；停止或碰到步数上限后暂停（v0.38）；
   - 所有事件经 `JSON.stringify` 往返后不变。
 - `editor.test.ts`：中文插入与光标宽度、换行、跨行删除、粘贴多行、行首 `/` 识别。
 - 组件测试（`ink-testing-library`，先确认它兼容 Ink 8，不兼容就直接断言 `render` 输出）：命令菜单过滤与补全、审批卡片按键、会话选择器、Ctrl+C 三种状态。

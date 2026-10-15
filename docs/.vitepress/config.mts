@@ -84,6 +84,7 @@ function sidebarDesign() {
         { text: "文件预览", link: "/design/file-preview" },
         { text: "浏览器面板", link: "/design/browser-pane" },
         { text: "让用户选择", link: "/design/ask-user" },
+        { text: "忙时排队发消息", link: "/design/queue" },
       ],
     },
     {
