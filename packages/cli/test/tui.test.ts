@@ -107,6 +107,18 @@ test("ask_user questions are answered by number keys or typed text, one question
   }
 });
 
+test("a retry shows on the spinner line and leaves nothing in the transcript", () => {
+  const transcript = new Transcript(renderMarkdown);
+  transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+  transcript.apply({ type: "user", text: "hi" });
+  transcript.apply({ type: "retry", text: "HTTP 503 — retry 1 in 1.0s" });
+  assert.equal(transcript.snapshot.retry, "HTTP 503 — retry 1 in 1.0s");
+  const items = transcript.snapshot.items.length;
+  transcript.apply({ type: "text", delta: "Hello" });
+  assert.equal(transcript.snapshot.retry, undefined);
+  assert.equal(transcript.snapshot.items.length, items);
+});
+
 test("a notice flagged as an error shows as an error", () => {
   const transcript = new Transcript(renderMarkdown);
   transcript.apply({ type: "notice", text: "[tah] reloaded" });

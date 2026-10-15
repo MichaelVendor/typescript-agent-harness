@@ -93,7 +93,11 @@ function Live({ snap, maxLines }: { snap: Snapshot; maxLines: number }) {
       {snap.tools.map((t: RunningTool) => (
         <ToolLine key={t.callId} tool={t.tool} summary={t.summary} status="running" />
       ))}
-      {snap.busy && !snap.live && snap.tools.length === 0 && !snap.approval ? (
+      {snap.retry ? (
+        <Text>
+          <Spinner /> <Text color="yellow">{snap.retry}</Text>
+        </Text>
+      ) : snap.busy && !snap.live && snap.tools.length === 0 && !snap.approval ? (
         <Text>
           <Spinner /> <Text dimColor>thinking…</Text>
         </Text>

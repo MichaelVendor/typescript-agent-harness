@@ -66,6 +66,8 @@ export type HostEvent =
   | { type: "question"; id: string; questions: Question[] }
   | { type: "question.end"; id: string }
   | { type: "notice"; text: string; error?: boolean }
+  /** The model request failed and is retried; front ends show it until the next sign of progress. */
+  | { type: "retry"; text: string }
   | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
   | { type: "turn.error"; cancelled: boolean; message: string };
 
@@ -441,7 +443,7 @@ export async function createChatHost(
     if (!flags.quiet) {
       runtime.on("llm.retry", (e) => {
         const p = e as { attempt: number; delayMs: number; reason: string };
-        emit({ type: "notice", text: `[llm] ${p.reason} — retry ${p.attempt} in ${(p.delayMs / 1000).toFixed(1)}s` });
+        emit({ type: "retry", text: `${p.reason} — retry ${p.attempt} in ${(p.delayMs / 1000).toFixed(1)}s` });
       });
       runtime.on("agent.context.trimmed", (e) => {
         const p = e as { droppedTurns: number; elidedToolResults: number; chars: number };

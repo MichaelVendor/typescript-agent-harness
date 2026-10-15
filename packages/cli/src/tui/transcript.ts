@@ -20,6 +20,8 @@ export type Snapshot = {
   live: string;
   tools: RunningTool[];
   approval: { id: string; tool: string; input: unknown } | undefined;
+  /** The model request is being retried (cleared by the next text, tool, card or turn end). */
+  retry: string | undefined;
   /** An `ask_user` call waiting for the answers. */
   question: { id: string; questions: Question[] } | undefined;
   /** The last turn hit the step limit; Enter continues it. */
@@ -29,6 +31,9 @@ export type Snapshot = {
   rounds: number;
   model: string | undefined;
 };
+
+/** Events that mean the retried request got through (or the turn is over). */
+const PROGRESS = new Set<HostEvent["type"]>(["session", "user", "text", "tool.start", "approval", "question", "turn.end", "turn.error"]);
 
 type WithoutId<T> = T extends unknown ? Omit<T, "id"> : never;
 type ItemInput = WithoutId<Item>;
@@ -40,6 +45,7 @@ export class Transcript {
     tools: [],
     approval: undefined,
     question: undefined,
+    retry: undefined,
     stepLimit: false,
     busy: false,
     sessionId: "",
@@ -106,6 +112,7 @@ export class Transcript {
   }
 
   apply(event: HostEvent): void {
+    if (this.snapshot.retry !== undefined && PROGRESS.has(event.type)) this.set({ retry: undefined });
     switch (event.type) {
       case "session":
         this.settle();
@@ -147,6 +154,9 @@ export class Transcript {
         return;
       case "question.end":
         if (this.snapshot.question?.id === event.id) this.set({ question: undefined });
+        return;
+      case "retry":
+        this.set({ retry: event.text });
         return;
       case "notice":
         this.settle();
