@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.37.1 — 2026-10-15
 
 Tools: **`ask_user`** — when a request is ambiguous or has several reasonable approaches, the agent asks 1–4 multiple-choice questions instead of guessing (like Claude Code's AskUserQuestion). Each question has 2–5 options and may allow several picks; you can always type your own answer. The web workbench shows one question at a time in a card like Cursor's (‹ 1 / 3 › to switch, a single-choice pick moves to the next question, Next / Submit) and the sidebar marks the session "needs answer"; `tah chat` shows numbered options — press a number, or type an answer and press Enter. The answers go back to the model and the turn continues. **Skip** (Esc in `tah chat`) closes the card, lists the questions as text in the conversation and ends the turn, so you can reply in your own words; stopping the turn drops the questions. Only `tah serve` and `tah chat` mount it (not `tah run` or `--plain`), and `--yes` does not turn it off. A project tool may not be named `ask_user`. New host events `question` / `question.end`, `ChatHost.answerQuestion` / `skipQuestion` and endpoint `POST /api/question` `{ id, answers }` or `{ id, skip: true }`.
 
