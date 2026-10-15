@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.37.3 — 2026-10-15
 
 Web (`tah serve`) / `tah chat`: **queue messages while the agent works** (like Cursor). Press Enter during a turn and the message (with its attachments) waits above the input box; it goes out as the next turn once this one ends. Stopping a turn, a failed turn or the step limit pauses what is queued — paused messages show "paused" and wait for you to send or remove them. In the web workbench each queued message has × to remove it (and Send when paused); in `tah chat`, ↑ on an empty input takes the last queued message back to edit. Switching sessions clears the queue. New host event `queue` `{ items }`, `ChatHost.sendQueued` / `removeQueued`, and endpoint `POST /api/queue` `{ id, send: true }` or `{ id, remove: true }`; `POST /api/send` during a turn now queues instead of answering 409.
 

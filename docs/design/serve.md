@@ -83,7 +83,7 @@ type HostEvent =
 | `GET /api/info` | `{approve, maxSteps, version}` | 200 |
 | `GET /api/events` | SSE，每条 `data:` 是一个 `HostEvent` | 长连接 |
 | `GET /api/sessions` | `SessionRow[]` | 200 |
-| `POST /api/send` `{text}` | 发消息；一轮进行中排队（v0.38，见 [忙时排队发消息](./queue.md)） | 202 |
+| `POST /api/send` `{text}` | 发消息；一轮进行中排队（v0.37.3，见 [忙时排队发消息](./queue.md)） | 202 |
 | `POST /api/queue` `{id, send: true}` / `{id, remove: true}` | 立即发出（空闲时，忙时 409）/ 删除一条排队的消息 | 204 |
 | `POST /api/continue` | 步数上限后继续同一轮 | 202 |
 | `POST /api/compact` | 把到目前为止的对话压缩成摘要；按一轮处理（忙时 409，`/api/cancel` 可中止，结束发 `turn.end`） | 202 |
@@ -117,7 +117,7 @@ Skills（v0.30.1）：`GET /api/skills` 列出当前文件夹加载的 skill（`
 规则：
 
 - `send` / `continue` 返回 202 即结束，结果全走事件流。网页只有一个数据来源。
-- 一轮进行中调 `continue` / `reset` / `resume` / `fork` 返回 409；`send` 排队（v0.38）。忙闲由 hub 记录：hub 调 `send` / `continueTurn` 时、或收到 `user` 事件（host 自动发出排队消息）时置忙，收到 `turn.end` / `turn.error` 时置闲。
+- 一轮进行中调 `continue` / `reset` / `resume` / `fork` 返回 409；`send` 排队（v0.37.3）。忙闲由 hub 记录：hub 调 `send` / `continueTurn` 时、或收到 `user` 事件（host 自动发出排队消息）时置忙，收到 `turn.end` / `turn.error` 时置闲。
 - 请求体格式错误 400；未登录 401；`Host` / `Origin` 不符 403；`--no-persist` 下会话列表、改名、置顶 / 归档、`/api/workspaces` 与带 `cwd` 的请求 409；切换文件夹进行中再切换 409；`ChatHost` 命令抛出的其他错误（如 `resume` 找不到会话）400，`error` 为原错误信息。
 - 未知路径：`/api/*` 返回 404 JSON；其他路径按静态文件处理（见下）。
 
