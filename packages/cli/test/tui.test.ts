@@ -52,10 +52,15 @@ test("a long reply streamed in back-to-back microtasks renders without hitting R
 
 test("ask_user questions are answered by number keys or typed text, one question at a time", async () => {
   const answered: unknown[] = [];
+  const skippedIds: string[] = [];
   const transcript = new Transcript(renderMarkdown);
   const app = render(
     createElement(App, {
-      host: { ...host, answerQuestion: (id: string, answers: string[][]) => answered.push({ id, answers }) },
+      host: {
+        ...host,
+        answerQuestion: (id: string, answers: string[][]) => answered.push({ id, answers }),
+        skipQuestion: (id: string) => skippedIds.push(id),
+      },
       transcript,
       maxSteps: Infinity,
       color: false,
@@ -91,6 +96,12 @@ test("ask_user questions are answered by number keys or typed text, one question
     transcript.apply({ type: "question.end", id: "q1" });
     await settle();
     assert.doesNotMatch(app.lastFrame() ?? "", /Also add\?/);
+
+    transcript.apply({ type: "question", id: "q2", questions: [{ question: "Skip me?", options: ["a", "b"] }] });
+    await settle();
+    app.stdin.write("\x1b");
+    await new Promise((r) => setTimeout(r, 300));
+    assert.deepEqual(skippedIds, ["q2"]);
   } finally {
     app.unmount();
   }

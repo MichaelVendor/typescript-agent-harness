@@ -7,8 +7,21 @@ export type Question = {
   multiple?: boolean;
 };
 
-/** One answer per question: the picked options and / or the user's own text. `undefined`: the turn was stopped. */
-export type AskUser = (questions: Question[], signal: AbortSignal) => Promise<string[][] | undefined>;
+/**
+ * One answer per question: the picked options and / or the user's own text.
+ * `"skipped"`: the user dismissed the card (the host then ends the turn); `undefined`: the turn was stopped.
+ */
+export type AskUser = (questions: Question[], signal: AbortSignal) => Promise<string[][] | "skipped" | undefined>;
+
+export const SKIPPED_NOTE =
+  "The user skipped these questions without answering. They were shown to the user as text and the turn ended; the user's next message may answer them in their own words.";
+
+/** The questions as Markdown, shown in the conversation when the user skips the card. */
+export function questionsText(questions: Question[]): string {
+  return questions
+    .map((q) => [`**${q.question}**${q.multiple ? " (pick any)" : ""}`, ...q.options.map((o) => `- ${o}`)].join("\n"))
+    .join("\n\n");
+}
 
 const MAX_QUESTIONS = 4;
 const MIN_OPTIONS = 2;
@@ -65,6 +78,7 @@ export function askUserTool(ask: AskUser): Tool {
       const questions = parse(input);
       const answers = await ask(questions, ctx.signal);
       if (!answers) throw new Error("the user did not answer");
+      if (answers === "skipped") return { skipped: true, note: SKIPPED_NOTE };
       return { answers: questions.map((q, i) => ({ question: q.question, answer: answers[i] ?? [] })) };
     },
   };

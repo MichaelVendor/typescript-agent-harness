@@ -139,8 +139,8 @@ function QuestionPrompt({ questions, progress }: { questions: Question[]; progre
   if (!q) return null;
   const count = questions.length > 1 ? ` (${index + 1}/${questions.length})` : "";
   const hint = q.multiple
-    ? `1–${q.options.length} toggle · Enter confirm · or type your own answer`
-    : `1–${q.options.length} pick · or type your own answer and press Enter`;
+    ? `1–${q.options.length} toggle · Enter confirm · or type your own answer · Esc skip`
+    : `1–${q.options.length} pick · or type your own answer and press Enter · Esc skip`;
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
       <Text bold>{`? ${q.question}${count}`}</Text>
@@ -268,6 +268,10 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
     const current = p && s.question?.questions[p.answers.length];
     if (s.question && p && current) {
       const { id, questions } = s.question;
+      if (key.escape) {
+        update(() => emptyEditor());
+        return host.skipQuestion(id);
+      }
       const typed = editorText(editorRef.current).trim();
       const n = Number(input);
       if (!typed && /^[1-9]$/.test(input) && n <= current.options.length) {

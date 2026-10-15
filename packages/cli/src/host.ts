@@ -5,7 +5,7 @@ import type { ChatMessage } from "@typescript-agent-harness/llm";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import type { Todo } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
-import type { AskUser, Question } from "./ask-user.js";
+import { questionsText, type AskUser, type Question } from "./ask-user.js";
 import {
   composeAttachmentPrompt,
   parseUserContent,
@@ -90,6 +90,8 @@ export type ChatHost = {
   answer(id: string, answer: ApprovalAnswer): void;
   /** Answers an `ask_user` card: one list per question (picked options and / or typed text). */
   answerQuestion(id: string, answers: string[][]): void;
+  /** Dismisses an `ask_user` card: the questions are shown as text and the turn ends. */
+  skipQuestion(id: string): void;
   reset(): Promise<void>;
   resume(ref: string): Promise<void>;
   fork(turns?: number): Promise<void>;
@@ -177,6 +179,7 @@ export function toolResult(tool: string, ok: boolean, output: unknown): string {
   if (tool === "read_image_text" && typeof output === "string") {
     return output.startsWith("(no text") ? "no text" : `${output.split("\n").length} lines`;
   }
+  if (tool === "ask_user" && o.skipped === true) return "skipped";
   if (tool === "ask_user" && Array.isArray(o.answers)) {
     return clip((o.answers as { answer?: unknown }[]).map((a) => (Array.isArray(a.answer) ? a.answer.join(", ") : "")).join(" · "));
   }
@@ -202,6 +205,13 @@ export function todosOf(messages: ChatMessage[]): Todo[] | undefined {
     } catch {}
   }
   return todos;
+}
+
+/** The questions of an `ask_user` call the user skipped, as the text shown in their place. */
+function skippedQuestions(tool: string, input: unknown, output: unknown): string | undefined {
+  if (tool !== "ask_user" || (output as { skipped?: unknown } | null | undefined)?.skipped !== true) return undefined;
+  const questions = (input as { questions?: unknown } | null | undefined)?.questions;
+  return Array.isArray(questions) ? questionsText(questions as Question[]) : undefined;
 }
 
 /** The last `turns` user turns as display items; `hiddenTurns` counts the earlier ones. */
@@ -247,6 +257,8 @@ export function historyOf(
         result: toolResult(call.name, ok, output),
         ...(file ? { path: file } : {}),
       });
+      const skipped = skippedQuestions(call.name, call.arguments, output);
+      if (skipped) history.push({ role: "assistant", text: skipped });
     }
   }
   return { history, hiddenTurns };
@@ -290,16 +302,18 @@ export function approvalQueue(emit: (event: HostEvent) => void): {
 export function questionQueue(emit: (event: HostEvent) => void): {
   ask: AskUser;
   answer(id: string, answers: string[][]): void;
+  skip(id: string): void;
   rejectAll(): void;
 } {
-  const pending = new Map<string, (answers: string[][] | undefined) => void>();
+  type Settled = string[][] | "skipped" | undefined;
+  const pending = new Map<string, (answers: Settled) => void>();
   let count = 0;
   return {
     ask: (questions, signal) =>
       new Promise((resolve) => {
         if (signal.aborted) return resolve(undefined);
         const id = `question_${++count}`;
-        const settle = (answers: string[][] | undefined) => {
+        const settle = (answers: Settled) => {
           if (!pending.delete(id)) return;
           resolve(answers);
           emit({ type: "question.end", id });
@@ -310,6 +324,9 @@ export function questionQueue(emit: (event: HostEvent) => void): {
       }),
     answer(id, answers) {
       pending.get(id)?.(answers);
+    },
+    skip(id) {
+      pending.get(id)?.("skipped");
     },
     rejectAll() {
       for (const settle of [...pending.values()]) settle(undefined);
@@ -380,6 +397,10 @@ export async function createChatHost(
   };
 
   let streamedText = false;
+  /** `ask_user` inputs by call id, for the text shown when the user skips. */
+  const asking = new Map<string, unknown>();
+  /** The user skipped an `ask_user` card: the turn was stopped on purpose and ends normally. */
+  let skipped = false;
   let model: string | undefined;
   const attach = (runtime: Runtime) => {
     runtime.on("agent.assistant-stream", (e) => {
@@ -395,11 +416,21 @@ export async function createChatHost(
       const p = e as { callId: string; tool: string; input: unknown };
       const call = describe(p.tool, p.input);
       calls.set(p.callId, call);
+      if (p.tool === "ask_user") asking.set(p.callId, p.input);
       emit({ type: "tool.start", callId: p.callId, tool: p.tool, ...call });
     });
     runtime.on("tool.finished", (e) => {
       const p = e as { callId: string; tool: string; output: unknown };
       toolEnd(p.callId, p.tool, true, p.output);
+      const input = asking.get(p.callId);
+      asking.delete(p.callId);
+      const skippedText = skippedQuestions(p.tool, input, p.output);
+      if (skippedText !== undefined) {
+        // The tool result is already in the history; stopping here skips the model's next round.
+        skipped = true;
+        emit({ type: "text", delta: skippedText });
+        void session.cancel();
+      }
       const todos = (p.output as { todos?: unknown } | undefined)?.todos;
       if (p.tool === "todo_write" && Array.isArray(todos)) emit({ type: "todos", todos: todos as Todo[] });
     });
@@ -546,6 +577,7 @@ export async function createChatHost(
       });
     }
     streamedText = false;
+    skipped = false;
     const from = session.steps.length;
     let event: HostEvent;
     try {
@@ -562,11 +594,19 @@ export async function createChatHost(
       };
     } catch (err) {
       rejectPending();
-      event = {
-        type: "turn.error",
-        cancelled: session.state === "cancelled",
-        message: err instanceof Error ? err.message : String(err),
-      };
+      event = skipped
+        ? {
+            type: "turn.end",
+            state: session.state,
+            finishReason: "stop",
+            rounds: turnRounds(session, from),
+            ...(model ? { model } : {}),
+          }
+        : {
+            type: "turn.error",
+            cancelled: session.state === "cancelled",
+            message: err instanceof Error ? err.message : String(err),
+          };
     }
     busy = false;
     emit(event);
@@ -653,6 +693,7 @@ export async function createChatHost(
     },
     answer: approvals.answer,
     answerQuestion: questions.answer,
+    skipQuestion: questions.skip,
     reset: () =>
       ready(async () => {
         idle();

@@ -129,7 +129,7 @@ function fakeHost() {
   const store = createAttachmentStore(mkdtempSync(path.join(tmpdir(), "tah-serve-att-")));
   let finish = () => {};
   let reloads = 0;
-  const answered: { id: string; answers: string[][] }[] = [];
+  const answered: { id: string; answers: string[][] | "skipped" }[] = [];
   const host: ChatHost = {
     sessionId: "s1",
     approve: true,
@@ -176,6 +176,10 @@ function fakeHost() {
     },
     answerQuestion(id, answers) {
       answered.push({ id, answers });
+      emit({ type: "question.end", id });
+    },
+    skipQuestion(id) {
+      answered.push({ id, answers: "skipped" });
       emit({ type: "question.end", id });
     },
     reset: async () => {},
@@ -362,6 +366,8 @@ test("ask_user questions replay to a new tab until answered; /api/question check
     assert.equal((await api.post("/api/question", { id: "q1", answers: [[1]] })).status, 400);
     assert.equal((await api.post("/api/question", { id: "q1", answers: [["A", "my own"]] })).status, 204);
     assert.deepEqual(s.answered, [{ id: "q1", answers: [["A", "my own"]] }]);
+    assert.equal((await api.post("/api/question", { id: "q2", skip: true })).status, 204);
+    assert.deepEqual(s.answered.at(-1), { id: "q2", answers: "skipped" });
     assert.deepEqual((await first.until("question.end")).at(-1), { type: "question.end", id: "q1" });
     assert.deepEqual((await second.until("question.end")).at(-1), { type: "question.end", id: "q1" });
 

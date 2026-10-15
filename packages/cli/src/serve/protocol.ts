@@ -10,8 +10,8 @@ export type ServeRequest = {
   auth: { token: string };
   send: { text?: string; attachmentIds?: string[] };
   answer: { id: string; answer: ApprovalAnswer };
-  /** Answers a `question` event: one list per question, in order. */
-  question: { id: string; answers: string[][] };
+  /** Answers a `question` event (one list per question, in order), or skips it: the questions become text and the turn ends. */
+  question: { id: string; answers: string[][] } | { id: string; skip: true };
   /** `cwd`: start the session in that folder (switching to it first). */
   reset: { cwd?: string };
   resume: { ref: string; cwd?: string };
