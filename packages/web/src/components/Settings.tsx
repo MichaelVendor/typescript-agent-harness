@@ -78,7 +78,7 @@ export function Settings(props: {
   );
 }
 
-/** The Tavily key behind web_search; web_fetch needs no key. */
+/** web_search works without a key (Exa, then Bing); a Tavily key switches it to Tavily. */
 function WebSettings(props: { busy: boolean; view: SettingsView; onChange(view: SettingsView): void }) {
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string>();
@@ -102,11 +102,11 @@ function WebSettings(props: { busy: boolean; view: SettingsView; onChange(view: 
   return (
     <>
       <p className="settings-desc">
-        The agent reads web pages with web_fetch out of the box. To let it search the web too, add a{" "}
+        Web search works out of the box: queries are sent to Exa, or to Bing when Exa is unavailable. To use{" "}
         <a href="https://app.tavily.com" target="_blank" rel="noreferrer">
           Tavily
         </a>{" "}
-        API key (free tier available). It applies to every folder.
+        instead, add its API key (free tier available). It applies to every folder.
       </p>
 
       {search ? (
@@ -134,7 +134,15 @@ function WebSettings(props: { busy: boolean; view: SettingsView; onChange(view: 
           </li>
         </ul>
       ) : (
-        <div className="settings-empty">Web search is off — no key yet.</div>
+        <ul className="model-cards">
+          <li className="model-card in-use">
+            <div className="model-main">
+              <div className="model-name">Exa + Bing</div>
+              <div className="model-meta">no key needed</div>
+            </div>
+            <span className="badge">On</span>
+          </li>
+        </ul>
       )}
 
       <form
@@ -145,7 +153,7 @@ function WebSettings(props: { busy: boolean; view: SettingsView; onChange(view: 
         }}
       >
         <label>
-          <span>{search ? "Replace API key" : "Tavily API key"}</span>
+          <span>{search ? "Replace API key" : "Tavily API key (optional)"}</span>
           <input type="password" autoComplete="off" value={apiKey} placeholder="tvly-…" onChange={(e) => setApiKey(e.target.value)} />
           <small>Stored only on this computer, in ~/.tah/settings.json.</small>
         </label>
