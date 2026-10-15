@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Web (`tah serve`): browser panel fixes — tab names show the page's title (and follow title changes) instead of the host and port; the page gets the last mouse position when you stop moving, so hover menus open where the pointer is; the scroll wheel scrolls only the page, not the panel; a failed click or keystroke shows its error under the address bar.
+Web (`tah serve`): browser panel fixes — tab names show the page's title (and follow title changes) instead of the host and port; the page gets the last mouse position when you stop moving, so hover menus open where the pointer is; the scroll wheel scrolls only the page, not the panel; a failed click or keystroke shows its error under the address bar. Connecting to Chrome gives up after 5 seconds with an error instead of spinning forever, and a tab the panel cannot show says why instead of staying blank.
 
 ## 0.36.0 — 2026-10-14
 

@@ -138,6 +138,7 @@ type BrowserInput =
 - 只在至少有一个 `stream` 订阅时截屏；多个网页标签页共用一路，分发给每个。写不进去（`res.write` 返回 false）的订阅者只保留最新一帧，旧帧丢掉；收到帧立即 `screencastFrameAck`。
 - 连接断开（Chrome 崩溃、浏览器关闭、切换文件夹）：推 `state`（`running: false` 或 `error`）。`serve` 订阅事件中心：收到 `browser_*` 的 `tool.end` 或 `session` 事件时同步一次——浏览器换了或不在运行就断开；在运行、还没连上、且面板开着，就重新读 `DevToolsActivePort` 再连（Playwright 重启 Chrome 后端口会变）。下一次 `open` 也会连。
 - 网页对话框（`alert` / `confirm` / `prompt` / 离开页面确认）：对话框开着时 Chrome 不处理鼠标输入，面板会卡住。面板标签页收到 `Page.javascriptDialogOpening` 就把它放进 `state.dialog`，`javascriptDialogClosed` 时清掉；`/api/browser/dialog` 用 `Page.handleJavaScriptDialog` 回应。Playwright MCP 也会看到对话框已关闭，Agent 不会被卡住。
+- 连 CDP（读 `/json/version`、打开 WebSocket）5 秒没连上就放弃并报错，免得 `DevToolsActivePort` 指向一个不应答的旧端口时一直转圈。挂接标签页失败时 `error` 写明原因，之后成功显示标签页就清掉。
 - 输入内容不写日志、不进会话和事件流。
 
 ## 四、网页（`packages/web`）
