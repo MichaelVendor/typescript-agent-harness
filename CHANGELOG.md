@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+Web (`tah serve`): attachments in sent messages show as cards like in the composer — a thumbnail for images, the file extension for other files, with name and size — instead of a line of text; the preview panel titles an attachment with its original name instead of its storage path.
+
 Web (`tah serve`): browser panel fixes — tab names show the page's title (and follow title changes) instead of the host and port; the page gets the last mouse position when you stop moving, so hover menus open where the pointer is; the scroll wheel scrolls only the page, not the panel; a failed click or keystroke shows its error under the address bar. Connecting to Chrome gives up after 5 seconds with an error instead of spinning forever, and a tab the panel cannot show says why instead of staying blank.
 
 ## 0.36.0 — 2026-10-14
