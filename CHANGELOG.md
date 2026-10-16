@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.37.5 — 2026-10-16
 
 Desktop: cold start opens a **Welcome** page (open folder / new project / pick from `~/.tah/workspaces.json`) instead of the system folder dialog; File → Welcome returns there to switch projects. Pushing a `v*.*.*` tag still builds `tah-<version>-arm64.dmg` on GitHub Actions and attaches it to that tag's GitHub Release.
 
