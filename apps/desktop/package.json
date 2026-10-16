@@ -36,6 +36,7 @@
     "mac": {
       "target": [{ "target": "dmg", "arch": ["arm64"] }],
       "category": "public.app-category.developer-tools",
+      "icon": "build/icon.png",
       "identity": "-",
       "hardenedRuntime": false
     },

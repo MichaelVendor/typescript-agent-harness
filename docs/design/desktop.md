@@ -80,7 +80,7 @@ tah.app
 - Node：构建时下载固定版本的官方 Node 22 LTS（`darwin-arm64`），按官方 `SHASUMS256.txt` 校验，只取 `bin/node`，放进 `Resources/node/bin/`。解压后约 110MB，`.dmg` 压缩后约多 40MB。版本号写在 `apps/desktop` 的配置里。
 - tah：先 `pnpm -r build`，再用 `pnpm --filter @typescript-agent-harness/cli deploy --prod --legacy --config.node-linker=hoisted` 把 cli 连同依赖装成普通目录，删掉 `node_modules/.bin`（只有软链接），放进 `Resources/tah/`。
 - Electron 用实施时的稳定版，锁定版本号；它只当窗口用，内置的 Node 不跑 tah。
-- 用 electron-builder 出 `apps/desktop/release/tah-<版本>-arm64.dmg`；只做本机运行需要的临时签名（ad-hoc）。版本号跟仓库一致。
+- 用 electron-builder 出 `apps/desktop/release/tah-<版本>-arm64.dmg`；图标是 `apps/desktop/build/icon.png`（1024）。只做本机运行需要的临时签名（ad-hoc）。版本号跟仓库一致。
 - 命令：`pnpm --filter @typescript-agent-harness/desktop dist`（打包前会清空 `apps/desktop/release/`，不留旧版 `.dmg`）。本地可照旧打；推送 `v*.*.*` tag 时 [Publish](../../.github/workflows/publish.yml) 的 `desktop` job（`macos-14`）自动打包，并把 `.dmg` 挂到同名 GitHub Release（未公证；Release 说明里写首次右键「打开」）。与发 npm 并行，互不挡。
 
 ## 测试
