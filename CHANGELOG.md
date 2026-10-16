@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-Desktop: pushing a `v*.*.*` tag builds `tah-<version>-arm64.dmg` on GitHub Actions (`macos-14`) and attaches it to that tag's GitHub Release (ad-hoc signed, not notarized). npm publish is unchanged and runs in parallel.
+Desktop: cold start opens a **Welcome** page (open folder / new project / pick from `~/.tah/workspaces.json`) instead of the system folder dialog; File → Welcome returns there to switch projects. Pushing a `v*.*.*` tag still builds `tah-<version>-arm64.dmg` on GitHub Actions and attaches it to that tag's GitHub Release.
 
 ## 0.37.4 — 2026-10-15
 

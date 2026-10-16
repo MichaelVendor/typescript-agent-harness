@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tah — Welcome（设计稿）</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --panel: #ffffff;
+      --border: #e3e5e8;
+      --text: #1f2328;
+      --muted: #6b7280;
+      --accent: #0e7490;
+      --accent-soft: #e0f2f5;
+      --hover: #f0f2f5;
+      --danger: #b91c1c;
+      --radius: 12px;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1115;
+        --panel: #161a20;
+        --border: #2a2f37;
+        --text: #e6e6e6;
+        --muted: #9aa1ab;
+        --accent: #22a6c4;
+        --accent-soft: #12303a;
+        --hover: #1c222b;
+        --danger: #f87171;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.35);
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      min-height: 100%;
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 15% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+        radial-gradient(700px 360px at 90% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+        var(--bg);
+      display: grid;
+      place-items: center;
+      padding: 32px 20px;
+    }
+    .frame {
+      width: min(880px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .chrome {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--panel) 92%, var(--bg));
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+    .dot:nth-child(1) { background: #ff5f57; }
+    .dot:nth-child(2) { background: #febc2e; }
+    .dot:nth-child(3) { background: #28c840; }
+    .chrome span { margin-left: 8px; color: var(--muted); font-size: 12px; }
+    .badge {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 999px;
+      padding: 3px 10px;
+      letter-spacing: 0.02em;
+    }
+    .body {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      min-height: 480px;
+    }
+    @media (max-width: 720px) {
+      .body { grid-template-columns: 1fr; }
+    }
+    .left, .right { padding: 36px 32px; }
+    .left { border-right: 1px solid var(--border); }
+    @media (max-width: 720px) {
+      .left { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+    .brand {
+      font-size: 28px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      margin: 0 0 6px;
+    }
+    .sub {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 28em;
+    }
+    .actions { display: flex; flex-direction: column; gap: 10px; }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: left;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+    .btn:hover {
+      background: var(--hover);
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    }
+    .btn:active { transform: scale(0.995); }
+    .btn.primary {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+    }
+    @media (prefers-color-scheme: dark) {
+      .btn.primary { color: #0f1115; }
+    }
+    .btn.primary:hover {
+      filter: brightness(1.05);
+      background: var(--accent);
+    }
+    .ico {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .btn.primary .ico {
+      background: rgba(255, 255, 255, 0.18);
+      color: inherit;
+    }
+    .btn strong { display: block; font-size: 14px; font-weight: 600; }
+    .btn small { display: block; color: inherit; opacity: 0.72; font-size: 12px; margin-top: 2px; }
+    .btn.primary small { opacity: 0.85; }
+    .kbd {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      background: var(--bg);
+    }
+    .btn.primary .kbd {
+      color: inherit;
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .right h2 {
+      margin: 0 0 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .hint {
+      margin: 0 0 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 320px;
+      overflow: auto;
+    }
+    .item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .item:hover { background: var(--hover); }
+    .item.active {
+      background: var(--accent-soft);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .item.missing { opacity: 0.55; }
+    .item .name { font-size: 14px; font-weight: 560; }
+    .item .path {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+    .tag {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+    .tag.last { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+    .tag.gone { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .foot {
+      padding: 12px 16px 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+      z-index: 10;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="frame" role="application" aria-label="tah welcome mockup">
+    <div class="chrome">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      <span>tah</span>
+      <div class="badge">设计稿 · 不可操作真实文件系统</div>
+    </div>
+    <div class="body">
+      <section class="left">
+        <h1 class="brand">tah</h1>
+        <p class="sub">选一个项目开始，或新建一个文件夹。Agent、会话和 Settings 与命令行共用 <code>~/.tah</code>。</p>
+        <div class="actions">
+          <button class="btn primary" type="button" data-action="open">
+            <span class="ico">⌘</span>
+            <span>
+              <strong>打开文件夹</strong>
+              <small>用系统对话框选已有项目</small>
+            </span>
+            <span class="kbd">⌘O</span>
+          </button>
+          <button class="btn" type="button" data-action="new">
+            <span class="ico">＋</span>
+            <span>
+              <strong>新建项目</strong>
+              <small>选位置并创建空文件夹后打开</small>
+            </span>
+            <span class="kbd">⌘N</span>
+          </button>
+        </div>
+      </section>
+      <section class="right">
+        <h2>项目</h2>
+        <p class="hint">来自网页侧栏的文件夹列表（<code>~/.tah/workspaces.json</code>），上次打开的会标出来。</p>
+        <ul class="list" id="list">
+          <li class="item active" data-name="vue3-web">
+            <div>
+              <div class="name">vue3-web</div>
+              <div class="path">~/Desktop/vue3-web</div>
+            </div>
+            <span class="tag last">上次</span>
+          </li>
+          <li class="item" data-name="AgentHarness">
+            <div>
+              <div class="name">AgentHarness</div>
+              <div class="path">~/Desktop/AgentHarness</div>
+            </div>
+          </li>
+          <li class="item" data-name="ai-agent-training">
+            <div>
+              <div class="name">ai-agent-training</div>
+              <div class="path">~/Desktop/ai-agent-training</div>
+            </div>
+          </li>
+          <li class="item" data-name="tah-verify">
+            <div>
+              <div class="name">tah-verify</div>
+              <div class="path">/tmp/tah-verify</div>
+            </div>
+          </li>
+          <li class="item missing" data-name="old-demo">
+            <div>
+              <div class="name">old-demo</div>
+              <div class="path">~/Desktop/old-demo</div>
+            </div>
+            <span class="tag gone">已删除</span>
+          </li>
+        </ul>
+      </section>
+    </div>
+    <div class="foot">
+      <span>冷启动先到此页 · 点项目后才启动 <code>tah serve</code></span>
+      <span>菜单也可「回到欢迎页」换项目</span>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const toast = document.getElementById("toast");
+    let timer;
+    function say(msg) {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      clearTimeout(timer);
+      timer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+    document.querySelectorAll("[data-action]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const a = el.getAttribute("data-action");
+        say(a === "open" ? "设计稿：这里会弹出系统「打开文件夹」" : "设计稿：这里会弹出系统「新建文件夹」");
+      });
+    });
+    document.querySelectorAll(".item").forEach((el) => {
+      el.addEventListener("click", () => {
+        if (el.classList.contains("missing")) {
+          say("文件夹已不存在，可从列表移除或重新选择");
+          return;
+        }
+        document.querySelectorAll(".item").forEach((x) => x.classList.remove("active"));
+        el.classList.add("active");
+        say(`设计稿：打开 ${el.dataset.name}，然后启动 tah serve`);
+      });
+    });
+  </script>
+</body>
+</html>
