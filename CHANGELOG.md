@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.37.6 — 2026-10-16
+
+Desktop: the macOS app has its own icon (teal, a terminal prompt) instead of the default Electron icon.
 
 CI: the GitHub issues docs assistant (`.github/docs-assistant`) uses `tah` 0.37.5 (was 0.26.3).
 
