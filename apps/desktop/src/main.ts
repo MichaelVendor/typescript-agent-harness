@@ -1,23 +1,30 @@
-import { app, BrowserWindow, dialog, shell } from "electron";
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from "electron";
 import { appendFileSync, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { startServer, StartError, type Server } from "./server.js";
 import { loadShellEnv } from "./shell-env.js";
-import { readLastFolder, writeLastFolder } from "./state.js";
+import { listProjects, writeLastFolder } from "./state.js";
 
 const home = os.homedir();
+const here = path.dirname(fileURLToPath(import.meta.url));
 const node = path.join(process.resourcesPath, "node", "bin", "node");
 const cli = path.join(process.resourcesPath, "tah", "dist", "cli.js");
+const welcomeHtml = path.join(here, "..", "welcome", "index.html");
+/** CJS: sandboxed preload cannot load ESM under package.json `"type": "module"`. */
+const preloadJs = path.join(here, "..", "welcome", "preload.cjs");
 
 let env: NodeJS.ProcessEnv = process.env;
 let server: Server | undefined;
 let starting: Promise<Server | undefined> | undefined;
 let win: BrowserWindow | undefined;
-let origin = "";
+/** `welcome` while on the local welcome page; otherwise the serve origin. */
+let surface: "welcome" | string = "welcome";
 let quitting = false;
 let shuttingDown = false;
 let stopped = false;
+let launching = false;
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -44,112 +51,224 @@ function openExternal(url: string): void {
   if (/^https?:\/\//.test(url)) void shell.openExternal(url);
 }
 
-function load(url: string): void {
-  origin = new URL(url).origin;
-  if (!win) {
-    win = new BrowserWindow({
-      width: 1280,
-      height: 840,
-      title: "tah",
-      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
-    });
-    win.webContents.setWindowOpenHandler(({ url: target }) => {
-      openExternal(target);
-      return { action: "deny" };
-    });
-    win.webContents.on("will-navigate", (event) => {
-      if (new URL(event.url).origin === origin) return;
+function ensureWindow(): BrowserWindow {
+  if (win) return win;
+  win = new BrowserWindow({
+    width: 1280,
+    height: 840,
+    title: "tah",
+    webPreferences: {
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: preloadJs,
+    },
+  });
+  win.webContents.setWindowOpenHandler(({ url: target }) => {
+    openExternal(target);
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event) => {
+    if (surface === "welcome") {
       event.preventDefault();
-      openExternal(event.url);
-    });
-    win.on("close", (event) => {
-      if (quitting) return;
-      event.preventDefault();
-      win?.hide();
-    });
-  }
-  void win.loadURL(url);
+      return;
+    }
+    if (new URL(event.url).origin === surface) return;
+    event.preventDefault();
+    openExternal(event.url);
+  });
+  win.on("close", (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    win?.hide();
+  });
+  return win;
+}
+
+function showWelcome(): void {
+  surface = "welcome";
+  void ensureWindow().loadFile(welcomeHtml);
   showWindow();
 }
 
-async function pickFolder(): Promise<string | undefined> {
-  const result = await dialog.showOpenDialog({
-    title: "Choose a folder for tah",
-    buttonLabel: "Open",
+function loadWorkbench(url: string): void {
+  surface = new URL(url).origin;
+  void ensureWindow().loadURL(url);
+  showWindow();
+}
+
+async function pickFolder(kind: "open" | "new"): Promise<string | undefined> {
+  const result = await dialog.showOpenDialog(ensureWindow(), {
+    title: kind === "new" ? "New project — choose or create a folder" : "Open folder",
+    buttonLabel: kind === "new" ? "Create / Open" : "Open",
     properties: ["openDirectory", "createDirectory"],
   });
   return result.canceled ? undefined : result.filePaths[0];
 }
 
 /** Starts tah in `folder`, offering Retry / Quit until it starts or the user quits. */
-async function launch(folder: string): Promise<void> {
-  for (;;) {
-    let started: Server;
-    try {
-      const pending = startServer({ node, cli, cwd: folder, env, onExit: (stderr) => void crashed(folder, stderr) });
-      starting = pending.then((s) => s, () => undefined);
-      started = await pending;
-    } catch (err) {
-      starting = undefined;
-      if (quitting) return;
-      const { response } = await dialog.showMessageBox({
-        type: "error",
-        message: `tah failed to start: ${message(err)}`,
-        detail: err instanceof StartError ? err.stderr : "",
-        buttons: ["Retry", "Quit"],
-        defaultId: 0,
-        cancelId: 1,
-      });
-      if (response === 1) {
-        app.quit();
-        return;
+async function launch(folder: string): Promise<boolean> {
+  if (launching) return false;
+  launching = true;
+  try {
+    for (;;) {
+      let started: Server;
+      try {
+        const pending = startServer({ node, cli, cwd: folder, env, onExit: (stderr) => void crashed(folder, stderr) });
+        starting = pending.then(
+          (s) => s,
+          () => undefined,
+        );
+        started = await pending;
+      } catch (err) {
+        starting = undefined;
+        if (quitting) return false;
+        const { response } = await dialog.showMessageBox(ensureWindow(), {
+          type: "error",
+          message: `tah failed to start: ${message(err)}`,
+          detail: err instanceof StartError ? err.stderr : "",
+          buttons: ["Retry", "Back", "Quit"],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        if (response === 2) {
+          app.quit();
+          return false;
+        }
+        if (response === 1) {
+          showWelcome();
+          return false;
+        }
+        continue;
       }
-      continue;
+      starting = undefined;
+      server = started;
+      if (quitting) return false;
+      writeLastFolder(home, folder);
+      loadWorkbench(started.url);
+      return true;
     }
-    starting = undefined;
-    server = started;
-    if (quitting) return;
-    writeLastFolder(home, folder);
-    load(started.url);
+  } finally {
+    launching = false;
+  }
+}
+
+async function stopServer(): Promise<void> {
+  const pendingStart = starting;
+  const running = server ?? (pendingStart ? await pendingStart : undefined);
+  server = undefined;
+  starting = undefined;
+  if (running) await running.stop();
+}
+
+async function goWelcome(): Promise<void> {
+  if (quitting || shuttingDown) return;
+  if (surface === "welcome" && !server && !starting) {
+    showWelcome();
     return;
   }
+  const running = server;
+  if (running) {
+    try {
+      const active = await running.activeFolder();
+      if (active) writeLastFolder(home, active);
+    } catch (err) {
+      log(`[desktop] could not save the last folder: ${message(err)}`);
+    }
+  }
+  await stopServer();
+  if (quitting) return;
+  showWelcome();
+}
+
+async function openPicked(kind: "open" | "new"): Promise<{ ok: boolean }> {
+  const folder = await pickFolder(kind);
+  if (!folder) return { ok: false };
+  const ok = await launch(folder);
+  return { ok };
 }
 
 async function crashed(folder: string, stderr: string): Promise<void> {
   server = undefined;
   if (quitting) return;
-  const { response } = await dialog.showMessageBox({
+  const { response } = await dialog.showMessageBox(ensureWindow(), {
     type: "error",
     message: "tah stopped unexpectedly",
     detail: stderr,
-    buttons: ["Restart", "Quit"],
+    buttons: ["Restart", "Welcome", "Quit"],
     defaultId: 0,
     cancelId: 1,
   });
-  if (response === 1) app.quit();
+  if (response === 2) app.quit();
+  else if (response === 1) showWelcome();
   else await launch(folder);
 }
 
+function installMenu(): void {
+  const isMac = process.platform === "darwin";
+  const fileMenu: Electron.MenuItemConstructorOptions = {
+    label: "File",
+    submenu: [
+      {
+        label: "Welcome",
+        accelerator: "CmdOrCtrl+Shift+W",
+        click: () => void goWelcome(),
+      },
+      {
+        label: "Open Folder…",
+        accelerator: "CmdOrCtrl+O",
+        click: () => void openPicked("open"),
+      },
+      {
+        label: "New Project…",
+        accelerator: "CmdOrCtrl+N",
+        click: () => void openPicked("new"),
+      },
+      { type: "separator" },
+      isMac ? { role: "close" } : { role: "quit" },
+    ],
+  };
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(isMac ? [{ role: "appMenu" as const }] : []),
+      fileMenu,
+      { role: "editMenu" },
+      { role: "viewMenu" },
+      { role: "windowMenu" },
+    ]),
+  );
+}
+
+function installIpc(): void {
+  ipcMain.handle("welcome:list", () => listProjects(home));
+  ipcMain.handle("welcome:open-folder", () => openPicked("open"));
+  ipcMain.handle("welcome:new-project", () => openPicked("new"));
+  ipcMain.handle("welcome:open", async (_event, folder: unknown) => {
+    if (typeof folder !== "string" || !folder) throw new Error("missing folder");
+    const ok = await launch(folder);
+    return { ok };
+  });
+}
+
 async function boot(): Promise<void> {
+  installMenu();
+  installIpc();
   const shellEnvPromise = loadShellEnv();
-  const folder = readLastFolder(home) ?? (await pickFolder());
-  if (quitting) return;
-  if (!folder) {
-    app.quit();
-    return;
-  }
+  showWelcome();
   const shellEnv = await shellEnvPromise;
   if (quitting) return;
   if (shellEnv.error) log(`[desktop] using the app's environment — login shell: ${shellEnv.error}`);
   env = shellEnv.env;
-  await launch(folder);
 }
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on("second-instance", showWindow);
-  app.on("activate", showWindow);
+  app.on("activate", () => {
+    if (!win) showWelcome();
+    else showWindow();
+  });
   // The window only hides; keep running until ⌘Q.
   app.on("window-all-closed", () => {});
   app.on("before-quit", (event) => {

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tah</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --panel: #ffffff;
+      --border: #e3e5e8;
+      --text: #1f2328;
+      --muted: #6b7280;
+      --accent: #0e7490;
+      --accent-soft: #e0f2f5;
+      --hover: #f0f2f5;
+      --danger: #b91c1c;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color-scheme: light dark;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1115;
+        --panel: #161a20;
+        --border: #2a2f37;
+        --text: #e6e6e6;
+        --muted: #9aa1ab;
+        --accent: #22a6c4;
+        --accent-soft: #12303a;
+        --hover: #1c222b;
+        --danger: #f87171;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 12px 32px rgba(0, 0, 0, 0.35);
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      min-height: 100%;
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 15% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+        radial-gradient(700px 360px at 90% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 55%),
+        var(--bg);
+      display: grid;
+      place-items: center;
+      padding: 32px 20px;
+    }
+    .frame {
+      width: min(880px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .body {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      min-height: 480px;
+    }
+    @media (max-width: 720px) {
+      .body { grid-template-columns: 1fr; }
+    }
+    .left, .right { padding: 36px 32px; }
+    .left { border-right: 1px solid var(--border); }
+    @media (max-width: 720px) {
+      .left { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+    .brand {
+      font-size: 28px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      margin: 0 0 6px;
+    }
+    .sub {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 28em;
+    }
+    .actions { display: flex; flex-direction: column; gap: 10px; }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: left;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+    .btn:hover {
+      background: var(--hover);
+      border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+    }
+    .btn:active { transform: scale(0.995); }
+    .btn:disabled { opacity: 0.55; cursor: default; transform: none; }
+    .btn.primary {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+    }
+    @media (prefers-color-scheme: dark) {
+      .btn.primary { color: #0f1115; }
+    }
+    .btn.primary:hover:not(:disabled) {
+      filter: brightness(1.05);
+      background: var(--accent);
+    }
+    .ico {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      display: grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .btn.primary .ico {
+      background: rgba(255, 255, 255, 0.18);
+      color: inherit;
+    }
+    .btn strong { display: block; font-size: 14px; font-weight: 600; }
+    .btn small { display: block; color: inherit; opacity: 0.72; font-size: 12px; margin-top: 2px; }
+    .btn.primary small { opacity: 0.85; }
+    .kbd {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      background: var(--bg);
+    }
+    .btn.primary .kbd {
+      color: inherit;
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .right h2 {
+      margin: 0 0 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .hint {
+      margin: 0 0 16px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 320px;
+      overflow: auto;
+    }
+    .item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .item:hover { background: var(--hover); }
+    .item.last {
+      background: var(--accent-soft);
+      border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+    .item.missing { opacity: 0.55; }
+    .item .name { font-size: 14px; font-weight: 560; }
+    .item .path {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+    .tag {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+    .tag.last { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+    .tag.gone { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .foot {
+      padding: 12px 16px 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+      z-index: 10;
+      max-width: min(420px, calc(100% - 32px));
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="body">
+      <section class="left">
+        <h1 class="brand">tah</h1>
+        <p class="sub">选一个项目开始，或新建一个文件夹。Agent、会话和 Settings 与命令行共用 ~/.tah。</p>
+        <div class="actions">
+          <button class="btn primary" type="button" id="open" data-busy>
+            <span class="ico">⌘</span>
+            <span>
+              <strong>打开文件夹</strong>
+              <small>用系统对话框选已有项目</small>
+            </span>
+            <span class="kbd">⌘O</span>
+          </button>
+          <button class="btn" type="button" id="new" data-busy>
+            <span class="ico">＋</span>
+            <span>
+              <strong>新建项目</strong>
+              <small>选位置并创建空文件夹后打开</small>
+            </span>
+            <span class="kbd">⌘N</span>
+          </button>
+        </div>
+      </section>
+      <section class="right">
+        <h2>项目</h2>
+        <p class="hint">来自网页侧栏的文件夹列表（~/.tah/workspaces.json），上次打开的会标出来。</p>
+        <ul class="list" id="list"></ul>
+      </section>
+    </div>
+    <div class="foot">选好项目后才会启动 tah serve · 菜单 File → Welcome 可回到此页换项目</div>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    const api = window.tahWelcome;
+    const listEl = document.getElementById("list");
+    const toast = document.getElementById("toast");
+    let busy = false;
+    let timer;
+
+    function say(msg) {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      clearTimeout(timer);
+      timer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+
+    function setBusy(on) {
+      busy = on;
+      document.querySelectorAll("[data-busy]").forEach((el) => {
+        el.disabled = on;
+      });
+    }
+
+    function render(projects) {
+      listEl.innerHTML = "";
+      if (!projects.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "还没有项目。打开或新建一个文件夹开始。";
+        listEl.appendChild(empty);
+        return;
+      }
+      for (const p of projects) {
+        const li = document.createElement("li");
+        li.className = "item" + (p.last ? " last" : "") + (p.missing ? " missing" : "");
+        li.innerHTML =
+          "<div><div class=\"name\"></div><div class=\"path\"></div></div>" +
+          (p.missing
+            ? "<span class=\"tag gone\">已删除</span>"
+            : p.last
+              ? "<span class=\"tag last\">上次</span>"
+              : "");
+        li.querySelector(".name").textContent = p.name;
+        li.querySelector(".path").textContent = p.displayPath;
+        li.addEventListener("click", async () => {
+          if (busy) return;
+          if (p.missing) {
+            say("文件夹已不存在");
+            return;
+          }
+          setBusy(true);
+          try {
+            const r = await api.open(p.path);
+            if (!r?.ok) setBusy(false);
+          } catch (err) {
+            say(err && err.message ? err.message : String(err));
+            setBusy(false);
+          }
+        });
+        listEl.appendChild(li);
+      }
+    }
+
+    async function refresh() {
+      if (!api) {
+        say("欢迎页未能连接应用（缺少 preload）");
+        return;
+      }
+      const projects = await api.list();
+      render(projects);
+    }
+
+    async function run(action) {
+      if (busy) return;
+      if (!api) {
+        say("欢迎页未能连接应用（缺少 preload）");
+        return;
+      }
+      setBusy(true);
+      try {
+        const r = await action();
+        if (!r?.ok) setBusy(false);
+      } catch (err) {
+        say(err && err.message ? err.message : String(err));
+        setBusy(false);
+      }
+    }
+
+    document.getElementById("open").addEventListener("click", () => void run(() => api.openFolder()));
+    document.getElementById("new").addEventListener("click", () => void run(() => api.newProject()));
+
+    void refresh();
+  </script>
+</body>
+</html>
