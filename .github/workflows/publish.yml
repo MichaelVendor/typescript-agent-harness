@@ -28,3 +28,54 @@ jobs:
       - run: pnpm -r --filter "./packages/**" publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  desktop:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # electron-builder: ad-hoc sign only (identity: "-" in apps/desktop/package.json)
+      - run: pnpm --filter @typescript-agent-harness/desktop dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          {
+            echo "## macOS app (Apple Silicon)"
+            echo
+            echo "Download \`tah-${VERSION}-arm64.dmg\` below. The app is not notarized: on first open, right-click the app → **Open** (or allow it in System Settings → Privacy & Security)."
+            echo
+            echo "CLI: \`npm install -g @typescript-agent-harness/cli\` (same version)."
+            echo
+            section=$(awk -v v="$VERSION" '
+              $0 ~ "^## " v " —" {p=1; next}
+              p && /^## / {exit}
+              p {print}
+            ' CHANGELOG.md)
+            if [ -n "$section" ]; then
+              echo "## ${VERSION}"
+              echo
+              printf '%s\n' "$section"
+            else
+              echo "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/CHANGELOG.md) for details."
+            fi
+          } > /tmp/release-body.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: apps/desktop/release/tah-*-arm64.dmg
+          body_path: /tmp/release-body.md
+          fail_on_unmatched_files: true
