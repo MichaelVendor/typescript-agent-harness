@@ -66,7 +66,7 @@ jobs:
               p {print}
             ' CHANGELOG.md)
             if [ -n "$section" ]; then
-              echo "## ${VERSION}"
+              echo "## v${VERSION}"
               echo
               printf '%s\n' "$section"
             else
@@ -76,6 +76,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
+          name: ${{ github.ref_name }}
           files: apps/desktop/release/tah-*-arm64.dmg
           body_path: /tmp/release-body.md
           fail_on_unmatched_files: true
