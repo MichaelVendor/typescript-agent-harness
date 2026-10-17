@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.37.7 — 2026-10-17
+
+Desktop: the macOS app icon is a white paper crane on a lacquer-red ground.
+
 ## 0.37.6 — 2026-10-16
 
 Desktop: the macOS app has its own icon (teal, a terminal prompt) instead of the default Electron icon.
