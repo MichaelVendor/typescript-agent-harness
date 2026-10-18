@@ -8,9 +8,10 @@ import {
   createDockerRuntime,
   dockerRunArgs,
   RuntimeNotReadyError,
+  sweepIdle,
 } from "../dist/runtime.js";
 
-test("dockerRunArgs names the container, bind-mounts workspace, and runs tah agent-host --yes", () => {
+test("dockerRunArgs names the container, bind-mounts workspace, and denies exec and writes", () => {
   const dataDir = "/tmp/control-data";
   const projectId = "abc-123";
   const args = dockerRunArgs({
@@ -45,6 +46,13 @@ test("dockerRunArgs names the container, bind-mounts workspace, and runs tah age
     "--project-id",
     "abc-123",
     "--yes",
+    "--no-exec",
+    "--deny",
+    "execute_command",
+    "--deny",
+    "write_file",
+    "--deny",
+    "edit_file",
   ]);
 });
 
@@ -135,9 +143,13 @@ test("createDockerRuntime runs then starts; stop does not rm; never calls docker
 
 test("createDockerRuntime times out when health never succeeds", async () => {
   const dataDir = mkdtempSync(path.join(os.tmpdir(), "tah-control-docker-to-"));
+  const calls: string[][] = [];
+  const lastTouch = new Map<string, number>();
   const exec = async (args: string[]) => {
+    calls.push(args);
     if (args[0] === "inspect") return { code: 1, stdout: "", stderr: "missing" };
     if (args[0] === "run") return { code: 0, stdout: "cid\n", stderr: "" };
+    if (args[0] === "stop") return { code: 0, stdout: "tah-project-late\n", stderr: "" };
     return { code: 0, stdout: "172.17.0.9\n", stderr: "" };
   };
   const runtime = createDockerRuntime({
@@ -148,11 +160,116 @@ test("createDockerRuntime times out when health never succeeds", async () => {
     fetchHealth: async () => false,
     timeoutMs: 0,
     sleep: async () => {},
+    lastTouch,
   });
   await assert.rejects(() => runtime.ensure("late"), (err: unknown) => {
     assert.ok(err instanceof RuntimeNotReadyError);
     return true;
   });
+  assert.ok(calls.some((a) => a[0] === "stop" && a[1] === "tah-project-late"));
+  assert.equal(lastTouch.has("late"), false);
+});
+
+test("health timeout records the project when docker stop fails", async () => {
+  const dataDir = mkdtempSync(path.join(os.tmpdir(), "tah-control-docker-stop-"));
+  const lastTouch = new Map<string, number>();
+  const exec = async (args: string[]) => {
+    if (args[0] === "inspect") return { code: 1, stdout: "", stderr: "missing" };
+    if (args[0] === "run") return { code: 0, stdout: "cid\n", stderr: "" };
+    if (args[0] === "stop") return { code: 1, stdout: "", stderr: "stop failed" };
+    return { code: 0, stdout: "", stderr: "" };
+  };
+  const runtime = createDockerRuntime({
+    dataDir,
+    image: "tah-agent-host",
+    secret: "s",
+    exec,
+    fetchHealth: async () => false,
+    timeoutMs: 0,
+    sleep: async () => {},
+    now: () => 5_000,
+    lastTouch,
+  });
+  await assert.rejects(() => runtime.ensure("late"), (err: unknown) => {
+    assert.ok(err instanceof RuntimeNotReadyError);
+    return true;
+  });
+  assert.equal(lastTouch.get("late"), 5_000);
+});
+
+test("docker run name conflict starts the existing container", async () => {
+  const dataDir = mkdtempSync(path.join(os.tmpdir(), "tah-control-docker-name-"));
+  const projectId = "proj-race";
+  const name = `tah-project-${projectId}`;
+  const calls: string[][] = [];
+  const exec = async (args: string[]) => {
+    calls.push(args);
+    if (args[0] === "inspect") {
+      const fmt = args[args.indexOf("-f") + 1] ?? "";
+      if (fmt.includes("IPAddress")) return { code: 0, stdout: "172.17.0.4\n", stderr: "" };
+      return { code: 1, stdout: "", stderr: "No such object" };
+    }
+    if (args[0] === "run") {
+      return {
+        code: 1,
+        stdout: "",
+        stderr: `Conflict. The container name "/${name}" is already in use by container "abc".\n`,
+      };
+    }
+    if (args[0] === "start") return { code: 0, stdout: `${name}\n`, stderr: "" };
+    return { code: 1, stdout: "", stderr: "unexpected" };
+  };
+  const runtime = createDockerRuntime({
+    dataDir,
+    image: "tah-agent-host",
+    secret: "s",
+    exec,
+    fetchHealth: async () => true,
+  });
+  const ready = await runtime.ensure(projectId);
+  assert.equal(ready.baseUrl, "http://172.17.0.4:7800");
+  assert.ok(calls.some((a) => a[0] === "start" && a[1] === name));
+});
+
+test("idle sweep keeps the project when docker stop fails", async () => {
+  const dataDir = mkdtempSync(path.join(os.tmpdir(), "tah-control-docker-sweep-"));
+  const lastTouch = new Map<string, number>();
+  const exec = async (args: string[]) => {
+    if (args[0] === "stop") return { code: 1, stdout: "", stderr: "cannot stop" };
+    return { code: 1, stdout: "", stderr: "unexpected" };
+  };
+  const runtime = createDockerRuntime({
+    dataDir,
+    image: "tah-agent-host",
+    secret: "s",
+    exec,
+    now: () => 80_000,
+    lastTouch,
+  });
+  lastTouch.set("p", 0);
+  sweepIdle(runtime, lastTouch, 80_000, 30_000);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(lastTouch.get("p"), 80_000);
+});
+
+test("docker run failure that is not a name conflict does not start", async () => {
+  const dataDir = mkdtempSync(path.join(os.tmpdir(), "tah-control-docker-run-"));
+  const calls: string[][] = [];
+  const exec = async (args: string[]) => {
+    calls.push(args);
+    if (args[0] === "inspect") return { code: 1, stdout: "", stderr: "No such object" };
+    if (args[0] === "run") return { code: 1, stdout: "", stderr: "Unable to find image" };
+    return { code: 0, stdout: "", stderr: "" };
+  };
+  const runtime = createDockerRuntime({
+    dataDir,
+    image: "tah-agent-host",
+    secret: "s",
+    exec,
+    fetchHealth: async () => true,
+  });
+  await assert.rejects(() => runtime.ensure("missing-image"), /Unable to find image/);
+  assert.equal(calls.some((a) => a[0] === "start"), false);
 });
 
 test("main exits 1 when AR_SHARED_SECRET is missing", () => {

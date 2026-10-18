@@ -55,8 +55,19 @@ export function dockerRunArgs(opts: DockerRunOpts): string[] {
     "--project-id",
     opts.projectId,
     "--yes",
+    "--no-exec",
+    "--deny",
+    "execute_command",
+    "--deny",
+    "write_file",
+    "--deny",
+    "edit_file",
   );
   return args;
+}
+
+function containerNameInUse(result: { stdout: string; stderr: string }): boolean {
+  return /already in use/i.test(`${result.stderr}\n${result.stdout}`);
 }
 
 function spawnDocker(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
@@ -101,6 +112,8 @@ export type DockerRuntimeOptions = {
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
   timeoutMs?: number;
+  /** Same map the idle sweep walks. A failed `docker stop` records the project here. */
+  lastTouch?: Map<string, number>;
 };
 
 export function createDockerRuntime(opts: DockerRuntimeOptions): ProjectRuntime {
@@ -110,6 +123,21 @@ export function createDockerRuntime(opts: DockerRuntimeOptions): ProjectRuntime 
   const now = opts.now ?? Date.now;
   const timeoutMs = opts.timeoutMs ?? 60_000;
   const container = (projectId: string) => `tah-project-${projectId}`;
+
+  async function startContainer(name: string): Promise<void> {
+    const start = await exec(["start", name]);
+    if (start.code !== 0) throw new Error(start.stderr.trim() || "docker start failed");
+  }
+
+  async function stopContainer(projectId: string): Promise<void> {
+    try {
+      const stopped = await exec(["stop", container(projectId)]);
+      if (stopped.code === 0) return;
+    } catch {
+      // spawn failed; the container may still be running
+    }
+    opts.lastTouch?.set(projectId, now());
+  }
 
   return {
     async ensure(projectId) {
@@ -126,10 +154,12 @@ export function createDockerRuntime(opts: DockerRuntimeOptions): ProjectRuntime 
         if (opts.deepseekApiKey) runOpts.deepseekApiKey = opts.deepseekApiKey;
         if (opts.openaiApiKey) runOpts.openaiApiKey = opts.openaiApiKey;
         const run = await exec(dockerRunArgs(runOpts));
-        if (run.code !== 0) throw new Error(run.stderr.trim() || "docker run failed");
+        if (run.code !== 0) {
+          if (!containerNameInUse(run)) throw new Error(run.stderr.trim() || "docker run failed");
+          await startContainer(name);
+        }
       } else if (status.stdout.trim() !== "running") {
-        const start = await exec(["start", name]);
-        if (start.code !== 0) throw new Error(start.stderr.trim() || "docker start failed");
+        await startContainer(name);
       }
       const deadline = now() + timeoutMs;
       while (now() < deadline) {
@@ -145,10 +175,11 @@ export function createDockerRuntime(opts: DockerRuntimeOptions): ProjectRuntime 
         }
         await sleep(200);
       }
+      await stopContainer(projectId);
       throw new RuntimeNotReadyError("runtime not ready");
     },
     async stop(projectId) {
-      await exec(["stop", container(projectId)]);
+      await stopContainer(projectId);
     },
     touch() {},
   };

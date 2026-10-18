@@ -15,7 +15,7 @@
 - 私有包 **`apps/control`**（`@typescript-agent-harness/control`）：Node HTTP，默认只监听内网地址。
 - **开发登录**：用户名 + 密码（SQLite `users` 表）；接口形状留给以后换公司 OIDC，P0 不接真实 SSO。
 - **项目**：创建、列表、成员（`owner` / `member`）；非成员 403。
-- **编排**：一项目一容器；首次 `wake` 或代理前 `docker run` / `docker start`；工作区卷 `<CONTROL_DATA>/projects/<id>/workspace`；空闲 **30 分钟** 无代理请求则 `docker stop`（不 `rm`，卷保留）。
+- **编排**：一项目一容器；首次 `wake` 或代理前 `docker run` / `docker start`（`docker run` 因容器名已占用失败时改为 `docker start`）；工作区卷 `<CONTROL_DATA>/projects/<id>/workspace`；空闲 **30 分钟** 无代理请求则 `docker stop`（不 `rm`，卷保留）。健康检查超时同样 `docker stop`；stop 失败则记入空闲表，下次 sweep 再停。
 - **代理**：`/api/projects/:id/agent/...` → 容器 `/health` 与 `/v1/*`，每次请求新签 **10 分钟** HMAC Bearer（`projectId`、`userId`、`exp`）。
 - **审计**：谁、哪个项目、哪条路由、HTTP 状态码、时间；**不**记录消息正文。
 
@@ -32,7 +32,8 @@
             │  docker run / start / stop
             │  HTTP + 短时 Bearer
             ▼
-         tah-project-<id>：tah agent-host --cwd /workspace --yes
+         tah-project-<id>：tah agent-host --cwd /workspace --yes --no-exec
+            --deny execute_command --deny write_file --deny edit_file
             卷：<CONTROL_DATA>/projects/<id>/workspace
 ```
 
@@ -94,7 +95,7 @@ P0 **没有**自助注册 HTTP：用户行在 SQLite 里，需运维/bootstrap �
 | `*` | `/api/projects/:id/agent/v1/...` | 成员；wake 后原样代理 `/v1/...`（含 **SSE**） |
 
 - 非成员：**403**。
-- 容器在 **60s** 内未 healthy：`wake` 与代理路径 **503**。
+- 容器在 **60s** 内未 healthy：`docker stop` 该容器，`wake` 与代理路径 **503**。`docker stop` 失败时把项目记入空闲表，避免容器一直跑着却没人管。
 - 代理路径上 CP 自动 wake、刷新空闲计时，并写审计行。
 
 ### 代理路径与 AgentHost 映射
@@ -112,7 +113,7 @@ POST /api/projects/<id>/agent/v1/sessions/<sid>/messages
 
 AgentHost 的 `/v1` 语义、SSE `HostEvent`、忙时 **409** 等见 [AgentHost 设计](/design/agent-host)。CP 应对**同一项目**串行化写请求（AgentHost 不排队）。
 
-容器启动命令（由 runtime 注入）：`tah agent-host --cwd /workspace --host 0.0.0.0 --port 7800 --project-id <id> --yes`。P0 靠 **`--yes`** 与项目卷内 `tah.config.json` 的 `permissions.deny` 限制写/执行；CP 不提供审批 UI。
+容器启动命令（由 runtime 注入）：`tah agent-host --cwd /workspace --host 0.0.0.0 --port 7800 --project-id <id> --yes --no-exec --deny execute_command --deny write_file --deny edit_file`。`--no-exec` 关掉 `execute_command`；`--deny` 再禁掉执行、写文件和改文件（覆盖项目卷里的 `permissions`），避免成员在容器里读 `AR_SHARED_SECRET` 或调用其他项目。`--yes` 仍跳过其余工具的审批；CP 不提供审批 UI。
 
 ## 与 `tah serve` / `tah agent-host` 的边界
 
@@ -141,4 +142,4 @@ pnpm --filter @typescript-agent-harness/control test
 
 - 控制面与 Docker 必须在同一主机；多机要另做。
 - 容器 restart 后 IP 会变，每次 `ensure` 重新 inspect。
-- `--yes` 跳过审批；勿把宿主机敏感目录挂进项目卷。
+- 容器命令已 `--no-exec` 并 `--deny` 执行与写文件；`--yes` 仍跳过其余审批。勿把宿主机敏感目录挂进项目卷。
