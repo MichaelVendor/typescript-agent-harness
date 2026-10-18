@@ -141,8 +141,8 @@ export async function bootRuntime(
   const hasKey = Boolean(chosen) || Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY);
   const vision = chosen ? chosen.vision === true : caps.vision;
   const ocr = builtin && process.platform === "darwin";
-  // `tah serve` starts anyway so a model can be added in its Settings; turns fail until then.
-  if (!flags.mock && !hasKey && flags.command !== "serve") {
+  // `tah serve` / `tah agent-host` start anyway so a model can be added later; turns fail until then.
+  if (!flags.mock && !hasKey && flags.command !== "serve" && flags.command !== "agent-host") {
     throw new Error(
       "tah: no DEEPSEEK_API_KEY or OPENAI_API_KEY. Set one in <cwd>/.env or pass --mock.",
     );

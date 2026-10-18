@@ -37,3 +37,32 @@ test("parseArgv --vision sets visionSet", () => {
   assert.equal(flags.vision, true);
   assert.equal(flags.visionSet, true);
 });
+
+test("parseArgv: agent-host defaults host 0.0.0.0 and port 7800; serve stays 7420", () => {
+  const serve = parseArgv(["serve"]);
+  assert.equal(serve.command, "serve");
+  assert.equal(serve.port, 7420);
+
+  const host = parseArgv(["agent-host"]);
+  assert.equal(host.command, "agent-host");
+  assert.equal(host.port, 7800);
+  assert.equal(host.listenHost, "0.0.0.0");
+  assert.equal(host.projectId ?? "", "");
+
+  const custom = parseArgv([
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "0",
+    "--project-id",
+    "proj_a",
+    "agent-host",
+  ]);
+  assert.equal(custom.listenHost, "127.0.0.1");
+  assert.equal(custom.port, 0);
+  assert.equal(custom.projectId, "proj_a");
+
+  assert.equal(parseArgv(["--port", "0", "serve"]).port, 0);
+  assert.throws(() => parseArgv(["--host"]), /--host requires/);
+  assert.throws(() => parseArgv(["--project-id"]), /--project-id requires/);
+});

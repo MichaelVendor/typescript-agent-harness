@@ -55,3 +55,29 @@ export async function startAgentHost(
     },
   };
 }
+
+export async function runAgentHost(flags: CliFlags): Promise<void> {
+  const secret = process.env.AR_SHARED_SECRET;
+  if (!secret) {
+    console.error("tah agent-host: AR_SHARED_SECRET is required");
+    process.exitCode = 1;
+    return;
+  }
+  const projectId = flags.projectId || process.env.TAH_PROJECT_ID;
+  if (!projectId) {
+    console.error("tah agent-host: --project-id or TAH_PROJECT_ID is required");
+    process.exitCode = 1;
+    return;
+  }
+  const started = await startAgentHost({
+    secret,
+    projectId,
+    host: flags.listenHost ?? "0.0.0.0",
+    port: flags.port,
+    flags,
+  });
+  console.log(`AgentHost listening on ${started.url}`);
+  await new Promise<void>((resolve) => process.once("SIGINT", () => resolve()));
+  process.once("SIGINT", () => process.exit(130));
+  await started.stop();
+}

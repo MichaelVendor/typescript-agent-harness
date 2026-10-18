@@ -62,7 +62,7 @@ async function main(): Promise<void> {
   const { loadCliEnv, hasLlmKey } = await import("./env.js");
   loadCliEnv(flags.cwd);
 
-  if (!flags.mock && !hasLlmKey() && flags.command !== "serve") {
+  if (!flags.mock && !hasLlmKey() && flags.command !== "serve" && flags.command !== "agent-host") {
     console.error(
       "tah: no DEEPSEEK_API_KEY or OPENAI_API_KEY. Set one in <cwd>/.env or pass --mock.",
     );
@@ -124,6 +124,12 @@ async function main(): Promise<void> {
   if (flags.command === "serve") {
     const { runServe } = await import("./serve/run.js");
     await runServe(flags);
+    return;
+  }
+
+  if (flags.command === "agent-host") {
+    const { runAgentHost } = await import("./agent-host/run.js");
+    await runAgentHost(flags);
     return;
   }
 

@@ -24,8 +24,12 @@ export type CliFlags = {
   install: boolean;
   /** `tah chat`: line mode even in a terminal (no TUI). */
   plain: boolean;
-  /** `tah serve`: 0 lets the OS pick. */
+  /** `tah serve`: 0 lets the OS pick. `tah agent-host` defaults to 7800. */
   port: number;
+  /** `tah agent-host`: bind address (default 0.0.0.0). */
+  listenHost?: string;
+  /** `tah agent-host`: project id (or TAH_PROJECT_ID). */
+  projectId?: string;
   /** `tah serve`: open the browser on start. */
   open: boolean;
   /** Terminal `tah chat` / `tah serve` in a project: reload AGENTS.md, tools/, plugins/ and lib/ on change. */
@@ -60,6 +64,8 @@ export function parseArgv(argv: string[]): CliFlags {
     install: true,
     plain: false,
     port: 7420,
+    listenHost: "0.0.0.0",
+    projectId: "",
     open: true,
     watch: true,
     vision: visionFromEnv,
@@ -68,6 +74,7 @@ export function parseArgv(argv: string[]): CliFlags {
   const rest: string[] = [];
   let help = false;
   let version = false;
+  let portSet = false;
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--" || arg === undefined) continue;
@@ -98,6 +105,17 @@ export function parseArgv(argv: string[]): CliFlags {
         throw new Error("--port requires an integer 0-65535");
       }
       flags.port = n;
+      portSet = true;
+      i += 1;
+    } else if (arg === "--host") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--host requires a bind address");
+      flags.listenHost = next;
+      i += 1;
+    } else if (arg === "--project-id") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--project-id requires an id");
+      flags.projectId = next;
       i += 1;
     } else if (arg === "--mcp") {
       const next = argv[i + 1];
@@ -169,6 +187,7 @@ export function parseArgv(argv: string[]): CliFlags {
   }
   flags.command = rest[0] ?? "help";
   flags.prompt = rest.slice(1).join(" ");
+  if (flags.command === "agent-host" && !portSet) flags.port = 7800;
   return flags;
 }
 
@@ -181,6 +200,7 @@ Usage:
                        line mode when piped or with --plain
                        /exit /reset /sessions /resume <id|n> /fork [turns]
   tah serve            web UI on 127.0.0.1 for this machine's agent; prints a one-time login link
+  tah agent-host       headless /v1 HTTP (Bearer); default 0.0.0.0:7800
   tah sessions         list saved sessions (newest first; numbers work with --session)
   tah init             scaffold a project (AGENTS.md, tools/, package.json) and install it
   tah help
@@ -207,6 +227,9 @@ Flags:
   --no-install        tah init: only write files, skip installing dependencies
   --plain             tah chat: line mode instead of the terminal UI
   --port <n>          tah serve: port on 127.0.0.1 (default 7420; 0 = any free port)
+                      tah agent-host: listen port (default 7800; 0 = any free port)
+  --host <addr>       tah agent-host: bind address (default 0.0.0.0)
+  --project-id <id>   tah agent-host: project id (or TAH_PROJECT_ID)
   --no-open           tah serve: do not open the browser
   --no-watch          terminal tah chat / tah serve: do not reload project files on change
   --vision            tah serve: send image attachments as multimodal parts (or TAH_VISION=1)
