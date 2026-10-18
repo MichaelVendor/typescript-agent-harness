@@ -7,12 +7,15 @@ import {
   sessionCookie,
   verifyPassword,
 } from "./auth.js";
+import type { ProjectRuntime } from "./runtime.js";
 import type { Role, Store } from "./store.js";
 
 export type StartControlOptions = {
   store: Store;
   host: string;
   port: number;
+  runtime?: ProjectRuntime;
+  lastTouch?: Map<string, number>;
 };
 
 class HttpError extends Error {
@@ -69,7 +72,7 @@ export async function startControl(
   const sessions = createSessions();
   const server = createServer(async (req, res) => {
     try {
-      await handle(req, res, opts.store, sessions);
+      await handle(req, res, opts, sessions);
     } catch (err) {
       if (err instanceof HttpError) {
         json(res, err.status, { error: err.message });
@@ -91,9 +94,10 @@ export async function startControl(
 async function handle(
   req: IncomingMessage,
   res: ServerResponse,
-  store: Store,
+  opts: StartControlOptions,
   sessions: ReturnType<typeof createSessions>,
 ): Promise<void> {
+  const store = opts.store;
   const url = new URL(req.url ?? "/", "http://control.local");
   const path = url.pathname;
   const method = req.method ?? "GET";
@@ -136,6 +140,19 @@ async function handle(
   if (method === "POST" && path === "/api/projects") {
     const name = str(await readJson(req), "name");
     json(res, 200, store.createProject(session.userId, name));
+    return;
+  }
+
+  const wake = /^\/api\/projects\/([^/]+)\/wake$/.exec(path);
+  if (wake && method === "POST") {
+    const projectId = wake[1]!;
+    if (!store.role(projectId, session.userId)) {
+      throw new HttpError(403, "forbidden");
+    }
+    if (!opts.runtime) throw new HttpError(500, "runtime not configured");
+    await opts.runtime.ensure(projectId);
+    opts.lastTouch?.set(projectId, Date.now());
+    json(res, 200, { status: "ready" });
     return;
   }
 
