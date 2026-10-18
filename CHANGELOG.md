@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.0 — 2026-10-18
+
+Version line moves to **1.0.x** (development branch `v1.0`). Planned: headless **AgentHost** (`tah agent-host`) for intranet one-project-one-container — Bearer + `/v1` + `HostEvent` SSE, reusing `ChatHost`; see `docs/superpowers/specs/2026-10-18-agent-host-design.md`. **`tah serve` / `tah chat` / TUI stay the single-machine workbench** and are not replaced by AgentHost.
+
 ## 0.37.8 — 2026-10-18
 
 CLI: convention projects may list several stdio MCP servers in `tah.config.json` `extensions.mcp` (one object or an array; `--mcp` still replaces the whole list). Tool allow / deny lists move into `permissions.allow` / `permissions.deny` so a project can ship its policy; `--allow` / `--deny` each override only their own list. Duplicate tool names across MCP servers fail at startup. Startup prints `mcp=<count>` instead of `mcp=on`.
