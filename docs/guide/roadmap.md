@@ -26,6 +26,7 @@
 | 20 | 文件预览：对话里的路径在右侧面板只读预览 | ✅ `v0.35` |
 | 21 | 浏览器面板：Agent 的浏览器画面放进工作台，用户可看可接手 | ✅ `v0.36` |
 | 22 | AgentHost：无头 `tah agent-host`（Bearer、`/v1`、按轮 SSE） | ✅ `v1.0` |
+| 23 | 内网控制面：`apps/control`（登录、项目、Docker wake、代理 AgentHost） | ✅ `v1.1`（未发版） |
 
 ## Phase 1 — Runtime ✅
 
@@ -320,6 +321,23 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 pnpm --filter @typescript-agent-harness/cli build
 node --test --experimental-strip-types packages/cli/test/agent-host*.ts
 pnpm test   # 含 serve 回归
+```
+
+## Phase 23 — 内网控制面 ✅（v1.1，未发版）
+
+设计见 [内网控制面](/design/control-plane)。
+
+交付物：
+
+- `apps/control`：cookie 会话、`POST /api/login`、项目与成员（SQLite）、`POST …/wake`
+- Docker 一项目一容器（`tah-project-<id>`），不发布端口，`inspect` IP + 7800 访问 AgentHost
+- `/api/projects/:id/agent/health` 与 `/api/projects/:id/agent/v1/*` 代理，短时 Bearer + SSE 透传；空闲 30 分钟 `docker stop`
+- **不修改** `tah serve`
+
+验收：
+
+```sh
+pnpm --filter @typescript-agent-harness/control test
 ```
 
 ## 非目标（刻意不做）

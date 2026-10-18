@@ -77,6 +77,8 @@ function sidebarDesign() {
         { text: "Skills", link: "/design/skills" },
         { text: "TUI 与会话接口", link: "/design/tui" },
         { text: "tah serve", link: "/design/serve" },
+        { text: "AgentHost 无头宿主", link: "/design/agent-host" },
+        { text: "内网控制面", link: "/design/control-plane" },
         { text: "工作文件夹", link: "/design/workspaces" },
         { text: "附件", link: "/design/attachments" },
         { text: "内置浏览器", link: "/design/browser" },
