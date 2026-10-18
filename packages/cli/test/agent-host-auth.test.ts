@@ -11,4 +11,11 @@ test("sign and verify round-trip; rejects bad secret, expiry, wrong project", ()
   assert.throws(() => verifyAgentHostToken(secret, token, "proj_b"), /project/);
   const expired = signAgentHostToken(secret, { ...claims, exp: 1 });
   assert.throws(() => verifyAgentHostToken(secret, expired, "proj_a", 100), /expir/);
+
+  const missingExp = signAgentHostToken(secret, { projectId: "proj_a", userId: "u1" } as typeof claims);
+  assert.throws(() => verifyAgentHostToken(secret, missingExp, "proj_a", 100), /invalid/);
+  const badExp = signAgentHostToken(secret, { ...claims, exp: "9999999999" } as unknown as typeof claims);
+  assert.throws(() => verifyAgentHostToken(secret, badExp, "proj_a", 100), /invalid/);
+  const missingUser = signAgentHostToken(secret, { projectId: "proj_a", exp: claims.exp } as typeof claims);
+  assert.throws(() => verifyAgentHostToken(secret, missingUser, "proj_a", 100), /invalid/);
 });

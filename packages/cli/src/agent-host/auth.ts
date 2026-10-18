@@ -45,6 +45,12 @@ export function verifyAgentHostToken(
     throw new Error("invalid token");
   }
 
+  if (typeof claims?.projectId !== "string" || claims.projectId === "" || typeof claims.userId !== "string" || claims.userId === "") {
+    throw new Error("invalid token");
+  }
+  if (typeof claims.exp !== "number" || !Number.isFinite(claims.exp)) {
+    throw new Error("invalid token");
+  }
   if (claims.exp < nowSec) {
     throw new Error("token expired");
   }
