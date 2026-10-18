@@ -7,6 +7,7 @@ import {
   sessionCookie,
   verifyPassword,
 } from "./auth.js";
+import { proxyAgent } from "./proxy.js";
 import type { ProjectRuntime } from "./runtime.js";
 import type { Role, Store } from "./store.js";
 
@@ -16,6 +17,7 @@ export type StartControlOptions = {
   port: number;
   runtime?: ProjectRuntime;
   lastTouch?: Map<string, number>;
+  secret?: string;
 };
 
 class HttpError extends Error {
@@ -74,6 +76,10 @@ export async function startControl(
     try {
       await handle(req, res, opts, sessions);
     } catch (err) {
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
       if (err instanceof HttpError) {
         json(res, err.status, { error: err.message });
         return;
@@ -173,8 +179,32 @@ async function handle(
     return;
   }
 
-  if (/^\/api\/projects\/[^/]+\/agent(?:\/|$)/.test(path)) {
-    json(res, 404, { error: "not found" });
+  const agent = /^\/api\/projects\/([^/]+)\/agent\/(.*)$/.exec(path);
+  if (agent) {
+    const projectId = agent[1]!;
+    const rest = agent[2]!;
+    const health = method === "GET" && rest === "health";
+    const v1 = rest === "v1" || rest.startsWith("v1/");
+    if (!health && !v1) {
+      json(res, 404, { error: "not found" });
+      return;
+    }
+    if (!store.role(projectId, session.userId)) {
+      throw new HttpError(403, "forbidden");
+    }
+    if (!opts.runtime) throw new HttpError(500, "runtime not configured");
+    if (!opts.secret) throw new HttpError(500, "secret not configured");
+    const { baseUrl } = await opts.runtime.ensure(projectId);
+    opts.runtime.touch(projectId);
+    opts.lastTouch?.set(projectId, Date.now());
+    const status = await proxyAgent(req, res, {
+      baseUrl,
+      secret: opts.secret,
+      projectId,
+      userId: session.userId,
+      suffix: `/${rest}${url.search}`,
+    });
+    store.audit({ userId: session.userId, projectId, route: path, status });
     return;
   }
 

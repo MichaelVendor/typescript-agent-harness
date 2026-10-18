@@ -26,6 +26,7 @@ export type {
   SkillsView,
   WorkspaceView,
 } from "./serve/protocol.js";
+export { signAgentHostToken, type AgentHostClaims } from "./agent-host/auth.js";
 
 /** A file in `tools/`; `name` defaults to the file name with `-` → `_`. */
 export type ProjectTool<TInput = unknown, TOutput = unknown> = Omit<Tool<TInput, TOutput>, "name"> & {
