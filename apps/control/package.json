@@ -1,0 +1,20 @@
+{
+  "name": "@typescript-agent-harness/control",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Intranet control plane for tah agent-host",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
