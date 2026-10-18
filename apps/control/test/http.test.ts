@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { hashPassword } from "../dist/auth.js";
 import { startControl } from "../dist/http.js";
-import { createFakeRuntime, sweepIdle } from "../dist/runtime.js";
+import { createFakeRuntime, RuntimeNotReadyError, sweepIdle, type ProjectRuntime } from "../dist/runtime.js";
 import { openStore } from "../dist/store.js";
 
 function cookieFrom(res: Response): string {
@@ -129,4 +129,35 @@ test("touch then sweep past idleMs stops the project", () => {
 
   sweepIdle(runtime, lastTouch, touchedAt + idleMs, idleMs);
   assert.ok(runtime.calls.includes(`stop:${projectId}`));
+});
+
+test("wake maps ensure timeout to 503", async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "tah-control-503-"));
+  const store = openStore(path.join(dir, "control.db"));
+  store.createUser("alice", hashPassword("secret"));
+  const alpha = store.createProject(store.userByName("alice")!.id, "Alpha");
+  const runtime: ProjectRuntime = {
+    async ensure() {
+      throw new RuntimeNotReadyError("runtime not ready");
+    },
+    async stop() {},
+    touch() {},
+  };
+
+  const { url, stop } = await startControl({ store, runtime, host: "127.0.0.1", port: 0 });
+  try {
+    const login = await fetch(`${url}/api/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "alice", password: "secret" }),
+    });
+    assert.equal(login.status, 200);
+    const wake = await fetch(`${url}/api/projects/${alpha.id}/wake`, {
+      method: "POST",
+      headers: { cookie: cookieFrom(login) },
+    });
+    assert.equal(wake.status, 503);
+  } finally {
+    await stop();
+  }
 });

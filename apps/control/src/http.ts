@@ -8,7 +8,7 @@ import {
   verifyPassword,
 } from "./auth.js";
 import { proxyAgent } from "./proxy.js";
-import type { ProjectRuntime } from "./runtime.js";
+import { RuntimeNotReadyError, type ProjectRuntime } from "./runtime.js";
 import type { Role, Store } from "./store.js";
 
 export type StartControlOptions = {
@@ -156,7 +156,7 @@ async function handle(
       throw new HttpError(403, "forbidden");
     }
     if (!opts.runtime) throw new HttpError(500, "runtime not configured");
-    await opts.runtime.ensure(projectId);
+    await ensureReady(opts.runtime, projectId);
     opts.lastTouch?.set(projectId, Date.now());
     json(res, 200, { status: "ready" });
     return;
@@ -194,7 +194,7 @@ async function handle(
     }
     if (!opts.runtime) throw new HttpError(500, "runtime not configured");
     if (!opts.secret) throw new HttpError(500, "secret not configured");
-    const { baseUrl } = await opts.runtime.ensure(projectId);
+    const { baseUrl } = await ensureReady(opts.runtime, projectId);
     opts.runtime.touch(projectId);
     opts.lastTouch?.set(projectId, Date.now());
     const status = await proxyAgent(req, res, {
@@ -209,4 +209,13 @@ async function handle(
   }
 
   json(res, 404, { error: "not found" });
+}
+
+async function ensureReady(runtime: ProjectRuntime, projectId: string): Promise<{ baseUrl: string }> {
+  try {
+    return await runtime.ensure(projectId);
+  } catch (err) {
+    if (err instanceof RuntimeNotReadyError) throw new HttpError(503, err.message);
+    throw err;
+  }
 }
