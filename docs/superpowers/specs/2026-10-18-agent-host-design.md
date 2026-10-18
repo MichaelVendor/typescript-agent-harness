@@ -1,6 +1,6 @@
 # AgentHost：从 `tah serve` 抽出的无头宿主
 
-状态：📐 设计（未实现）；开发分支 `v1.0` / 版本线 `1.0.x`；实现计划见 `docs/superpowers/plans/2026-10-18-agent-host.md`
+状态：✅ 已实现（`v1.0`）；用户向说明见 [AgentHost 设计](/design/agent-host)；实现计划见 `docs/superpowers/plans/2026-10-18-agent-host.md`
 
 ## 背景
 

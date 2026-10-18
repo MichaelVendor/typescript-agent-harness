@@ -20,7 +20,7 @@
 | `@typescript-agent-harness/permissions` | allow / deny + 人工审批 |
 | `@typescript-agent-harness/mcp` | `McpBackend` → Tool（进程内 ping + stdio） |
 | `@typescript-agent-harness/scheduler` | `once` / `every` |
-| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包（多个 `extensions.mcp`、`permissions.allow` / `deny`，v0.37.8）· **Skills**（`skill` 工具 + `/name`，v0.29，见 [设计说明](/design/skills)）· 网页工作文件夹与 Settings（v0.30）· 内置浏览器（v0.31）· 输入框模型选择（v0.32）· 每个模型单独设能否看图 + macOS `read_image_text`（v0.33）· 网页文件预览（v0.35，见 [设计说明](/design/file-preview)）· 网页浏览器面板（v0.36，见 [设计说明](/design/browser-pane)）· `ask_user` 让用户选择（v0.37，见 [设计说明](/design/ask-user)）· 忙时排队发消息（v0.37.3，见 [设计说明](/design/queue)） |
+| `@typescript-agent-harness/cli` | `tah run` / `tah chat`（终端 TUI）/ `tah serve`（本机网页工作台）/ **`tah agent-host`**（容器无头 `/v1` + Bearer，v1.0，见 [设计说明](/design/agent-host)）/ `tah init` + 约定式项目（`AGENTS.md`、`tools/`、`plugins/`、`skills/`，改动热更新）+ `tah.config.json` 能力包（多个 `extensions.mcp`、`permissions.allow` / `deny`，v0.37.8）· **Skills**（`skill` 工具 + `/name`，v0.29，见 [设计说明](/design/skills)）· 网页工作文件夹与 Settings（v0.30）· 内置浏览器（v0.31）· 输入框模型选择（v0.32）· 每个模型单独设能否看图 + macOS `read_image_text`（v0.33）· 网页文件预览（v0.35，见 [设计说明](/design/file-preview)）· 网页浏览器面板（v0.36，见 [设计说明](/design/browser-pane)）· `ask_user` 让用户选择（v0.37，见 [设计说明](/design/ask-user)）· 忙时排队发消息（v0.37.3，见 [设计说明](/design/queue)） |
 
 另有 macOS 客户端（`apps/desktop`，v0.35，见 [设计说明](/design/desktop)）：窗口里跑 `tah serve`，不发布到 npm；打 `v*.*.*` tag 时 CI 打包 arm64 `.dmg` 并挂到 GitHub Release。
 

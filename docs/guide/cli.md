@@ -1,6 +1,6 @@
 # CLI
 
-状态：✅ `packages/cli`（v0.29）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 约定式项目热更新（v0.26）· 附件（v0.27）· 项目配置能力包（v0.28）· **Skills**（v0.29）
+状态：✅ `packages/cli`（v0.29）· 默认偏向本机 coding，写文件 / 跑命令前先问 · 终端 TUI（v0.24）· 网页工作台 `tah serve`（v0.25）· 无头宿主 `tah agent-host`（v1.0）· 约定式项目热更新（v0.26）· 附件（v0.27）· 项目配置能力包（v0.28）· **Skills**（v0.29）
 
 模型回复边生成边显示（`agent.assistant-stream`），不必等整段 `generate` 结束。
 
@@ -18,6 +18,7 @@ npx @typescript-agent-harness/cli --mock chat
 | `tah run <prompt>` | 一次性 Session |
 | `tah chat` | 多轮；**默认续上一次持久化 Session**；终端里是 TUI（v0.24），管道或 `--plain` 仍是逐行模式；`/exit` / `/reset` / `/compact` / `/sessions` / `/resume` / `/fork` |
 | `tah serve` | 在本机起网页工作台，浏览器里操作当前目录的 Agent（v0.25，见下文「网页工作台」） |
+| `tah agent-host` | 容器内无头 HTTP：`/v1` + Bearer，供控制面调 Agent（v1.0，见下文「无头 AgentHost」） |
 | `tah sessions` | 列出已保存的 Session（最新在前；不需要 API key，v0.22） |
 | `tah init` | 在当前目录生成约定式项目骨架并装好依赖（v0.23，见下文「约定式项目」） |
 | `tah help` | 用法 |
@@ -46,7 +47,9 @@ npx @typescript-agent-harness/cli --mock chat
 | `--builtin-tools` | 约定式项目有 `tools/` 时，仍挂上内置的文件 / 命令工具（v0.23） |
 | `--no-install` | `tah init` 只生成文件，不装依赖（v0.23.1） |
 | `--plain` | `tah chat` 强制逐行模式，即使在终端里也不进 TUI（v0.24） |
-| `--port <n>` | `tah serve` 的端口（默认 7420；被占用时报错，不自动换，v0.25） |
+| `--port <n>` | `tah serve` 默认 7420；`tah agent-host` 默认 7800（`0` = 系统分配） |
+| `--host <addr>` | `tah agent-host` 监听地址（默认 `0.0.0.0`） |
+| `--project-id <id>` | `tah agent-host` 项目 id（或环境变量 `TAH_PROJECT_ID`） |
 | `--no-open` | `tah serve` 不自动打开浏览器（v0.25） |
 | `--no-watch` | 约定式项目里不热更新（终端 `tah chat` / `tah serve`，v0.26） |
 | `--vision` | `tah serve`：图片附件以多模态 parts 发给模型（也可用 `TAH_VISION=1`，v0.27）；只管 `.env` 的模型，Settings 里的模型看各自的「Images」（v0.33） |
@@ -276,6 +279,21 @@ Ctrl+C 停止服务并打印续聊命令（`tah chat --session …`），再按�
 改网页时：先 `tah serve --no-open`，再在 `packages/web` 里 `pnpm dev`，Vite 把 `/api` 代理到 `127.0.0.1:7420`；打开 Vite 的地址并带上终端里的 `?token=…`。
 
 设计说明见 [tah serve 与网页工作台](/design/serve)。
+
+## 无头 AgentHost（v1.0）
+
+```sh
+export AR_SHARED_SECRET=… TAH_PROJECT_ID=my-project
+tah agent-host --cwd /workspace --host 0.0.0.0 --port 7800
+```
+
+供 **一项目一容器**：控制面用与 `AR_SHARED_SECRET` 共享的 HMAC 签发 Bearer（claims 含 `projectId`、`userId`、`exp`），调容器内 **`/v1`**。`GET /health` 探活不鉴权；其余路由要带 `Authorization: Bearer …`。发消息：`POST /v1/sessions/:id/messages`，body `{ "text": "…" }`，响应是 **SSE**，每条 `data:` 是一个 **`HostEvent`**，到 **`turn.end`** 或 **`turn.error`** 结束。一轮进行中再发消息返回 **409**（不像 `tah serve` 那样排队）。`POST /v1/sessions` 新建会话；`POST …/cancel` 停当前轮。
+
+与 `tah serve` **不是一回事**：无 cookie、无网页、无多工作文件夹 / Settings / 预览 / 浏览器面板；默认监听 **`0.0.0.0:7800`** 而不是 `127.0.0.1:7420`。`tah chat` / `tah serve` 仍是本机工作台，不会被 AgentHost 替换。
+
+无 LLM key 时也能启动（与 `tah serve` 一样），真正发消息再报错；本地测可用 `--mock`。`--yes`、`--max-steps`、`--allow` / `--deny`、`--no-persist` 等与 chat 相同。
+
+设计说明见 [AgentHost 无头宿主](/design/agent-host)。
 
 ## Ctrl+C 与失败重试（v0.22）
 

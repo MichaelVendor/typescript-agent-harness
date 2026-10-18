@@ -2,7 +2,7 @@
 
 ## 1.0.0 — 2026-10-18
 
-Version line moves to **1.0.x** (development branch `v1.0`). Planned: headless **AgentHost** (`tah agent-host`) for intranet one-project-one-container — Bearer + `/v1` + `HostEvent` SSE, reusing `ChatHost`; see `docs/superpowers/specs/2026-10-18-agent-host-design.md`. **`tah serve` / `tah chat` / TUI stay the single-machine workbench** and are not replaced by AgentHost.
+Version line moves to **1.0.x** (development branch `v1.0`). **AgentHost** (`tah agent-host`): headless HTTP for intranet one-project-one-container — `AR_SHARED_SECRET` + `TAH_PROJECT_ID` / `--project-id`, HMAC Bearer, default `0.0.0.0:7800`, `GET /health`, `GET|POST /v1/sessions`, `POST /v1/sessions/:id/messages` (SSE of `HostEvent` until `turn.end` / `turn.error`), `POST …/cancel`; busy turns return **409** `turn_in_progress` (no queue). Reuses `ChatHost`; design: `docs/design/agent-host.md`. **`tah serve` / `tah chat` / TUI unchanged** — still the single-machine workbench, not replaced by AgentHost.
 
 ## 0.37.8 — 2026-10-18
 

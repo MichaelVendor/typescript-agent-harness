@@ -25,6 +25,7 @@
 | 19 | macOS 客户端（`apps/desktop`，壳里跑 `tah serve`） | ✅ `v0.35` |
 | 20 | 文件预览：对话里的路径在右侧面板只读预览 | ✅ `v0.35` |
 | 21 | 浏览器面板：Agent 的浏览器画面放进工作台，用户可看可接手 | ✅ `v0.36` |
+| 22 | AgentHost：无头 `tah agent-host`（Bearer、`/v1`、按轮 SSE） | ✅ `v1.0` |
 
 ## Phase 1 — Runtime ✅
 
@@ -301,6 +302,25 @@ mkdir /tmp/tah-skill-demo && cd /tmp/tah-skill-demo && npx tah init && npx tah -
 - `tah serve` 的内置浏览器改为无界面，画面经 CDP 截屏流进右侧面板；点击、滚动、键盘（含中文输入法）转发给 Chrome
 - 入口：Agent 调 `browser_open`、对话里的 http(s) 链接、HTML 文件预览「Open in browser」、状态栏「Browser」
 - 用户先打开浏览器不等于授权 Agent；面板不能打开 tah 自己的地址；新接口 `/api/browser*`
+
+## Phase 22 — AgentHost ✅（v1.0）
+
+设计见 [AgentHost 无头宿主](/design/agent-host)。
+
+交付物：
+
+- `tah agent-host`：`AR_SHARED_SECRET` + `--project-id` / `TAH_PROJECT_ID`，默认 `0.0.0.0:7800`
+- `GET /health`；`GET /v1/info`、`/v1/sessions`；`POST /v1/sessions`；`POST /v1/sessions/:id/messages`（SSE `HostEvent`）；`POST …/cancel`
+- 单进程内一个 `ChatHost`；跨 session 写前先 `resume`；忙时 **409**（不移植 serve 排队）
+- `packages/cli/src/agent-host/*`；**不修改** `serve` 行为
+
+验收：
+
+```sh
+pnpm --filter @typescript-agent-harness/cli build
+node --test --experimental-strip-types packages/cli/test/agent-host*.ts
+pnpm test   # 含 serve 回归
+```
 
 ## 非目标（刻意不做）
 
