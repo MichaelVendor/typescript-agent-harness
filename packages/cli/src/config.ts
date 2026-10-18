@@ -5,6 +5,11 @@ import { isProject, ProjectError, type Project } from "./project.js";
 
 export type TahMcpExtension = { command: string; args: string[] };
 
+export type TahPermissions = {
+  allow?: string[];
+  deny?: string[];
+};
+
 export type TahConfig = {
   capabilities?: {
     coding?: boolean | { exec?: boolean };
@@ -13,8 +18,10 @@ export type TahConfig = {
     vision?: boolean;
   };
   extensions?: {
-    mcp?: TahMcpExtension;
+    /** One server, or several. A single object in the file is stored as a one-element list. */
+    mcp?: TahMcpExtension[];
   };
+  permissions?: TahPermissions;
 };
 
 export type ResolvedCapabilities = {
@@ -23,14 +30,20 @@ export type ResolvedCapabilities = {
   web: boolean;
   browser: boolean;
   vision: boolean;
-  mcp: TahMcpExtension | undefined;
+  /** Empty when MCP is off. */
+  mcp: TahMcpExtension[];
+  /** Empty when no allowlist is set (every tool not denied is allowed). */
+  allow: string[];
+  /** Empty when nothing is denied. Wins over `allow`. */
+  deny: string[];
   /** True when a project `tah.config.json` was loaded. */
   fromConfig: boolean;
 };
 
-const TOP_KEYS = new Set(["capabilities", "extensions"]);
+const TOP_KEYS = new Set(["capabilities", "extensions", "permissions"]);
 const CAP_KEYS = new Set(["coding", "web", "browser", "vision"]);
 const EXT_KEYS = new Set(["mcp"]);
+const PERM_KEYS = new Set(["allow", "deny"]);
 const CODING_OBJ_KEYS = new Set(["exec"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -39,6 +52,31 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function bad(rel: string, detail: string): never {
   throw new ProjectError(`tah: ${rel}: ${detail}`);
+}
+
+function parseMcpServer(mcp: unknown, rel: string, label: string): TahMcpExtension {
+  if (!isObject(mcp)) bad(rel, `${label} must be an object`);
+  for (const key of Object.keys(mcp)) {
+    if (key !== "command" && key !== "args") bad(rel, `unknown mcp option "${key}"`);
+  }
+  if (typeof mcp.command !== "string" || mcp.command.length === 0) {
+    bad(rel, `${label}.command must be a non-empty string`);
+  }
+  let args: string[] = [];
+  if ("args" in mcp) {
+    if (!Array.isArray(mcp.args) || mcp.args.some((a) => typeof a !== "string")) {
+      bad(rel, `${label}.args must be an array of strings`);
+    }
+    args = mcp.args as string[];
+  }
+  return { command: mcp.command, args };
+}
+
+function parseToolList(value: unknown, rel: string, label: string): string[] {
+  if (!Array.isArray(value) || value.some((name) => typeof name !== "string" || name.length === 0)) {
+    bad(rel, `${label} must be an array of non-empty strings`);
+  }
+  return [...value];
 }
 
 /** Parse and validate a config object; `rel` is only for error messages. */
@@ -97,23 +135,25 @@ export function parseTahConfig(raw: unknown, rel = "tah.config.json"): TahConfig
     const exts: NonNullable<TahConfig["extensions"]> = {};
     if ("mcp" in raw.extensions) {
       const mcp = raw.extensions.mcp;
-      if (!isObject(mcp)) bad(rel, "extensions.mcp must be an object");
-      for (const key of Object.keys(mcp)) {
-        if (key !== "command" && key !== "args") bad(rel, `unknown mcp option "${key}"`);
+      if (Array.isArray(mcp)) {
+        if (mcp.length === 0) bad(rel, "extensions.mcp must list at least one server");
+        exts.mcp = mcp.map((server, i) => parseMcpServer(server, rel, `extensions.mcp[${i}]`));
+      } else {
+        exts.mcp = [parseMcpServer(mcp, rel, "extensions.mcp")];
       }
-      if (typeof mcp.command !== "string" || mcp.command.length === 0) {
-        bad(rel, "extensions.mcp.command must be a non-empty string");
-      }
-      let args: string[] = [];
-      if ("args" in mcp) {
-        if (!Array.isArray(mcp.args) || mcp.args.some((a) => typeof a !== "string")) {
-          bad(rel, "extensions.mcp.args must be an array of strings");
-        }
-        args = mcp.args as string[];
-      }
-      exts.mcp = { command: mcp.command, args };
     }
     out.extensions = exts;
+  }
+
+  if ("permissions" in raw) {
+    if (!isObject(raw.permissions)) bad(rel, "permissions must be an object");
+    for (const key of Object.keys(raw.permissions)) {
+      if (!PERM_KEYS.has(key)) bad(rel, `unknown permissions option "${key}"`);
+    }
+    const perms: TahPermissions = {};
+    if ("allow" in raw.permissions) perms.allow = parseToolList(raw.permissions.allow, rel, "permissions.allow");
+    if ("deny" in raw.permissions) perms.deny = parseToolList(raw.permissions.deny, rel, "permissions.deny");
+    out.permissions = perms;
   }
 
   return out;
@@ -140,7 +180,18 @@ export function loadTahConfig(cwd: string): TahConfig | undefined {
 /** Merge built-in defaults, optional config, and explicit CLI / env overrides. `web` follows `coding` and `browser` follows `web` unless the config sets them. */
 export function resolveCapabilities(
   config: TahConfig | undefined,
-  flags: Pick<CliFlags, "exec" | "execSet" | "builtinTools" | "vision" | "visionSet" | "mcpCommand" | "mcpArgs">,
+  flags: Pick<
+    CliFlags,
+    | "exec"
+    | "execSet"
+    | "builtinTools"
+    | "vision"
+    | "visionSet"
+    | "mcpCommand"
+    | "mcpArgs"
+    | "allow"
+    | "deny"
+  >,
   project: Project | undefined,
 ): ResolvedCapabilities {
   let coding = !project?.hasToolsDir;
@@ -148,7 +199,9 @@ export function resolveCapabilities(
   let web: boolean | undefined;
   let browser: boolean | undefined;
   let vision = false;
-  let mcp: TahMcpExtension | undefined;
+  let mcp: TahMcpExtension[] = [];
+  let allow: string[] = [];
+  let deny: string[] = [];
   const fromConfig = config !== undefined;
 
   if (config?.capabilities) {
@@ -166,15 +219,19 @@ export function resolveCapabilities(
     if (c.vision !== undefined) vision = c.vision;
   }
   if (config?.extensions?.mcp) {
-    mcp = { command: config.extensions.mcp.command, args: [...config.extensions.mcp.args] };
+    mcp = config.extensions.mcp.map((server) => ({ command: server.command, args: [...server.args] }));
   }
+  if (config?.permissions?.allow) allow = [...config.permissions.allow];
+  if (config?.permissions?.deny) deny = [...config.permissions.deny];
 
   if (flags.builtinTools) coding = true;
   if (flags.execSet) execWanted = flags.exec;
   if (flags.visionSet) vision = flags.vision;
   if (flags.mcpCommand) {
-    mcp = { command: flags.mcpCommand, args: [...flags.mcpArgs] };
+    mcp = [{ command: flags.mcpCommand, args: [...flags.mcpArgs] }];
   }
+  if (flags.allow.length > 0) allow = [...flags.allow];
+  if (flags.deny.length > 0) deny = [...flags.deny];
 
   const webOn = web ?? coding;
   return {
@@ -184,6 +241,8 @@ export function resolveCapabilities(
     browser: browser ?? webOn,
     vision,
     mcp,
+    allow,
+    deny,
     fromConfig,
   };
 }

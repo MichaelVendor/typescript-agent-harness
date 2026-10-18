@@ -13,11 +13,16 @@ function write(msg) {
   setImmediate(() => process.stdout.write(line.slice(half)));
 }
 
-const TOOLS = [
+const only = process.argv[2];
+const ALL_TOOLS = [
   { name: "ping", description: "echo ping", inputSchema: { type: "object", properties: { text: { type: "string" } } } },
   { name: "fail", description: "always fails", inputSchema: { type: "object", properties: {} } },
   { name: "shot", description: "text and an image", inputSchema: { type: "object", properties: {} } },
 ];
+/** `node ping-server.mjs <name>` exposes only that tool, so two test servers can run side by side. */
+const TOOLS = only
+  ? [{ name: only, description: only, inputSchema: { type: "object", properties: {} } }]
+  : ALL_TOOLS;
 
 function handle(msg) {
   if (msg.method === "initialize") {
@@ -38,6 +43,10 @@ function handle(msg) {
   }
   if (msg.method !== "tools/call") return;
   const name = msg.params?.name;
+  if (only && name === only) {
+    write({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: only }] } });
+    return;
+  }
   if (name === "ping") {
     const text = msg.params?.arguments?.text ?? "";
     write({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: `pong:${text}` }] } });

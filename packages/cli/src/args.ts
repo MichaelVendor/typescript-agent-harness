@@ -198,10 +198,10 @@ Flags:
   --max-steps <n>     LLM round limit per turn (default: no limit; Ctrl+C stops a turn)
   --system-file <p>   replace the default "workspace coding agent" role with this file's text
   --session <id|n>    tah chat: continue this session instead of the latest
-  --mcp <cmd>         mount stdio MCP tools from a child process (off by default)
+  --mcp <cmd>         stdio MCP server (overrides tah.config.json extensions.mcp)
   --mcp-arg <a>       extra argv for --mcp (repeatable)
-  --allow <tool>      allowlist (repeatable; omit = all tools allowed)
-  --deny <tool>       denylist (repeatable; wins over --allow)
+  --allow <tool>      allowlist (repeatable; overrides config permissions.allow)
+  --deny <tool>       denylist (repeatable; overrides config permissions.deny; wins over allow)
   --once <ms>         delay then run once via scheduler (off by default; tah run only)
   --builtin-tools     project with tools/: also mount the built-in file / command tools
   --no-install        tah init: only write files, skip installing dependencies
@@ -213,7 +213,7 @@ Flags:
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)
-  tah.config.json     optional capabilities / extensions (CLI flags override)
+  tah.config.json     capabilities, extensions.mcp, permissions (CLI flags override)
   tools/<name>.ts     export default defineTool({...}); file query-order.ts → tool query_order
   plugins/<name>.ts   export default definePlugin({...}); registered after the built-ins
   Only top-level files load; skipped: _*.ts, *.test.*, *.spec.*, *.d.ts, subdirectories.

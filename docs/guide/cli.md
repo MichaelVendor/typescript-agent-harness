@@ -164,14 +164,15 @@ my-agent/
 
 ### 项目配置 `tah.config.json`（v0.28）
 
-约定目录管角色与自定义工具；根目录可选 **`tah.config.json`** 管官方能力（coding / vision）和 `extensions.mcp`。
+约定目录管角色与自定义工具；根目录可选 **`tah.config.json`** 管官方能力（coding / vision）、一个或多个 `extensions.mcp`，以及 `permissions.allow` / `permissions.deny`。
 
 ```json
 {
   "capabilities": { "coding": true, "vision": true },
   "extensions": {
     "mcp": { "command": "npx", "args": ["-y", "some-mcp-server"] }
-  }
+  },
+  "permissions": { "deny": ["execute_command"] }
 }
 ```
 

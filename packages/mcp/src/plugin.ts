@@ -5,17 +5,24 @@ import type { McpBackend } from "./types.js";
 
 export type McpPluginOptions = {
   backend: McpBackend;
+  /** Defaults to `"mcp"`. Pass a distinct name when mounting more than one server. */
+  name?: string;
 };
 
 export function mcpPlugin(options: McpPluginOptions): Plugin {
   const { backend } = options;
   return {
-    name: "mcp",
+    name: options.name ?? "mcp",
     async setup(ctx) {
       const tools = ctx.get(TOOLS);
       const infos = await backend.listTools();
-      for (const tool of toolsFromMcp(backend, infos)) {
-        tools.register(tool);
+      try {
+        for (const tool of toolsFromMcp(backend, infos)) {
+          tools.register(tool);
+        }
+      } catch (err) {
+        await backend.close?.();
+        throw err;
       }
     },
     async dispose() {

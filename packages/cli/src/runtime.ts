@@ -136,7 +136,7 @@ export async function bootRuntime(
       : undefined;
   const builtin = caps.coding;
   const exec = caps.exec;
-  const mcpOn = Boolean(caps.mcp);
+  const mcpCount = caps.mcp.length;
   const chosen = flags.mock ? undefined : activeModel(opts.homeDir ?? os.homedir());
   const hasKey = Boolean(chosen) || Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY);
   const vision = chosen ? chosen.vision === true : caps.vision;
@@ -178,7 +178,7 @@ export async function bootRuntime(
   const discovered = discoverSkills({ cwd: flags.cwd, homeDir: opts.homeDir ?? os.homedir() });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? " web=on" : ""}${browser ? " browser=on" : ""}${mcpOn ? " mcp=on" : ""}${caps.fromConfig ? " config=on" : ""}${vision ? " vision=on" : ""}${flags.allow.length || flags.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? " web=on" : ""}${browser ? " browser=on" : ""}${mcpCount > 0 ? ` mcp=${mcpCount}` : ""}${caps.fromConfig ? " config=on" : ""}${vision ? " vision=on" : ""}${caps.allow.length || caps.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -257,10 +257,10 @@ export async function bootRuntime(
   if (mountSkill) tools.push(createSkillTool(discovered.skills));
   if (opts.question) tools.push(askUserTool(opts.question));
 
-  if (exec || flags.allow.length > 0 || flags.deny.length > 0) {
+  if (exec || caps.allow.length > 0 || caps.deny.length > 0) {
     const perms: PermissionsPluginOptions = {};
-    if (flags.allow.length > 0) perms.allow = flags.allow;
-    if (flags.deny.length > 0) perms.deny = flags.deny;
+    if (caps.allow.length > 0) perms.allow = caps.allow;
+    if (caps.deny.length > 0) perms.deny = caps.deny;
     runtime.use(permissionsPlugin(perms));
   }
   if (ask) {
@@ -295,17 +295,21 @@ export async function bootRuntime(
     .use(toolsPlugin({ tools }));
   if (browser) runtime.use(browser.plugin);
 
-  if (caps.mcp) {
+  if (caps.mcp.length > 0) {
     const { mcpPlugin, stdioMcpBackend } = await import("@typescript-agent-harness/mcp");
-    runtime.use(
-      mcpPlugin({
-        backend: stdioMcpBackend({
-          command: caps.mcp.command,
-          args: caps.mcp.args,
-          cwd: flags.cwd,
+    for (let i = 0; i < caps.mcp.length; i++) {
+      const server = caps.mcp[i]!;
+      runtime.use(
+        mcpPlugin({
+          ...(caps.mcp.length > 1 ? { name: `mcp:${i + 1}` } : {}),
+          backend: stdioMcpBackend({
+            command: server.command,
+            args: server.args,
+            cwd: flags.cwd,
+          }),
         }),
-      }),
-    );
+      );
+    }
   }
 
   runtime.use(
@@ -314,7 +318,7 @@ export async function bootRuntime(
       contextChars: DEFAULT_CONTEXT_CHARS,
       systemPrompt: buildSystemPrompt({
         exec,
-        mcp: mcpOn,
+        mcp: mcpCount > 0,
         builtinTools: builtin,
         web: caps.web ? "search" : "off",
         browser: Boolean(browser),

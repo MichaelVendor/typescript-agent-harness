@@ -46,6 +46,8 @@ function flagBits(
     visionSet: boolean;
     mcpCommand: string;
     mcpArgs: string[];
+    allow: string[];
+    deny: string[];
   }> = {},
 ) {
   return {
@@ -56,6 +58,8 @@ function flagBits(
     visionSet: false,
     mcpCommand: "",
     mcpArgs: [] as string[],
+    allow: [] as string[],
+    deny: [] as string[],
     ...extra,
   };
 }
@@ -67,7 +71,24 @@ test("parseTahConfig accepts capabilities and mcp", () => {
   });
   assert.deepEqual(cfg.capabilities?.coding, { exec: false });
   assert.equal(cfg.capabilities?.vision, true);
-  assert.deepEqual(cfg.extensions?.mcp, { command: "node", args: ["s.mjs"] });
+  assert.deepEqual(cfg.extensions?.mcp, [{ command: "node", args: ["s.mjs"] }]);
+});
+
+test("parseTahConfig accepts several mcp servers and permissions", () => {
+  const cfg = parseTahConfig({
+    extensions: {
+      mcp: [
+        { command: "node", args: ["a.mjs"] },
+        { command: "npx", args: ["-y", "other"] },
+      ],
+    },
+    permissions: { deny: ["execute_command"], allow: ["list_files"] },
+  });
+  assert.equal(cfg.extensions?.mcp?.length, 2);
+  assert.deepEqual(cfg.permissions, { deny: ["execute_command"], allow: ["list_files"] });
+  assert.throws(() => parseTahConfig({ extensions: { mcp: [] } }), /at least one server/);
+  assert.throws(() => parseTahConfig({ permissions: { deny: [""] } }), /non-empty strings/);
+  assert.throws(() => parseTahConfig({ permissions: { block: ["x"] } }), /unknown permissions option/);
 });
 
 test("parseTahConfig rejects unknown keys", () => {
@@ -242,9 +263,77 @@ test("bootRuntime mounts mcp from extensions.mcp", async () => {
   });
   const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
   const { runtime, startup } = await bootRuntime(flags, { homeDir });
-  assert.match(startup, /mcp=on/);
+  assert.match(startup, /mcp=1/);
   assert.equal(runtime.get(TOOLS).listSchemas().some((t) => t.name === "ping"), true);
   await runtime.stop();
+});
+
+test("bootRuntime mounts every extensions.mcp server; a repeated tool name fails", async () => {
+  const pingServer = fileURLToPath(
+    new URL("../../mcp/test/fixtures/ping-server.mjs", import.meta.url),
+  );
+  const cwd = projectDir({
+    "tah.config.json": JSON.stringify({
+      extensions: {
+        mcp: [
+          { command: process.execPath, args: [pingServer] },
+          { command: process.execPath, args: [pingServer, "pong"] },
+        ],
+      },
+    }),
+  });
+  const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
+  const { runtime, startup } = await bootRuntime(flags, { homeDir });
+  const names = runtime.get(TOOLS).listSchemas().map((t) => t.name);
+  assert.match(startup, /mcp=2/);
+  assert.equal(names.includes("ping") && names.includes("pong"), true);
+  await runtime.stop();
+
+  const clash = projectDir({
+    "tah.config.json": JSON.stringify({
+      extensions: {
+        mcp: [
+          { command: process.execPath, args: [pingServer] },
+          { command: process.execPath, args: [pingServer] },
+        ],
+      },
+    }),
+  });
+  await assert.rejects(
+    () => bootRuntime({ ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd: clash }, { homeDir }),
+    /Duplicate tool name: ping/,
+  );
+});
+
+test("permissions in tah.config.json hide tools; --deny replaces the config list", async () => {
+  const cwd = projectDir({
+    "tah.config.json": JSON.stringify({
+      permissions: { deny: ["write_file"], allow: ["list_files", "read_file"] },
+    }),
+  });
+  const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
+  const fromConfig = await bootRuntime(flags, { homeDir });
+  assert.match(fromConfig.startup, /perms=on/);
+  assert.deepEqual(
+    fromConfig.runtime.get(TOOLS).listSchemas().map((t) => t.name).sort(),
+    ["list_files", "read_file"],
+  );
+  await fromConfig.runtime.stop();
+
+  const replaced = resolveCapabilities(
+    { permissions: { deny: ["write_file"], allow: ["list_files"] } },
+    flagBits({ deny: ["execute_command"] }),
+    undefined,
+  );
+  assert.deepEqual(replaced.deny, ["execute_command"]);
+  assert.deepEqual(replaced.allow, ["list_files"]);
+
+  const mcpReplaced = resolveCapabilities(
+    { extensions: { mcp: [{ command: "node", args: ["a.mjs"] }, { command: "npx", args: [] }] } },
+    flagBits({ mcpCommand: "node", mcpArgs: ["b.mjs"] }),
+    undefined,
+  );
+  assert.deepEqual(mcpReplaced.mcp, [{ command: "node", args: ["b.mjs"] }]);
 });
 
 test("resolveCapabilities: browser follows web unless the config sets it", () => {

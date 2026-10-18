@@ -22,7 +22,7 @@
 - 用户级 `~/.tah/config`、多层 profile / bundle 叠加
 - YAML / TypeScript config（不执行用户配置代码）
 - 把 `tools/` / `plugins/` 清单搬进 JSON
-- 细粒度 `--allow` / `--deny`、`maxSteps`、`persist`、模型与 API key（仍 flag / `.env`）
+- `maxSteps`、`persist`、模型与 API key（仍 flag / `.env`）
 - 插件市场
 
 ## 加载条件与路径
@@ -44,10 +44,13 @@
     "vision": false
   },
   "extensions": {
-    "mcp": {
-      "command": "npx",
-      "args": ["-y", "some-mcp-server"]
-    }
+    "mcp": [
+      { "command": "npx", "args": ["-y", "some-mcp-server"] },
+      { "command": "npx", "args": ["-y", "another-mcp-server"] }
+    ]
+  },
+  "permissions": {
+    "deny": ["execute_command"]
   }
 }
 ```
@@ -58,7 +61,9 @@
 | `capabilities.web` | 官方 `web_fetch`（读网页）与 `web_search`（搜索；没 key 用 Exa + Bing，有 Tavily key 用 Tavily，v0.37.4）。省略时跟随 `coding`；写 `false` 关掉（v0.31） |
 | `capabilities.browser` | 内置浏览器（Playwright MCP）：先只挂 `browser_open`，调用并经用户批准后才启动 Chrome、挂上 18 个浏览器工具。省略时跟随 `web`；写 `false` 关掉；`--mock` 时不挂（v0.31，见 [内置浏览器](/design/browser)） |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |
-| `extensions.mcp` | `{ "command": string, "args"?: string[] }`，stdio MCP（同 `--mcp` / `--mcp-arg`），用来接其他搜索、抓取等第三方 MCP |
+| `extensions.mcp` | 一个 `{ "command": string, "args"?: string[] }`，或这样的数组。每个都是一个 stdio MCP 服务。单个对象与旧文件相同，读进来当成只有一项的数组。两个服务给出同名工具时启动失败，错误里带工具名。`--mcp` / `--mcp-arg` 盖掉整份列表，不往后面追加 |
+| `permissions.allow` | 工具名数组。写了就只有这些工具可见、可跑。命令行 `--allow`（可重复）盖掉这一项；没写 `--allow` 时用配置 |
+| `permissions.deny` | 工具名数组。这些工具不可见、不可跑，并且压过 `allow`。命令行 `--deny` 盖掉这一项 |
 
 规则：
 
@@ -83,7 +88,8 @@
 | coding | `--builtin-tools` 强制开 |
 | exec | `--exec` / `--no-exec`（仅在传入时覆盖） |
 | vision | `--vision` 或 `TAH_VISION=1` |
-| mcp | `--mcp`（及 `--mcp-arg`）覆盖 config 里的 `extensions.mcp` |
+| mcp | `--mcp`（及 `--mcp-arg`）盖掉 config 里的整份 `extensions.mcp` |
+| allow / deny | `--allow` / `--deny` 各自盖掉 config 里的同名列表；没传该 flag 时用配置。`deny` 压过 `allow` |
 
 ## 架构
 
@@ -133,7 +139,7 @@ npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.e
 }
 ```
 
-包名与环境变量（API key 等）以所选 MCP 的说明为准；也可用命令行 `--mcp` / `--mcp-arg` 临时挂上。
+包名与环境变量（API key 等）以所选 MCP 的说明为准。要挂多个服务，把 `mcp` 写成数组。命令行 `--mcp` / `--mcp-arg` 盖掉整份列表，不追加。工具权限写在 `permissions.allow` / `permissions.deny`（`deny` 压过 `allow`）；`--allow` / `--deny` 只盖掉自己那一项。
 
 `tah init` 会生成示例 `tah.config.json`（仅 `coding: true`，已存在则跳过）。
 
@@ -141,6 +147,7 @@ npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.e
 
 - v0.31 落地官方 `capabilities.web`（`web_search` / `web_fetch`），去掉「web: true 即报错」的守卫。
 - v0.31 落地 `capabilities.browser`（内置 Playwright MCP，按需加载）。
+- v0.37.8：`extensions.mcp` 可以是一个服务或一个数组；`permissions.allow` / `permissions.deny` 写进配置，命令行同名 flag 盖掉对应列表。
 - 若需要用户级默认，再另开设计；不在本文件静默扩展加载路径。
 - v0.28 热更新只盯 `AGENTS.md` / `tools/` / `plugins/` / `lib/`；改 `tah.config.json` 需重启进程（或再开一轮设计把它纳入 watch）。
 
