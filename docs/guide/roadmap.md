@@ -26,7 +26,7 @@
 | 20 | 文件预览：对话里的路径在右侧面板只读预览 | ✅ `v0.35` |
 | 21 | 浏览器面板：Agent 的浏览器画面放进工作台，用户可看可接手 | ✅ `v0.36` |
 | 22 | AgentHost：无头 `tah agent-host`（Bearer、`/v1`、按轮 SSE） | ✅ `v1.0` |
-| 23 | 内网控制面：`apps/control`（登录、项目、Docker wake、代理 AgentHost） | ✅ `v1.1`（未发版） |
+| 23 | 内网控制面：`apps/control`（登录、项目、Docker wake、代理 AgentHost） | ✅ `v1.1` |
 
 ## Phase 1 — Runtime ✅
 
@@ -323,7 +323,7 @@ node --test --experimental-strip-types packages/cli/test/agent-host*.ts
 pnpm test   # 含 serve 回归
 ```
 
-## Phase 23 — 内网控制面 ✅（v1.1，未发版）
+## Phase 23 — 内网控制面 ✅（v1.1）
 
 设计见 [内网控制面](/design/control-plane)。
 
@@ -351,7 +351,7 @@ pnpm --filter @typescript-agent-harness/control test
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发分支 `v1.0`）  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v1.1`）  
 - `v0.N` / `v1.N`：当前小版本的开发分支，合入 `main` 后打对应 `x.y.z` tag  
 - `1.x`：可继续破坏性变更时在 CHANGELOG 写明；单机 `tah serve` 与无头 `tah agent-host` 并行，互不替换  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  

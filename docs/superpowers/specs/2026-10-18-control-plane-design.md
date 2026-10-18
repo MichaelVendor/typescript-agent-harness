@@ -1,6 +1,6 @@
 # 控制面 P0 设计
 
-状态：✅ 已实现；开发分支 `v1.1`（尚未发版）；用户向说明见 [控制面设计](/design/control-plane)；实现计划见 `docs/superpowers/plans/2026-10-18-control-plane.md`
+状态：✅ 已实现（`v1.1.0`）；用户向说明见 [控制面设计](/design/control-plane)；实现计划见 `docs/superpowers/plans/2026-10-18-control-plane.md`
 
 ## 背景
 
