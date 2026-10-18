@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/agent",
-  "version": "0.37.7",
+  "version": "0.37.8",
   "description": "Session, DefaultLoop, and agent orchestration",
   "type": "module",
   "main": "./dist/index.js",

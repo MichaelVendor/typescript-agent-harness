@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.37.8 — 2026-10-18
+
+CLI: convention projects may list several stdio MCP servers in `tah.config.json` `extensions.mcp` (one object or an array; `--mcp` still replaces the whole list). Tool allow / deny lists move into `permissions.allow` / `permissions.deny` so a project can ship its policy; `--allow` / `--deny` each override only their own list. Duplicate tool names across MCP servers fail at startup. Startup prints `mcp=<count>` instead of `mcp=on`.
+
 ## 0.37.7 — 2026-10-17
 
 Desktop: the macOS app icon is a white paper crane on a lacquer-red ground.
