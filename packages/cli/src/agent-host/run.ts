@@ -1,8 +1,9 @@
+import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import type { CliFlags } from "../args.js";
-import { createChatHost } from "../host.js";
+import { createChatHost, type ChatHost } from "../host.js";
 import { createAgentHostHandler } from "./http.js";
 
 export type AgentHostOptions = {
@@ -21,13 +22,24 @@ function listen(server: Server, host: string, port: number): Promise<number> {
   });
 }
 
-export async function startAgentHost(opts: AgentHostOptions): Promise<{ url: string; stop(): Promise<void> }> {
+export async function startAgentHost(
+  opts: AgentHostOptions,
+): Promise<{ url: string; host: ChatHost; stop(): Promise<void> }> {
   const host = await createChatHost(opts.flags, { historyTurns: Infinity, homeDir: opts.homeDir ?? os.homedir() });
+  const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string };
   let server: Server;
   let port: number;
   try {
     await host.open();
-    server = createServer(createAgentHostHandler({ secret: opts.secret, projectId: opts.projectId }));
+    server = createServer(
+      createAgentHostHandler({
+        secret: opts.secret,
+        projectId: opts.projectId,
+        host,
+        version: pkg.version,
+        cwd: opts.flags.cwd,
+      }),
+    );
     port = await listen(server, opts.host, opts.port);
   } catch (err) {
     await host.close();
@@ -35,6 +47,7 @@ export async function startAgentHost(opts: AgentHostOptions): Promise<{ url: str
   }
   return {
     url: `http://${opts.host}:${port}`,
+    host,
     async stop() {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
