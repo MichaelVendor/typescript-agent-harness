@@ -510,3 +510,163 @@ test("resume holds switching so a concurrent messages request is 409 and does no
     await stop();
   }
 });
+
+test("create session during a turn is 409 and does not swap", { timeout: 20_000 }, async () => {
+  const gateKey = `tahGate_${Math.random().toString(36).slice(2)}`;
+  const g = globalThis as Record<string, Promise<void> | undefined>;
+  const { url, stop, host, headers } = await bootProject(gateKey);
+  let release = () => {};
+  try {
+    let resolveGate!: () => void;
+    g[gateKey] = new Promise<void>((resolve) => {
+      resolveGate = resolve;
+    });
+    release = () => {
+      resolveGate();
+      delete g[gateKey];
+    };
+
+    const sessionId = await createSession(url, headers);
+    const pending = await fetch(`${url}/v1/sessions/${encodeURIComponent(sessionId)}/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: "hold" }),
+    });
+    const held = createSse(pending);
+    await held.until((events) => events.some((event) => event.type === "tool.start"));
+
+    const created = await fetch(`${url}/v1/sessions`, { method: "POST", headers, body: "{}" });
+    assert.equal(created.status, 409);
+    assert.deepEqual(await created.json(), { error: "turn_in_progress" });
+    assert.equal(host.sessionId, sessionId);
+
+    release();
+    release = () => {};
+    const finished = await held.rest();
+    assert.equal(finished.at(-1)?.type, "turn.end");
+    assert.equal(host.sessionId, sessionId);
+  } finally {
+    release();
+    host.cancel();
+    await stop();
+  }
+});
+
+test("create during resume is 409 and does not swap the session", { timeout: 10_000 }, async () => {
+  let sessionId = "sess-a";
+  const resumeRefs: string[] = [];
+  const resets: string[] = [];
+  const listeners = new Set<(event: HostEvent) => void>();
+  const emit = (event: HostEvent) => {
+    for (const listener of listeners) listener(event);
+  };
+  let releaseResume!: () => void;
+  const resumeHeld = new Promise<void>((resolve) => {
+    releaseResume = resolve;
+  });
+  let markResumeStarted!: () => void;
+  const resumeStarted = new Promise<void>((resolve) => {
+    markResumeStarted = resolve;
+  });
+  let releaseReset!: () => void;
+  const resetHeld = new Promise<void>((resolve) => {
+    releaseReset = resolve;
+  });
+  let markResetStarted!: () => void;
+  const resetStarted = new Promise<void>((resolve) => {
+    markResetStarted = resolve;
+  });
+
+  const host = {
+    get sessionId() {
+      return sessionId;
+    },
+    approve: false,
+    on(listener: (event: HostEvent) => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    async send(text: string) {
+      emit({ type: "user", text });
+      emit({ type: "text", delta: "ok" });
+      emit({ type: "turn.end", state: "idle", finishReason: "stop", rounds: 1 });
+    },
+    cancel() {},
+    async resume(ref: string) {
+      resumeRefs.push(ref);
+      markResumeStarted();
+      await resumeHeld;
+      sessionId = ref;
+    },
+    async reset() {
+      resets.push(sessionId);
+      markResetStarted();
+      await resetHeld;
+      sessionId = "sess-new";
+    },
+  } as unknown as ChatHost;
+
+  const server = createServer(
+    createAgentHostHandler({ secret: "s", projectId: "p", host, version: "0", cwd: "/" }),
+  );
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const headers = bearer();
+  const stop = () =>
+    new Promise<void>((resolve) => {
+      server.closeAllConnections();
+      server.close(() => resolve());
+    });
+
+  try {
+    const switching = fetch(`${url}/v1/sessions/sess-b/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: "switch" }),
+    });
+    await resumeStarted;
+    assert.equal(sessionId, "sess-a");
+
+    const duringResume = await fetch(`${url}/v1/sessions`, { method: "POST", headers, body: "{}" });
+    assert.equal(duringResume.status, 409);
+    assert.deepEqual(await duringResume.json(), { error: "turn_in_progress" });
+    assert.deepEqual(resets, []);
+    assert.deepEqual(resumeRefs, ["sess-b"]);
+    assert.equal(sessionId, "sess-a");
+
+    releaseResume();
+    const streamed = await createSse(await switching).rest();
+    assert.equal(streamed.at(-1)?.type, "turn.end");
+    assert.equal(sessionId, "sess-b");
+    assert.deepEqual(resets, []);
+
+    const creating = fetch(`${url}/v1/sessions`, { method: "POST", headers, body: "{}" });
+    await resetStarted;
+    assert.deepEqual(resets, ["sess-b"]);
+    assert.equal(sessionId, "sess-b");
+
+    const duringReset = await fetch(`${url}/v1/sessions/sess-c/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: "other" }),
+    });
+    assert.equal(duringReset.status, 409);
+    assert.deepEqual(await duringReset.json(), { error: "turn_in_progress" });
+    assert.deepEqual(resumeRefs, ["sess-b"]);
+    assert.equal(sessionId, "sess-b");
+
+    releaseReset();
+    const created = await creating;
+    assert.equal(created.status, 201);
+    assert.equal((await created.json()).sessionId, "sess-new");
+    assert.equal(sessionId, "sess-new");
+    assert.deepEqual(resumeRefs, ["sess-b"]);
+  } finally {
+    releaseResume();
+    releaseReset();
+    await stop();
+  }
+});

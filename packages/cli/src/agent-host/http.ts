@@ -136,7 +136,13 @@ export function createAgentHostHandler(opts: AgentHostHandlerOptions): RequestLi
     }
     if (req.method === "POST" && pathname === "/v1/sessions") {
       const body = await readJson(req);
-      await opts.host.reset();
+      if (occupied(gate)) throw new HttpError(409, "turn_in_progress");
+      gate.switching = true;
+      try {
+        await opts.host.reset();
+      } finally {
+        gate.switching = false;
+      }
       const sessionId = opts.host.sessionId;
       if (typeof body.title === "string" && body.title) {
         await opts.host.renameSession(sessionId, body.title);
