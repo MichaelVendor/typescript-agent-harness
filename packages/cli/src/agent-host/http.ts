@@ -58,10 +58,21 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   return body as Record<string, unknown>;
 }
 
-async function ensureSession(host: ChatHost, id: string, busy: boolean): Promise<void> {
-  if (busy) throw new HttpError(409, "turn_in_progress");
+type SessionGate = { busy: boolean; switching: boolean };
+
+function occupied(gate: SessionGate): boolean {
+  return gate.busy || gate.switching;
+}
+
+async function ensureSession(host: ChatHost, id: string, gate: SessionGate): Promise<void> {
+  if (occupied(gate)) throw new HttpError(409, "turn_in_progress");
   if (host.sessionId === id) return;
-  await host.resume(id);
+  gate.switching = true;
+  try {
+    await host.resume(id);
+  } finally {
+    gate.switching = false;
+  }
 }
 
 /** Writes this turn's HostEvents. Subscribe before `send` so the opening `user` event is not missed. */
@@ -108,10 +119,10 @@ function sessionAction(pathname: string): { id: string; action: "messages" | "ca
 }
 
 export function createAgentHostHandler(opts: AgentHostHandlerOptions): RequestListener {
-  let busy = false;
+  const gate: SessionGate = { busy: false, switching: false };
   opts.host.on((event: HostEvent) => {
-    if (event.type === "user") busy = true;
-    else if (event.type === "turn.end" || event.type === "turn.error") busy = false;
+    if (event.type === "user") gate.busy = true;
+    else if (event.type === "turn.end" || event.type === "turn.error") gate.busy = false;
   });
 
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -137,7 +148,7 @@ export function createAgentHostHandler(opts: AgentHostHandlerOptions): RequestLi
     }
     const action = req.method === "POST" ? sessionAction(pathname) : undefined;
     if (action?.action === "cancel") {
-      if (action.id !== opts.host.sessionId) await ensureSession(opts.host, action.id, busy);
+      if (action.id !== opts.host.sessionId) await ensureSession(opts.host, action.id, gate);
       opts.host.cancel();
       return json(res, 204);
     }
@@ -145,8 +156,8 @@ export function createAgentHostHandler(opts: AgentHostHandlerOptions): RequestLi
       const body = await readJson(req);
       const text = body.text;
       if (typeof text !== "string" || text.trim() === "") throw new HttpError(400, "message is empty");
-      await ensureSession(opts.host, action.id, busy);
-      if (busy) throw new HttpError(409, "turn_in_progress");
+      await ensureSession(opts.host, action.id, gate);
+      if (occupied(gate)) throw new HttpError(409, "turn_in_progress");
       streamTurn(req, res, opts.host, text);
       return;
     }

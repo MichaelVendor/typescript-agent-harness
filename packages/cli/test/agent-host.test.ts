@@ -4,12 +4,14 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import type { ServerResponse } from "node:http";
+import { createServer, type ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import { parseArgv } from "../dist/args.js";
 import { signAgentHostToken } from "../dist/agent-host/auth.js";
+import { createAgentHostHandler } from "../dist/agent-host/http.js";
 import { startAgentHost } from "../dist/agent-host/run.js";
 import { writeHostEvent } from "../dist/agent-host/sse.js";
-import type { HostEvent } from "../dist/host.js";
+import type { ChatHost, HostEvent } from "../dist/host.js";
 
 function mockFlags(cwd: string) {
   return { ...parseArgv(["--mock", "--persist", "--quiet", "--yes", "--no-exec", "--no-watch", "agent-host"]), cwd };
@@ -402,6 +404,109 @@ test("messages resume another session; a busy turn is 409 before resume", { time
   } finally {
     release();
     host.cancel();
+    await stop();
+  }
+});
+
+test("resume holds switching so a concurrent messages request is 409 and does not switch under a turn", { timeout: 10_000 }, async () => {
+  let sessionId = "sess-a";
+  let resumePending = true;
+  let turnActive = false;
+  let switchedUnderTurn = false;
+  const resumeRefs: string[] = [];
+  const listeners = new Set<(event: HostEvent) => void>();
+  const emit = (event: HostEvent) => {
+    for (const listener of listeners) listener(event);
+  };
+  let releaseResume!: () => void;
+  const resumeHeld = new Promise<void>((resolve) => {
+    releaseResume = resolve;
+  });
+  let markResumeStarted!: () => void;
+  const resumeStarted = new Promise<void>((resolve) => {
+    markResumeStarted = resolve;
+  });
+
+  const host = {
+    get sessionId() {
+      return sessionId;
+    },
+    approve: false,
+    on(listener: (event: HostEvent) => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    async send(text: string) {
+      turnActive = true;
+      emit({ type: "user", text });
+      if (resumePending) await new Promise(() => {});
+      emit({ type: "text", delta: "ok" });
+      emit({ type: "turn.end", state: "idle", finishReason: "stop", rounds: 1 });
+      turnActive = false;
+    },
+    cancel() {},
+    async resume(ref: string) {
+      resumeRefs.push(ref);
+      markResumeStarted();
+      await resumeHeld;
+      if (turnActive) switchedUnderTurn = true;
+      sessionId = ref;
+      resumePending = false;
+    },
+  } as unknown as ChatHost;
+
+  const server = createServer(
+    createAgentHostHandler({ secret: "s", projectId: "p", host, version: "0", cwd: "/" }),
+  );
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const headers = bearer();
+  const stop = () =>
+    new Promise<void>((resolve) => {
+      server.closeAllConnections();
+      server.close(() => resolve());
+    });
+
+  try {
+    const switching = fetch(`${url}/v1/sessions/sess-b/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: "switch" }),
+    });
+    await resumeStarted;
+    assert.deepEqual(resumeRefs, ["sess-b"]);
+    assert.equal(sessionId, "sess-a");
+
+    const same = await fetch(`${url}/v1/sessions/sess-a/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: "same" }),
+    });
+    assert.equal(same.status, 409);
+    assert.deepEqual(await same.json(), { error: "turn_in_progress" });
+
+    const other = await fetch(`${url}/v1/sessions/sess-c/messages`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: "other" }),
+    });
+    assert.equal(other.status, 409);
+    assert.deepEqual(await other.json(), { error: "turn_in_progress" });
+    assert.deepEqual(resumeRefs, ["sess-b"]);
+    assert.equal(sessionId, "sess-a");
+    assert.equal(turnActive, false);
+
+    releaseResume();
+    const streamed = await createSse(await switching).rest();
+    assert.equal(streamed.find((event) => event.type === "user")?.text, "switch");
+    assert.equal(streamed.at(-1)?.type, "turn.end");
+    assert.equal(sessionId, "sess-b");
+    assert.equal(switchedUnderTurn, false);
+    assert.deepEqual(resumeRefs, ["sess-b"]);
+  } finally {
     await stop();
   }
 });
