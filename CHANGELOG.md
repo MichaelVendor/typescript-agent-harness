@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0 — 2026-10-19
+
+**Tokens:** `turn.end` and `turn.error` include this turn's `usage` and `sessionUsage` (totals since this process opened the session). The `tah serve` status bar, `tah chat`, and `tah run` show `in` / `out`. Totals are not stored; opening the session again starts from zero.
+
+**Control plane:** `GET /` serves the chat page (login, projects, members, conversation). `GET /api/projects` adds `running`. `GET /api/projects/:id/members` lists members. From-scratch intranet setup: `docs/guide/tutorial-intranet.md`. Containers still cannot exec or write files.
+
 ## 1.1.0 — 2026-10-18
 
 **Control plane** (`apps/control`, private, not on npm): intranet login, projects and members, one Docker container per project running `tah agent-host`, and a proxy that signs a 10-minute HMAC Bearer for `/v1` (SSE included). Containers are not published on a host port; the control plane uses the container IP. The agent inside starts with `--no-exec` and `--deny` for `execute_command`, `write_file`, and `edit_file`. Idle containers stop after 30 minutes. Design: `docs/design/control-plane.md`. **`tah serve` is unchanged.**

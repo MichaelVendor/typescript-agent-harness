@@ -351,7 +351,7 @@ pnpm --filter @typescript-agent-harness/control test
 ## 版本策略
 
 - `0.x`：API 可破坏性变更，文档与 CHANGELOG 同步  
-- `main`：已发布代码；每个发布打 tag（当前开发分支 `v1.1`）  
+- `main`：已发布代码；每个发布打 tag（当前开发分支 `v1.2`）  
 - `v0.N` / `v1.N`：当前小版本的开发分支，合入 `main` 后打对应 `x.y.z` tag  
 - `1.x`：可继续破坏性变更时在 CHANGELOG 写明；单机 `tah serve` 与无头 `tah agent-host` 并行，互不替换  
 - 公共 API 以 `docs/api/*` 与包 `exports` 为准  
