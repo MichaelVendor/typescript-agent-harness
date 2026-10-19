@@ -7,6 +7,7 @@ import {
   sessionCookie,
   verifyPassword,
 } from "./auth.js";
+import { PAGE_HTML } from "./page.js";
 import { proxyAgent } from "./proxy.js";
 import { RuntimeNotReadyError, type ProjectRuntime } from "./runtime.js";
 import type { Role, Store } from "./store.js";
@@ -108,6 +109,11 @@ async function handle(
   const path = url.pathname;
   const method = req.method ?? "GET";
 
+  if (method === "GET" && (path === "/" || path === "/index.html")) {
+    res.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(PAGE_HTML);
+    return;
+  }
+
   if (method === "POST" && path === "/api/login") {
     const body = await readJson(req);
     const username = str(body, "username");
@@ -139,7 +145,14 @@ async function handle(
   }
 
   if (method === "GET" && path === "/api/projects") {
-    json(res, 200, store.projectsFor(session.userId));
+    json(
+      res,
+      200,
+      store.projectsFor(session.userId).map((project) => ({
+        ...project,
+        running: opts.lastTouch?.has(project.id) ?? false,
+      })),
+    );
     return;
   }
 
@@ -163,6 +176,12 @@ async function handle(
   }
 
   const members = /^\/api\/projects\/([^/]+)\/members$/.exec(path);
+  if (members && method === "GET") {
+    const projectId = members[1]!;
+    if (!store.role(projectId, session.userId)) throw new HttpError(403, "forbidden");
+    json(res, 200, store.members(projectId));
+    return;
+  }
   if (members && method === "POST") {
     const projectId = members[1]!;
     if (store.role(projectId, session.userId) !== "owner") {

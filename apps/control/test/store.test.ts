@@ -22,4 +22,8 @@ test("create user and project; list shows owner; stranger unseen until addMember
   assert.deepEqual(store.projectsFor(stranger.id), [{ id: project.id, name: "Alpha", role: "member" }]);
   assert.equal(store.role(project.id, stranger.id), "member");
   assert.equal(store.role(project.id, owner.id), "owner");
+  assert.deepEqual(store.members(project.id), [
+    { username: "alice", role: "owner" },
+    { username: "bob", role: "member" },
+  ]);
 });

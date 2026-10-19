@@ -47,7 +47,7 @@ test("login cookie, member projects only, non-owner cannot add members", async (
       headers: { cookie: aliceCookie },
     });
     assert.equal(aliceProjects.status, 200);
-    assert.deepEqual(await aliceProjects.json(), [{ id: alpha.id, name: "Alpha", role: "owner" }]);
+    assert.deepEqual(await aliceProjects.json(), [{ id: alpha.id, name: "Alpha", role: "owner", running: false }]);
 
     const bobLogin = await fetch(`${url}/api/login`, {
       method: "POST",
@@ -76,8 +76,9 @@ test("member wake is ready and ensure recorded; non-member is 403 and fake unuse
   const alpha = store.createProject(store.userByName("alice")!.id, "Alpha");
   store.createProject(bob.id, "Beta");
   const runtime = createFakeRuntime();
+  const lastTouch = new Map<string, number>();
 
-  const { url, stop } = await startControl({ store, runtime, host: "127.0.0.1", port: 0 });
+  const { url, stop } = await startControl({ store, runtime, lastTouch, host: "127.0.0.1", port: 0 });
   try {
     const login = await fetch(`${url}/api/login`, {
       method: "POST",
@@ -94,6 +95,9 @@ test("member wake is ready and ensure recorded; non-member is 403 and fake unuse
     assert.equal(wake.status, 200);
     assert.deepEqual(await wake.json(), { status: "ready" });
     assert.deepEqual(runtime.calls, [`ensure:${alpha.id}`]);
+    const listed = await fetch(`${url}/api/projects`, { headers: { cookie: aliceCookie } });
+    const alphaRow = (await listed.json()).find((row: { id: string }) => row.id === alpha.id);
+    assert.equal(alphaRow.running, true);
 
     const bobLogin = await fetch(`${url}/api/login`, {
       method: "POST",
@@ -157,6 +161,42 @@ test("wake maps ensure timeout to 503", async () => {
       headers: { cookie: cookieFrom(login) },
     });
     assert.equal(wake.status, 503);
+  } finally {
+    await stop();
+  }
+});
+
+test("chat page is public; members list is only for members", async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "tah-control-page-"));
+  const store = openStore(path.join(dir, "control.db"));
+  const alice = store.createUser("alice", hashPassword("secret"));
+  store.createUser("bob", hashPassword("bobpass"));
+  const alpha = store.createProject(alice.id, "Alpha");
+
+  const { url, stop } = await startControl({ store, host: "127.0.0.1", port: 0 });
+  try {
+    const page = await fetch(`${url}/`);
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(await page.text(), /登录/);
+
+    const login = await fetch(`${url}/api/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "alice", password: "secret" }),
+    });
+    const cookie = cookieFrom(login);
+    const members = await fetch(`${url}/api/projects/${alpha.id}/members`, { headers: { cookie } });
+    assert.equal(members.status, 200);
+    assert.deepEqual(await members.json(), [{ username: "alice", role: "owner" }]);
+
+    const bob = await fetch(`${url}/api/login`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username: "bob", password: "bobpass" }),
+    });
+    const denied = await fetch(`${url}/api/projects/${alpha.id}/members`, { headers: { cookie: cookieFrom(bob) } });
+    assert.equal(denied.status, 403);
   } finally {
     await stop();
   }

@@ -11,6 +11,7 @@ export type Store = {
   createProject(ownerId: string, name: string): { id: string; name: string };
   projectsFor(userId: string): { id: string; name: string; role: Role }[];
   addMember(projectId: string, userId: string, role: Role): void;
+  members(projectId: string): { username: string; role: Role }[];
   role(projectId: string, userId: string): Role | undefined;
   audit(row: { userId: string; projectId: string; route: string; status: number }): void;
 };
@@ -56,6 +57,13 @@ export function openStore(file: string): Store {
     WHERE m.user_id = ?
   `);
   const selectRole = db.prepare(`SELECT role FROM members WHERE project_id = ? AND user_id = ?`);
+  const selectMembers = db.prepare(`
+    SELECT u.username, m.role
+    FROM members m
+    JOIN users u ON u.id = m.user_id
+    WHERE m.project_id = ?
+    ORDER BY m.role = 'owner' DESC, u.username
+  `);
   const insertAudit = db.prepare(
     `INSERT INTO audit (id, user_id, project_id, route, status, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
   );
@@ -85,6 +93,10 @@ export function openStore(file: string): Store {
     },
     addMember(projectId, userId, role) {
       insertMember.run(projectId, userId, role);
+    },
+    members(projectId) {
+      const rows = selectMembers.all(projectId) as { username: string; role: Role }[];
+      return rows.map((row) => ({ username: row.username, role: row.role }));
     },
     role(projectId, userId) {
       const row = selectRole.get(projectId, userId) as { role: Role } | undefined;

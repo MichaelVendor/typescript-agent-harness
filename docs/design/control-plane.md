@@ -21,7 +21,7 @@
 
 ## 非目标
 
-- 公司 OIDC / LDAP、计费、配额 UI、K8s、控制面自带聊天 UI。
+- 公司 OIDC / LDAP、计费、配额 UI、K8s。
 - 改 `tah serve` / TUI / AgentHost 路由语义。
 - CI 里启动真 Docker（单测注入假 runtime）。
 
@@ -43,7 +43,8 @@
 | `apps/control/src/store.ts` | 用户、项目、成员、审计（SQLite 单文件） |
 | `apps/control/src/runtime.ts` | Docker 起停、`inspect` IP、健康轮询 |
 | `apps/control/src/proxy.ts` | `signAgentHostToken`、转发含 SSE |
-| `apps/control/src/http.ts` | 路由 |
+| `apps/control/src/http.ts` | 路由，并在 `/` 提供聊天页 |
+| `apps/control/src/page.ts` | 登录、项目、成员、对话（只请求本控制面） |
 | `apps/control/src/main.ts` | 环境变量、listen、空闲 sweep |
 
 P0 **不发布**容器端口；控制面与 Docker 在同一主机，经 **`docker inspect` 容器 IP + 7800** 访问 AgentHost。
@@ -64,6 +65,8 @@ P0 **不发布**容器端口；控制面与 Docker 在同一主机，经 **`dock
 ```bash
 docker build -f apps/control/Dockerfile -t tah-agent-host .
 ```
+
+从一台空机器做到同事能打开网页，见 [教程：把控制面接到公司内网](/guide/tutorial-intranet)。
 
 ## 启动与用户
 
@@ -87,7 +90,9 @@ P0 **没有**自助注册 HTTP：用户行在 SQLite 里，需运维/bootstrap �
 | `POST` | `/api/login` `{ username, password }` | 成功设 cookie，200 `{ id, username }` |
 | `POST` | `/api/logout` | 清 cookie，204 |
 | `GET` | `/api/me` | 当前用户 |
-| `GET` | `/api/projects` | 当前用户为成员的项目 |
+| `GET` | `/` | 聊天页（未登录时是登录表单） |
+| `GET` | `/api/projects` | 当前用户为成员的项目；`running` 表示这次进程里容器已被拉起且还没被空闲停掉 |
+| `GET` | `/api/projects/:id/members` | 成员；`{ username, role }[]` |
 | `POST` | `/api/projects` `{ name }` | 创建；调用者 `owner` |
 | `POST` | `/api/projects/:id/members` `{ username, role }` | 仅 `owner`；`role` 为 `owner` \| `member` |
 | `POST` | `/api/projects/:id/wake` | 成员；同步等到容器 healthy 或超时 |
