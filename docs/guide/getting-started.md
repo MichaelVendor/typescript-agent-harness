@@ -35,6 +35,8 @@ tah serve --mock    # 打开 http://127.0.0.1:7420/?token=…
 
 详见 [CLI](/guide/cli)。踩坑对照：[版本踩坑与改动](/guide/lessons)。
 
+公司内网让多人登录、按项目使用 Agent：见 [教程：把控制面接到公司内网](/guide/tutorial-intranet)。
+
 ## 做自己的 Agent
 
 不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具；官方能力（coding / vision / MCP 等）写在根目录可选的 `tah.config.json`（v0.28）。

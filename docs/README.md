@@ -25,6 +25,7 @@ pnpm docs:build
 
 - 站点首页：[`index.md`](./index.md)
 - 快速开始：[`guide/getting-started.md`](./guide/getting-started.md)
+- 内网控制面教程：[`guide/tutorial-intranet.md`](./guide/tutorial-intranet.md)
 - CLI：[`guide/cli.md`](./guide/cli.md)
 - 文档状态：[`guide/status.md`](./guide/status.md)
 
