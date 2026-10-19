@@ -54,6 +54,8 @@ test("a turn streams tool calls, text, then turn.end — all plain JSON", async 
     assert.equal(end.finishReason, "stop");
     assert.equal(end.rounds, 2);
     assert.equal(end.model, "mock");
+    assert.ok(end.usage && end.usage.totalTokens > 0);
+    assert.ok(end.sessionUsage && end.sessionUsage.totalTokens >= end.usage.totalTokens);
     for (const e of events) assert.deepEqual(JSON.parse(JSON.stringify(e)), e);
   } finally {
     await host.close();

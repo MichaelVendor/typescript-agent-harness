@@ -254,6 +254,7 @@ export function App() {
           cwd={workspaces?.find((w) => w.active)?.path}
           sessionId={state.sessionId}
           rounds={state.rounds}
+          tokens={state.tokens}
           approve={info?.approve ?? true}
           onCompact={
             connection === "open" && !state.busy && !state.stepLimit

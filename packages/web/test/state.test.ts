@@ -74,6 +74,21 @@ test("a turn: user, merged text, tool lines, then turn.end", () => {
   assert.equal(done.entries.at(-1)?.kind, "assistant");
   assert.equal(done.busy, false);
   assert.equal(done.rounds, 2);
+  const counted = run(
+    [
+      {
+        type: "turn.end",
+        state: "idle",
+        finishReason: "stop",
+        rounds: 2,
+        usage: { promptTokens: 10, completionTokens: 4, totalTokens: 14 },
+        sessionUsage: { promptTokens: 30, completionTokens: 8, totalTokens: 38 },
+      },
+    ],
+    s,
+  );
+  assert.equal(counted.tokens?.promptTokens, 30);
+  assert.equal(counted.tokens?.completionTokens, 8);
 });
 
 test("a call rejected at approval never starts but still gets a failed tool line", () => {

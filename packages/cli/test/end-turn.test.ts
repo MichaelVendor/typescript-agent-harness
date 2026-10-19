@@ -11,6 +11,12 @@ test("formatStatusLine includes finishReason=max_steps hint", () => {
   assert.doesNotMatch(line, /split/);
 });
 
+test("formatStatusLine includes reported token counts", () => {
+  const line = formatStatusLine("completed", 2, "stop", { promptTokens: 120, completionTokens: 30, totalTokens: 150 });
+  assert.match(line, /in=120/);
+  assert.match(line, /out=30/);
+});
+
 test("formatStatusLine omits max_steps hint for completed", () => {
   const line = formatStatusLine("completed", 3, "stop");
   assert.match(line, /state=completed/);

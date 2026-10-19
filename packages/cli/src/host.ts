@@ -1,7 +1,7 @@
 import os from "node:os";
 import { SESSION, type RunResult, type Session, type SessionService } from "@typescript-agent-harness/agent";
 import type { Runtime } from "@typescript-agent-harness/core";
-import type { ChatMessage } from "@typescript-agent-harness/llm";
+import type { ChatMessage, TokenUsage } from "@typescript-agent-harness/llm";
 import type { ApprovalAnswer, ApprovalPluginOptions } from "@typescript-agent-harness/permissions";
 import type { Todo } from "@typescript-agent-harness/tools";
 import type { CliFlags } from "./args.js";
@@ -22,10 +22,12 @@ import {
 import type { Browser } from "./browser.js";
 import { loadProject, type Project } from "./project.js";
 import {
+  addUsage,
   bootRuntime,
   compactedNotice,
   compactFailedNotice,
   describeProject,
+  emptyUsage,
   openChatSession,
   openSessionByRef,
   storageOf,
@@ -70,8 +72,18 @@ export type HostEvent =
   | { type: "retry"; text: string }
   /** The whole queue of messages sent during a turn; front ends replace theirs. */
   | { type: "queue"; items: QueuedMessage[] }
-  | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
-  | { type: "turn.error"; cancelled: boolean; message: string };
+  | {
+      type: "turn.end";
+      state: string;
+      finishReason: string;
+      rounds: number;
+      model?: string;
+      /** Tokens reported for this turn. */
+      usage?: TokenUsage;
+      /** Tokens reported since this session was opened in this process. */
+      sessionUsage?: TokenUsage;
+    }
+  | { type: "turn.error"; cancelled: boolean; message: string; usage?: TokenUsage; sessionUsage?: TokenUsage };
 
 /** `held`: queued before a turn was stopped or failed; it waits for `sendQueued` instead of going out by itself. */
 export type QueuedMessage = { id: string; text: string; attachments?: AttachmentMeta[]; held: boolean };
@@ -408,6 +420,8 @@ export async function createChatHost(
   };
 
   let streamedText = false;
+  const turnUsage = emptyUsage();
+  const sessionUsage = emptyUsage();
   /** `ask_user` inputs by call id, for the text shown when the user skips. */
   const asking = new Map<string, unknown>();
   /** The user skipped an `ask_user` card: the turn was stopped on purpose and ends normally. */
@@ -422,6 +436,9 @@ export async function createChatHost(
     });
     runtime.on("llm.request", (e) => {
       model = (e as { model?: string }).model ?? model;
+    });
+    runtime.on("llm.response", (e) => {
+      addUsage(turnUsage, (e as { usage?: TokenUsage }).usage);
     });
     runtime.on("tool.started", (e) => {
       const p = e as { callId: string; tool: string; input: unknown };
@@ -572,7 +589,22 @@ export async function createChatHost(
       ...(todos ? { todos } : {}),
     };
   };
-  const showSession = (resumed: boolean) => emit(sessionEvent(resumed));
+  const showSession = (resumed: boolean) => {
+    sessionUsage.promptTokens = 0;
+    sessionUsage.completionTokens = 0;
+    sessionUsage.totalTokens = 0;
+    emit(sessionEvent(resumed));
+  };
+  /** Fold this turn's reported tokens into the session total and clear the turn counter. */
+  const spent = (): { usage: TokenUsage; sessionUsage: TokenUsage } | undefined => {
+    const usage = { ...turnUsage };
+    addUsage(sessionUsage, turnUsage);
+    turnUsage.promptTokens = 0;
+    turnUsage.completionTokens = 0;
+    turnUsage.totalTokens = 0;
+    if (usage.totalTokens === 0 && sessionUsage.totalTokens === 0) return undefined;
+    return { usage, sessionUsage: { ...sessionUsage } };
+  };
 
   async function turn(
     run: () => Promise<RunResult>,
@@ -589,6 +621,9 @@ export async function createChatHost(
     }
     streamedText = false;
     skipped = false;
+    turnUsage.promptTokens = 0;
+    turnUsage.completionTokens = 0;
+    turnUsage.totalTokens = 0;
     const from = session.steps.length;
     let event: HostEvent;
     try {
@@ -602,9 +637,11 @@ export async function createChatHost(
         finishReason: result.finishReason,
         rounds: turnRounds(session, from),
         ...(model ? { model } : {}),
+        ...spent(),
       };
     } catch (err) {
       rejectPending();
+      const tokens = spent();
       event = skipped
         ? {
             type: "turn.end",
@@ -612,11 +649,13 @@ export async function createChatHost(
             finishReason: "stop",
             rounds: turnRounds(session, from),
             ...(model ? { model } : {}),
+            ...tokens,
           }
         : {
             type: "turn.error",
             cancelled: session.state === "cancelled",
             message: err instanceof Error ? err.message : String(err),
+            ...tokens,
           };
     }
     busy = false;

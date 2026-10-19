@@ -78,8 +78,10 @@ async function main(): Promise<void> {
 
   const { SESSION } = await import("@typescript-agent-harness/agent");
   const {
+    addUsage,
     bootRuntime,
     describeSessions,
+    emptyUsage,
     endTurn,
     openChatSession,
     openSessionByRef,
@@ -155,6 +157,15 @@ async function main(): Promise<void> {
       throw err;
     }
     const { runtime, streamed, skills } = booted;
+    const turnUsage = emptyUsage();
+    runtime.on("llm.response", (e) => addUsage(turnUsage, (e as { usage?: typeof turnUsage }).usage));
+    const takeUsage = () => {
+      const usage = { ...turnUsage };
+      turnUsage.promptTokens = 0;
+      turnUsage.completionTokens = 0;
+      turnUsage.totalTokens = 0;
+      return usage.totalTokens > 0 ? usage : undefined;
+    };
     const prompt = () => process.stdout.write("you> ");
     try {
       let { session, resumed } = await openChatSession(runtime, flags);
@@ -189,6 +200,8 @@ async function main(): Promise<void> {
           running = true;
           try {
             if (!(await session.compact())) console.log("[tah] nothing to compact yet");
+            const usage = takeUsage();
+            if (usage) console.log(`[tah] in=${usage.promptTokens} out=${usage.completionTokens}`);
           } catch (err) {
             console.error(`[tah] compaction failed: ${err instanceof Error ? err.message : String(err)}`);
           } finally {
@@ -227,7 +240,7 @@ async function main(): Promise<void> {
           const suffix = applySlashSkills(line, skills).modelSuffix;
           const modelText = suffix ? `${line}\n\n${suffix}` : line;
           let result = await session.run(modelText);
-          endTurn(result, session, flags.quiet, streamed, from);
+          endTurn(result, session, flags.quiet, streamed, from, takeUsage());
           while (result.finishReason === "max_steps" && tty) {
             process.stdout.write(formatContinuePrompt(flags.maxSteps, useColor()));
             running = false;
@@ -235,7 +248,7 @@ async function main(): Promise<void> {
             running = true;
             from = session.steps.length;
             result = await session.resume();
-            endTurn(result, session, flags.quiet, streamed, from);
+            endTurn(result, session, flags.quiet, streamed, from, takeUsage());
           }
         } catch (err) {
           streamed.flush();

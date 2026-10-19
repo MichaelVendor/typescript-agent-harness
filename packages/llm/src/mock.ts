@@ -4,6 +4,7 @@ import type {
   LLMResponse,
   LLMService,
   LLMStreamPart,
+  TokenUsage,
   ToolCall,
 } from "./types.js";
 import { nextId } from "./ids.js";
@@ -51,6 +52,19 @@ function call(name: string, args: unknown): { toolCalls: ToolCall[]; response: L
       finishReason: "tool_calls",
     },
   };
+}
+
+function withUsage(request: LLMRequest, response: LLMResponse): LLMResponse {
+  const promptTokens = Math.max(1, Math.ceil(JSON.stringify(request.messages).length / 4));
+  const completionText = response.message.content ?? JSON.stringify(response.toolCalls ?? "");
+  const completionTokens = Math.max(1, Math.ceil(completionText.length / 4));
+  const usage: TokenUsage = {
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+  };
+  response.usage = usage;
+  return response;
 }
 
 function summarize(outputs: Map<string, unknown>): string {
@@ -107,7 +121,7 @@ export function createMockLLM(defaultModel = "mock"): LLMService {
     if (has("list_files") && !outputs.has("list_files")) {
       const { response } = call("list_files", { directory: "." });
       response.model = model;
-      return response;
+      return withUsage(request, response);
     }
 
     const listing = outputs.get("list_files") as ListResult | undefined;
@@ -119,19 +133,19 @@ export function createMockLLM(defaultModel = "mock"): LLMService {
         "README.md";
       const { response } = call("read_file", { path: name });
       response.model = model;
-      return response;
+      return withUsage(request, response);
     }
 
     if (outputs.size > 0) {
-      return {
+      return withUsage(request, {
         id: nextId("llm"),
         model,
         message: { role: "assistant", content: summarize(outputs) },
         finishReason: "stop",
-      };
+      });
     }
 
-    return {
+    return withUsage(request, {
       id: nextId("llm"),
       model,
       message: {
@@ -139,7 +153,7 @@ export function createMockLLM(defaultModel = "mock"): LLMService {
         content: last?.role === "user" ? `收到：${last.content}` : "OK",
       },
       finishReason: "stop",
-    };
+    });
   }
 
   async function* stream(request: LLMRequest): AsyncIterable<LLMStreamPart> {

@@ -1,5 +1,7 @@
 import type { AttachmentMeta, HistoryItem, HostEvent, Question, QueuedMessage, Todo } from "@typescript-agent-harness/cli";
 
+type TokenUsage = NonNullable<Extract<HostEvent, { type: "turn.end" }>["sessionUsage"]>;
+
 export type Entry =
   | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
   | { id: number; kind: "assistant"; text: string }
@@ -28,6 +30,8 @@ export type State = {
   /** Counts finished turns: a turn can start and end within one rendered frame, so `busy` may never show it. */
   turnsEnded: number;
   rounds: number;
+  /** Tokens reported since this session was opened. */
+  tokens: TokenUsage | undefined;
   nextId: number;
 };
 
@@ -52,6 +56,7 @@ export const initialState: State = {
   busy: false,
   turnsEnded: 0,
   rounds: 0,
+  tokens: undefined,
   nextId: 0,
 };
 
@@ -108,7 +113,7 @@ export function applyEvent(state: State, action: Action): State {
       // Notices before the first session are startup lines; a session switch starts a clean view.
       const kept = state.sessionId ? { ...state, entries: [] } : state;
       return push(
-        { ...kept, sessionId: action.id, busy: false, approval: undefined, question: undefined, stepLimit: false, rounds: 0, todos: action.todos ?? [] },
+        { ...kept, sessionId: action.id, busy: false, approval: undefined, question: undefined, stepLimit: false, rounds: 0, tokens: undefined, todos: action.todos ?? [] },
         ...action.history.map(fromHistory),
       );
     }
@@ -179,11 +184,12 @@ export function applyEvent(state: State, action: Action): State {
         approval: undefined,
         question: undefined,
         rounds: action.rounds,
+        tokens: action.sessionUsage ?? state.tokens,
         stepLimit: action.finishReason === "max_steps",
       };
     case "turn.error":
       return push(
-        { ...state, busy: false, approval: undefined, question: undefined, turnsEnded: state.turnsEnded + 1 },
+        { ...state, busy: false, approval: undefined, question: undefined, turnsEnded: state.turnsEnded + 1, tokens: action.sessionUsage ?? state.tokens },
         action.cancelled
           ? { kind: "notice", text: "turn cancelled — history kept", error: false }
           : { kind: "notice", text: `turn failed: ${action.message} — history kept; try again`, error: true },

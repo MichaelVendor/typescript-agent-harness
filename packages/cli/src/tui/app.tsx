@@ -371,7 +371,13 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
     ...(snap.queue.length && isBlank(editor) ? ["↑ edit queued"] : []),
     snap.busy ? "Enter queue · Ctrl+C stop" : "Enter send · Alt+Enter newline · / commands",
   ].join(" · ");
-  const status = [snap.model ?? "tah", snap.sessionId, `${snap.rounds} rounds`, ...(host.approve ? [] : ["approve=off"])];
+  const tokens =
+    snap.tokens && snap.tokens.promptTokens + snap.tokens.completionTokens > 0
+      ? `in ${snap.tokens.promptTokens.toLocaleString("en-US")} · out ${snap.tokens.completionTokens.toLocaleString("en-US")}`
+      : undefined;
+  const status = [snap.model ?? "tah", snap.sessionId, `${snap.rounds} rounds`, tokens, ...(host.approve ? [] : ["approve=off"])].filter(
+    (part): part is string => Boolean(part),
+  );
 
   return (
     <Box flexDirection="column">

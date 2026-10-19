@@ -67,7 +67,7 @@ type HostEvent =
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "approval.end"; id: string; answer: ApprovalAnswer }
   | { type: "notice"; text: string }
-  | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string }
+  | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string; usage?: TokenUsage; sessionUsage?: TokenUsage }
   | { type: "turn.error"; cancelled: boolean; message: string };
 ```
 
@@ -167,7 +167,7 @@ tah serve [--port <n>] [--no-open] [chat 的现有参数：--yes --max-steps --n
 ### 布局
 
 - 左侧栏（v0.32 起参考 DeepSeek Harness）：顶部 tah 标志和收起按钮；「New session」；「Workspaces」标题旁是搜索、视图选项（按文件夹分组 / 平铺成一个列表）、添加文件夹。按文件夹分组时每组先显示 5 个会话，其余点「Show N more」，当前会话总会显示；悬停文件夹行出现 `+`（在该文件夹新建会话）和 `⋯`（从列表移除）。当前会话一轮进行中显示转圈，等审批时显示橙点和「needs approval」。搜索匹配会话标题和文件夹名，跨文件夹列出，命中处高亮。收起后是 56px 图标栏（展开、新建、搜索、添加文件夹、设置）；收起状态和分组方式存在浏览器 `localStorage`。分叉在会话右键菜单里。
-- 主区域：消息流 + 底部输入框 + 状态栏（文件夹、会话 id、本轮轮数，`--yes` 时显示 `approve=off`）。
+- 主区域：消息流 + 底部输入框 + 状态栏（文件夹、会话 id、本轮轮数、本会话累计 `in` / `out` token，`--yes` 时显示 `approve=off`）。模型没回报 usage 时不显示 token。
 - 输入框（v0.32 起参考 DeepSeek Harness）：卡片式，上面是文字，下面一行左边 `+` 附件，右边模型按钮和圆形发送（一轮进行中变停止）。模型按钮显示在用的模型（没选时显示 `.env` 的模型加「· .env」，都没有时「No model」）；点开按服务商分组列出已存模型（官方地址显示 DeepSeek / OpenAI，其他显示域名），有 `.env` key 时多一组「From .env」，底部「Manage models…」打开设置。选中即 `POST /api/settings/active`，对所有会话生效；一轮进行中按钮置灰。
 - 颜色跟随系统亮 / 暗色；一个 CSS 文件，不用 UI 组件库。
 

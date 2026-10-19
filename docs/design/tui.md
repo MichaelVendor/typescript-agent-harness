@@ -51,7 +51,7 @@ type HostEvent =
   | { type: "notice"; text: string }
   | { type: "retry"; text: string }
   | { type: "queue"; items: { id: string; text: string; held: boolean }[] }
-  | { type: "turn.end"; state: string; finishReason: string; rounds: number }
+  | { type: "turn.end"; state: string; finishReason: string; rounds: number; model?: string; usage?: TokenUsage; sessionUsage?: TokenUsage }
   | { type: "turn.error"; cancelled: boolean; message: string };
 
 interface ChatHost {
@@ -120,7 +120,7 @@ function createChatHost(flags: CliFlags): Promise<ChatHost>;
 ╭────────────────────────────────────────────────────────╮
 │ > 输入框（多行）                                        │
 ╰────────────────────────────────────────────────────────╯
- deepseek · session_31 · 3 rounds · approve=on     Enter send · Alt+Enter newline · Ctrl+C stop
+ deepseek · session_31 · 3 rounds · in 8,241 · out 1,102     Enter send · Alt+Enter newline · Ctrl+C stop
 ```
 
 ### 操作

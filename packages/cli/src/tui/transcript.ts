@@ -32,6 +32,8 @@ export type Snapshot = {
   sessionId: string;
   rounds: number;
   model: string | undefined;
+  /** Tokens reported since this session was opened. */
+  tokens: { promptTokens: number; completionTokens: number; totalTokens: number } | undefined;
 };
 
 /** Events that mean the retried request got through (or the turn is over). */
@@ -54,6 +56,7 @@ export class Transcript {
     sessionId: "",
     rounds: 0,
     model: undefined,
+    tokens: undefined,
   };
   private listeners = new Set<() => void>();
   private nextId = 0;
@@ -177,6 +180,7 @@ export class Transcript {
           question: undefined,
           rounds: event.rounds,
           stepLimit: event.finishReason === "max_steps",
+          tokens: event.sessionUsage ?? this.snapshot.tokens,
           ...(event.model ? { model: event.model } : {}),
         });
         return;
@@ -187,7 +191,13 @@ export class Transcript {
             ? { kind: "notice", text: "[tah] turn cancelled — history kept; keep chatting or /exit" }
             : { kind: "error", text: `[tah] turn failed: ${event.message} — history kept; try again` },
         );
-        this.set({ busy: false, tools: [], approval: undefined, question: undefined });
+        this.set({
+          busy: false,
+          tools: [],
+          approval: undefined,
+          question: undefined,
+          tokens: event.sessionUsage ?? this.snapshot.tokens,
+        });
         return;
     }
   }
@@ -206,6 +216,6 @@ export class Transcript {
       else this.push({ kind: "tool", tool: h.tool, summary: h.summary, ok: h.ok, result: h.result });
     }
     this.md = this.stream();
-    this.set({ sessionId: id, rounds: 0, stepLimit: false });
+    this.set({ sessionId: id, rounds: 0, stepLimit: false, tokens: undefined });
   }
 }

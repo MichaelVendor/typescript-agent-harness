@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { agentPlugin, SESSION, type Session } from "@typescript-agent-harness/agent";
 import { Runtime, type Plugin } from "@typescript-agent-harness/core";
-import { LLM, llmPlugin } from "@typescript-agent-harness/llm";
+import { LLM, llmPlugin, type TokenUsage } from "@typescript-agent-harness/llm";
 import {
   approvalPlugin,
   permissionsPlugin,
@@ -426,8 +426,10 @@ export async function runOnce(
   streamed: StreamFlag,
 ): Promise<void> {
   const session = await runtime.get(SESSION).create();
+  const usage = emptyUsage();
+  runtime.on("llm.response", (e) => addUsage(usage, (e as { usage?: TokenUsage }).usage));
   const result = await session.run(prompt);
-  endTurn(result, session, quiet, streamed);
+  endTurn(result, session, quiet, streamed, 0, usage);
 }
 
 const ONCE_JOB = "tah-run";
@@ -461,12 +463,27 @@ export type TurnResult = {
   finishReason: string;
 };
 
+export type { TokenUsage };
+
+export function emptyUsage(): TokenUsage {
+  return { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+}
+
+export function addUsage(into: TokenUsage, usage: TokenUsage | undefined): void {
+  if (!usage) return;
+  into.promptTokens += usage.promptTokens;
+  into.completionTokens += usage.completionTokens;
+  into.totalTokens += usage.totalTokens;
+}
+
 export function formatStatusLine(
   state: string,
   steps: number,
   finishReason: string,
+  usage?: TokenUsage,
 ): string {
   let line = `[tah] state=${state} steps=${steps}`;
+  if (usage && usage.totalTokens > 0) line += ` in=${usage.promptTokens} out=${usage.completionTokens}`;
   if (finishReason === "max_steps") {
     line += " finishReason=max_steps — step limit hit; say continue to keep going, or pass --max-steps <n>";
   }
@@ -485,6 +502,7 @@ export function endTurn(
   quiet: boolean,
   streamed: StreamFlag,
   from = 0,
+  usage?: TokenUsage,
 ): void {
   const color = useColor();
   if (streamed.on) {
@@ -493,12 +511,12 @@ export function endTurn(
     streamed.on = false;
     streamed.midLine = false;
     if (!quiet) {
-      const status = formatStatusLine(session.state, turnRounds(session, from), result.finishReason);
+      const status = formatStatusLine(session.state, turnRounds(session, from), result.finishReason, usage);
       console.log(`\n${color ? dim(status) : status}`);
     }
     return;
   }
-  printAssistant(result, session, quiet, from);
+  printAssistant(result, session, quiet, from, usage);
 }
 
 export function printAssistant(
@@ -506,6 +524,7 @@ export function printAssistant(
   session: Session,
   quiet: boolean,
   from = 0,
+  usage?: TokenUsage,
 ): void {
   const color = useColor();
   // The max_steps text is written for SDK callers; the status line carries the CLI hint.
@@ -514,7 +533,7 @@ export function printAssistant(
     console.log(quiet ? text : `\n${text}\n`);
   }
   if (!quiet) {
-    const status = formatStatusLine(session.state, turnRounds(session, from), result.finishReason);
+    const status = formatStatusLine(session.state, turnRounds(session, from), result.finishReason, usage);
     console.log(color ? dim(status) : status);
   }
 }
