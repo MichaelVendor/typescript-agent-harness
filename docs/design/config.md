@@ -139,7 +139,7 @@ npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.e
 }
 ```
 
-包名与环境变量（API key 等）以所选 MCP 的说明为准。远程服务把 API key 等写在 `headers` 里。要挂多个服务，把 `mcp` 写成数组；stdio 与 `url` 可混用。命令行 `--mcp` / `--mcp-arg` 盖掉整份列表，不追加（没有 URL 专用 CLI 参数）。工具权限写在 `permissions.allow` / `permissions.deny`（`deny` 压过 `allow`）；`--allow` / `--deny` 只盖掉自己那一项。
+包名与环境变量（API key 等）以所选 MCP 的说明为准。远程服务把 API key 等写在 `headers` 里。服务标签就是配置里的 url 原文，含 userinfo、query 和 hash。这个标签会出现在模型看到的工具说明里，也会出现在启动错误里。密钥放 `headers`，不要写进 url。要挂多个服务，把 `mcp` 写成数组；stdio 与 `url` 可混用。命令行 `--mcp` / `--mcp-arg` 盖掉整份列表，不追加（没有 URL 专用 CLI 参数）。工具权限写在 `permissions.allow` / `permissions.deny`（`deny` 压过 `allow`）；`--allow` / `--deny` 只盖掉自己那一项。
 
 `tah init` 会生成示例 `tah.config.json`（仅 `coding: true`，已存在则跳过）。
 
