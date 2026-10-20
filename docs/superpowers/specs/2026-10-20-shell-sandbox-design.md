@@ -89,6 +89,8 @@
 | 助手在程序启动前退出，或配置被助手拒绝 | 抛错 `shell sandbox failed: ` 接助手 stderr 的第一行非空文本；stderr 为空时用助手的退出码，形如 `shell sandbox failed: exit 1` |
 | 程序已在沙箱内运行，再访问项目外或家目录 | 工具正常返回现有的 `exitCode`、`stdout`、`stderr`、`truncated`、`timedOut`。拒绝表现为程序自己的非 0 退出或权限错误 |
 
+程序是否已经在沙箱内启动，看临时目录里的 ready 文件。助手执行的第一段是 `/bin/sh -c`，它先 `touch` 这个文件，再 `exec` 用户的程序和参数。进程结束后文件存在：按上一行的程序结果返回，即使退出码非 0 且 stderr 为空。文件不存在：才是助手失败，使用 `shell sandbox failed`。
+
 不在失败后重试一次无沙箱执行。
 
 ## 测试
