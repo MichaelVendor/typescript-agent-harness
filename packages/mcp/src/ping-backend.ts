@@ -27,5 +27,17 @@ export function inProcessPingBackend(): McpBackend {
           : "";
       return { pong: text || "ok" };
     },
+    async listResources() {
+      return [];
+    },
+    async readResource() {
+      throw new Error("没有");
+    },
+    async listPrompts() {
+      return [];
+    },
+    async getPrompt() {
+      throw new Error("没有");
+    },
   };
 }
