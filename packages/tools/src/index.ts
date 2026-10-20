@@ -12,6 +12,7 @@ export {
 } from "./web-tools.js";
 export {
   executeCommandTool,
+  lookupExecutable,
   type ExecuteCommandInput,
   type ExecuteCommandOptions,
   type ExecuteCommandOutput,

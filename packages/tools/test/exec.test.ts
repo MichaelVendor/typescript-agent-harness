@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, realpathSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { test } from "node:test";
 import { Runtime } from "@typescript-agent-harness/core";
 import { permissionsPlugin } from "@typescript-agent-harness/permissions";
@@ -158,4 +159,163 @@ test("execute_command stops when the call is aborted", { timeout: 4000 }, async 
   const out = result.output as { timedOut: boolean };
   assert.equal(out.timedOut, false);
   await runtime.stop();
+});
+
+function fakeStream(text: string): Readable {
+  const stream = new Readable({ read() {} });
+  const original = stream.on.bind(stream);
+  let delivered = false;
+  stream.on = ((event: string, listener: (...args: unknown[]) => void) => {
+    const result = original(event, listener as never);
+    if (event === "data" && !delivered) {
+      delivered = true;
+      if (text) listener(Buffer.from(text));
+    }
+    return result;
+  }) as typeof stream.on;
+  return stream;
+}
+
+function fakeChild(code: number, stdout: string, stderr: string) {
+  return {
+    stdout: fakeStream(stdout),
+    stderr: fakeStream(stderr),
+    kill() {},
+    on(event: string, listener: (value?: number | null) => void) {
+      if (event === "close") listener(code);
+      return this;
+    },
+  };
+}
+
+function sandboxCtx(): ToolContext {
+  return toolCtx(new Runtime({ id: "exec-sandbox" }));
+}
+
+test("sandbox off spawns the program itself", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-off-"));
+  let file = "";
+  let sawEnv: unknown = "unset";
+  const tool = executeCommandTool(dir, {
+    sandbox: false,
+    spawn: ((bin: string, _args: string[], options?: { env?: unknown }) => {
+      file = bin;
+      sawEnv = options?.env;
+      return fakeChild(0, "", "");
+    }) as never,
+  });
+  await tool.execute({ program: "node", args: ["-v"] }, sandboxCtx());
+  assert.equal(file, "node");
+  assert.equal(sawEnv, undefined);
+});
+
+test("missing helper throws and does not spawn", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-miss-"));
+  let spawned = false;
+  const tool = executeCommandTool(dir, {
+    sandbox: true,
+    platform: "darwin",
+    lookup: () => undefined,
+    spawn: (() => {
+      spawned = true;
+      return fakeChild(0, "", "");
+    }) as never,
+  });
+  await assert.rejects(
+    () => tool.execute({ program: "node" }, sandboxCtx()),
+    /shell sandbox unavailable: sandbox-exec/,
+  );
+  assert.equal(spawned, false);
+});
+
+test("ready file present returns the program exit code", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-ready-"));
+  let ready = "";
+  const tool = executeCommandTool(dir, {
+    sandbox: true,
+    platform: "linux",
+    homedir: "/home/me",
+    lookup: () => "/usr/bin/bwrap",
+    realpath: (p: string) => p,
+    exists: () => true,
+    spawn: ((bin: string, args: string[], options?: { env?: unknown }) => {
+      assert.equal(bin, "/usr/bin/bwrap");
+      assert.equal(options?.env, undefined);
+      ready = args[args.indexOf("/bin/sh") + 4];
+      writeFileSync(ready, "");
+      return fakeChild(1, "", "");
+    }) as never,
+  });
+  const out = await tool.execute({ program: "/usr/bin/node", args: ["-e", "1"] }, sandboxCtx());
+  assert.equal(out.exitCode, 1);
+  assert.equal(existsSync(ready), false);
+});
+
+test("ready file absent is a helper failure", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-fail-"));
+  const tool = executeCommandTool(dir, {
+    sandbox: true,
+    platform: "darwin",
+    lookup: () => "/usr/bin/sandbox-exec",
+    realpath: (file: string) => {
+      assert.ok(file.includes("/"), `realpath should see a resolved path, got ${file}`);
+      return "/usr/bin/node";
+    },
+    exists: () => true,
+    spawn: () => fakeChild(1, "", "sandbox-exec: profile compilation failed\n") as never,
+  });
+  await assert.rejects(
+    () => tool.execute({ program: "node" }, sandboxCtx()),
+    /shell sandbox failed: sandbox-exec: profile compilation failed/,
+  );
+});
+
+test("ready file absent with empty stderr uses the exit code", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-exit-"));
+  const tool = executeCommandTool(dir, {
+    sandbox: true,
+    platform: "linux",
+    lookup: () => "/usr/bin/bwrap",
+    realpath: (p: string) => p,
+    exists: () => true,
+    spawn: () => fakeChild(3, "", "") as never,
+  });
+  await assert.rejects(
+    () => tool.execute({ program: "/bin/echo" }, sandboxCtx()),
+    /shell sandbox failed: exit 3/,
+  );
+});
+
+test("missing user program is spawned instead of reported as a missing helper", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-user-"));
+  let file = "";
+  const tool = executeCommandTool(dir, {
+    sandbox: true,
+    platform: "darwin",
+    lookup: (name: string) => (name === "sandbox-exec" ? "/usr/bin/sandbox-exec" : undefined),
+    spawn: ((bin: string) => {
+      file = bin;
+      return fakeChild(0, "", "");
+    }) as never,
+  });
+  await tool.execute({ program: "missing-bin" }, sandboxCtx());
+  assert.equal(file, "missing-bin");
+});
+
+test("windows sandbox throws before spawn", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-win-"));
+  let spawned = false;
+  const tool = executeCommandTool(dir, {
+    sandbox: true,
+    platform: "win32",
+    spawn: (() => {
+      spawned = true;
+      return fakeChild(0, "", "");
+    }) as never,
+  });
+  await assert.rejects(
+    () => tool.execute({ program: "node" }, sandboxCtx()),
+    /shell sandbox is unavailable on windows/,
+  );
+  assert.equal(spawned, false);
 });
