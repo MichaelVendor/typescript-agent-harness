@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 — 2026-10-20
+
+**Shell sandbox:** `execute_command` on macOS and Linux starts inside a filesystem sandbox (`sandbox-exec` on macOS, `bwrap` on Linux). The project can be read and written; existing system directories can be read and executed; the temp directory can be read, written, and executed; home is hidden except the install prefix of the program being run. Network stays available and the environment is inherited. It is on by default when the tool is mounted. `capabilities.coding.sandbox` and `--sandbox` / `--no-sandbox` override it, and the later flag wins. `--no-exec` leaves the tool unmounted. Windows exits at startup with `shell sandbox is unavailable on windows` when the sandbox would be on. A missing helper prints `sandbox=unavailable` and each call throws instead of running unsandboxed.
+
 ## 1.3.0 — 2026-10-20
 
 **MCP:** The client is `@modelcontextprotocol/client`. Stdio and remote HTTP both connect through it: remote tries Streamable HTTP, then one SSE attempt with the same headers. Remote tools still register as tools. `list_resources`, `read_resource`, and `get_prompt` appear only when that server actually has resources or prompts. In `tah chat` and `tah serve`, `/name` expands a prompt into `<mcp_prompt>` when the name matches the skill pattern; a local skill with the same name wins, and required arguments or duplicate names stay unexpanded (`get_prompt` still works). `tah.config.json` accepts `url` and `headers`; `command` and `url` cannot both be set. `--mcp` still replaces the whole list with one stdio server. `tah run` does not expand slash prompts.
