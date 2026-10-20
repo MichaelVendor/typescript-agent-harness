@@ -36,6 +36,8 @@ function flags(cwd: string, extra: Partial<CliFlags> = {}): CliFlags {
     watch: true,
     vision: false,
     visionSet: false,
+    sandbox: false,
+    sandboxSet: false,
     ...extra,
   };
 }

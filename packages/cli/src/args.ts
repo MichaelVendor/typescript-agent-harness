@@ -8,6 +8,9 @@ export type CliFlags = {
   exec: boolean;
   /** True when `--exec` or `--no-exec` was passed (config must not win over an explicit flag). */
   execSet: boolean;
+  sandbox: boolean;
+  /** True when `--sandbox` or `--no-sandbox` was passed. */
+  sandboxSet: boolean;
   yes: boolean;
   systemFile: string;
   session: string;
@@ -51,6 +54,8 @@ export function parseArgv(argv: string[]): CliFlags {
     quiet: false,
     exec: true,
     execSet: false,
+    sandbox: false,
+    sandboxSet: false,
     yes: false,
     systemFile: "",
     session: "",
@@ -88,6 +93,12 @@ export function parseArgv(argv: string[]): CliFlags {
     } else if (arg === "--no-exec") {
       flags.exec = false;
       flags.execSet = true;
+    } else if (arg === "--sandbox") {
+      flags.sandbox = true;
+      flags.sandboxSet = true;
+    } else if (arg === "--no-sandbox") {
+      flags.sandbox = false;
+      flags.sandboxSet = true;
     } else if (arg === "--yes" || arg === "-y") flags.yes = true;
     else if (arg === "--builtin-tools") flags.builtinTools = true;
     else if (arg === "--no-install") flags.install = false;
@@ -214,6 +225,8 @@ Flags:
   --quiet             only print assistant text; tah run prints just the final reply, at the end
   --exec              mount execute_command (on by default)
   --no-exec           disable execute_command
+  --sandbox           enable shell sandbox on macOS / Linux (default on there)
+  --no-sandbox        disable shell sandbox
   --yes, -y           skip approval for write_file / execute_command (asked by default; rejected if stdin is not a TTY)
   --max-steps <n>     LLM round limit per turn (default: no limit; Ctrl+C stops a turn)
   --system-file <p>   replace the default "workspace coding agent" role with this file's text

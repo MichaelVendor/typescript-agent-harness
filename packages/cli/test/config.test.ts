@@ -10,6 +10,7 @@ import {
   loadTahConfig,
   parseTahConfig,
   resolveCapabilities,
+  resolveShellSandbox,
 } from "../dist/config.js";
 import { bootRuntime, mcpServerLabel, rejectContextNameClash } from "../dist/runtime.js";
 import { addModel, setModelVision, setSearchKey } from "../dist/settings.js";
@@ -48,6 +49,8 @@ function flagBits(
     mcpArgs: string[];
     allow: string[];
     deny: string[];
+    sandbox: boolean;
+    sandboxSet: boolean;
   }> = {},
 ) {
   return {
@@ -60,6 +63,8 @@ function flagBits(
     mcpArgs: [] as string[],
     allow: [] as string[],
     deny: [] as string[],
+    sandbox: false,
+    sandboxSet: false,
     ...extra,
   };
 }
@@ -377,4 +382,36 @@ test("resolveCapabilities: browser follows web unless the config sets it", () =>
   assert.equal(resolveCapabilities({ capabilities: { browser: false } }, flagBits(), undefined).browser, false);
   assert.equal(resolveCapabilities({ capabilities: { web: false, browser: true } }, flagBits(), undefined).browser, true);
   assert.throws(() => parseTahConfig({ capabilities: { browser: "yes" } }), /capabilities.browser must be a boolean/);
+});
+
+test("coding.sandbox parses and unknown coding keys still fail", () => {
+  const parsed = parseTahConfig({ capabilities: { coding: { exec: true, sandbox: false } } });
+  assert.deepEqual(parsed.capabilities?.coding, { exec: true, sandbox: false });
+  assert.throws(
+    () => parseTahConfig({ capabilities: { coding: { sandboxx: true } } }),
+    /sandboxx|unknown/,
+  );
+});
+
+test("resolveShellSandbox: flags beat config, windows throws, missing helper is unavailable", () => {
+  assert.equal(
+    resolveShellSandbox({ exec: true, platform: "darwin", configSandbox: false, flag: true, flagSet: true, helperFound: true }),
+    "on",
+  );
+  assert.equal(
+    resolveShellSandbox({ exec: true, platform: "linux", configSandbox: true, flag: false, flagSet: true, helperFound: true }),
+    "off",
+  );
+  assert.equal(
+    resolveShellSandbox({ exec: false, platform: "win32", configSandbox: undefined, flag: true, flagSet: true, helperFound: false }),
+    "off",
+  );
+  assert.throws(
+    () => resolveShellSandbox({ exec: true, platform: "win32", configSandbox: undefined, flag: true, flagSet: true, helperFound: false }),
+    /shell sandbox is unavailable on windows/,
+  );
+  assert.equal(
+    resolveShellSandbox({ exec: true, platform: "linux", configSandbox: undefined, flag: false, flagSet: false, helperFound: false }),
+    "unavailable",
+  );
 });

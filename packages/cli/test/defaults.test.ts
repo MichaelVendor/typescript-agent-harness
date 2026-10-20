@@ -66,3 +66,12 @@ test("parseArgv: agent-host defaults host 0.0.0.0 and port 7800; serve stays 742
   assert.throws(() => parseArgv(["--host"]), /--host requires/);
   assert.throws(() => parseArgv(["--project-id"]), /--project-id requires/);
 });
+
+test("parseArgv --sandbox and --no-sandbox set sandboxSet; later flag wins", () => {
+  const on = parseArgv(["--sandbox", "run", "hi"]);
+  assert.equal(on.sandbox, true);
+  assert.equal(on.sandboxSet, true);
+  const off = parseArgv(["--sandbox", "--no-sandbox", "run", "hi"]);
+  assert.equal(off.sandbox, false);
+  assert.equal(off.sandboxSet, true);
+});

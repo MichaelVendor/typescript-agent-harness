@@ -14,7 +14,7 @@ export type TahPermissions = {
 
 export type TahConfig = {
   capabilities?: {
-    coding?: boolean | { exec?: boolean };
+    coding?: boolean | { exec?: boolean; sandbox?: boolean };
     web?: boolean;
     browser?: boolean;
     vision?: boolean;
@@ -38,6 +38,8 @@ export type ResolvedCapabilities = {
   allow: string[];
   /** Empty when nothing is denied. Wins over `allow`. */
   deny: string[];
+  /** Config-only `capabilities.coding.sandbox`; platform defaults live in `resolveShellSandbox`. */
+  sandbox: boolean | undefined;
   /** True when a project `tah.config.json` was loaded. */
   fromConfig: boolean;
 };
@@ -46,7 +48,7 @@ const TOP_KEYS = new Set(["capabilities", "extensions", "permissions"]);
 const CAP_KEYS = new Set(["coding", "web", "browser", "vision"]);
 const EXT_KEYS = new Set(["mcp"]);
 const PERM_KEYS = new Set(["allow", "deny"]);
-const CODING_OBJ_KEYS = new Set(["exec"]);
+const CODING_OBJ_KEYS = new Set(["exec", "sandbox"]);
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -134,9 +136,15 @@ export function parseTahConfig(raw: unknown, rel = "tah.config.json"): TahConfig
         if ("exec" in coding && typeof coding.exec !== "boolean") {
           bad(rel, "capabilities.coding.exec must be a boolean");
         }
-        caps.coding = typeof coding.exec === "boolean" ? { exec: coding.exec } : {};
+        if ("sandbox" in coding && typeof coding.sandbox !== "boolean") {
+          bad(rel, "capabilities.coding.sandbox must be a boolean");
+        }
+        const parsed: { exec?: boolean; sandbox?: boolean } = {};
+        if (typeof coding.exec === "boolean") parsed.exec = coding.exec;
+        if (typeof coding.sandbox === "boolean") parsed.sandbox = coding.sandbox;
+        caps.coding = parsed;
       } else {
-        bad(rel, "capabilities.coding must be a boolean or { exec?: boolean }");
+        bad(rel, "capabilities.coding must be a boolean or { exec?: boolean; sandbox?: boolean }");
       }
     }
     if ("web" in raw.capabilities) {
@@ -231,6 +239,7 @@ export function resolveCapabilities(
   let mcp: TahMcpExtension[] = [];
   let allow: string[] = [];
   let deny: string[] = [];
+  let sandbox: boolean | undefined;
   const fromConfig = config !== undefined;
 
   if (config?.capabilities) {
@@ -241,6 +250,7 @@ export function resolveCapabilities(
       } else {
         coding = true;
         if (typeof c.coding.exec === "boolean") execWanted = c.coding.exec;
+        if (typeof c.coding.sandbox === "boolean") sandbox = c.coding.sandbox;
       }
     }
     if (c.web !== undefined) web = c.web;
@@ -276,6 +286,27 @@ export function resolveCapabilities(
     mcp,
     allow,
     deny,
+    sandbox,
     fromConfig,
   };
+}
+
+export function resolveShellSandbox(input: {
+  exec: boolean;
+  platform: NodeJS.Platform;
+  configSandbox: boolean | undefined;
+  flag: boolean;
+  flagSet: boolean;
+  helperFound: boolean;
+}): "off" | "on" | "unavailable" {
+  if (!input.exec) return "off";
+  let on = input.platform === "darwin" || input.platform === "linux";
+  if (input.configSandbox !== undefined) on = input.configSandbox;
+  if (input.flagSet) on = input.flag;
+  if (!on) return "off";
+  if (input.platform === "win32") {
+    throw new Error("shell sandbox is unavailable on windows");
+  }
+  if (!input.helperFound) return "unavailable";
+  return "on";
 }
