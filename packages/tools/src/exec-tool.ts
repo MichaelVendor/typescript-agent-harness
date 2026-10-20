@@ -116,10 +116,11 @@ function sandboxLaunch(
     throw new Error(`shell sandbox unavailable: ${helperName}`);
   }
 
-  const programRealpath = resolveSandboxProgram(program, lookup, options.realpath ?? realpathSync);
+  const realpath = options.realpath ?? realpathSync;
+  const programRealpath = resolveSandboxProgram(program, lookup, realpath);
   if (programRealpath === undefined) return { file: program, args };
 
-  const temp = tmpdir();
+  const temp = realpath(tmpdir());
   const readyFile = path.join(temp, `tah-sandbox-${randomBytes(8).toString("hex")}.ready`);
   const built = shellSandboxArgv({
     platform,

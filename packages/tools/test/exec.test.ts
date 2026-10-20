@@ -251,6 +251,32 @@ test("ready file present returns the program exit code", async () => {
   assert.equal(existsSync(ready), false);
 });
 
+test("sandbox temp dir is the realpath, in argv and the ready file", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-real-"));
+  const resolved = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-resolved-"));
+  let ready = "";
+  let argv: string[] = [];
+  const tool = executeCommandTool(dir, {
+    sandbox: true,
+    platform: "linux",
+    homedir: "/home/me",
+    lookup: () => "/usr/bin/bwrap",
+    realpath: (file: string) => (file === tmpdir() ? resolved : file),
+    exists: () => true,
+    spawn: ((bin: string, args: string[]) => {
+      assert.equal(bin, "/usr/bin/bwrap");
+      argv = args;
+      ready = args[args.indexOf("/bin/sh") + 4];
+      writeFileSync(ready, "");
+      return fakeChild(0, "", "");
+    }) as never,
+  });
+  const out = await tool.execute({ program: "/usr/bin/node", args: ["-e", "1"] }, sandboxCtx());
+  assert.equal(out.exitCode, 0);
+  assert.equal(path.dirname(ready), resolved);
+  assert.ok(argv.includes(resolved));
+});
+
 test("ready file absent is a helper failure", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-fail-"));
   const tool = executeCommandTool(dir, {
