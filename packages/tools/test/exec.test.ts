@@ -312,20 +312,23 @@ test("ready file absent with empty stderr uses the exit code", async () => {
   );
 });
 
-test("missing user program is spawned instead of reported as a missing helper", async () => {
+test("missing user program throws and does not spawn", async () => {
   const dir = mkdtempSync(path.join(tmpdir(), "tah-exec-sbx-user-"));
-  let file = "";
+  let spawned = false;
   const tool = executeCommandTool(dir, {
     sandbox: true,
     platform: "darwin",
     lookup: (name: string) => (name === "sandbox-exec" ? "/usr/bin/sandbox-exec" : undefined),
-    spawn: ((bin: string) => {
-      file = bin;
+    spawn: (() => {
+      spawned = true;
       return fakeChild(0, "", "");
     }) as never,
   });
-  await tool.execute({ program: "missing-bin" }, sandboxCtx());
-  assert.equal(file, "missing-bin");
+  await assert.rejects(
+    () => tool.execute({ program: "missing-bin" }, sandboxCtx()),
+    /shell sandbox failed: program not found: missing-bin/,
+  );
+  assert.equal(spawned, false);
 });
 
 test("windows sandbox throws before spawn", async () => {

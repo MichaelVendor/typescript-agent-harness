@@ -11,6 +11,8 @@ const SYSTEM_DIRS = [
   "/Library",
 ] as const;
 
+const LINUX_RO_DIRS = ["/lib", "/lib32", "/lib64", "/etc"] as const;
+
 const TRAMPOLINE = 'touch "$1"; shift; exec "$@"';
 
 function isPathUnder(parent: string, child: string): boolean {
@@ -158,7 +160,7 @@ export function shellSandboxArgv(input: {
   }
 
   const args: string[] = [];
-  for (const dir of SYSTEM_DIRS) {
+  for (const dir of [...SYSTEM_DIRS, ...LINUX_RO_DIRS]) {
     if (input.exists(dir)) {
       args.push(...linuxRoBind(dir));
     }

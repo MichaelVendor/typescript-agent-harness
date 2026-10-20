@@ -118,7 +118,9 @@ function sandboxLaunch(
 
   const realpath = options.realpath ?? realpathSync;
   const programRealpath = resolveSandboxProgram(program, lookup, realpath);
-  if (programRealpath === undefined) return { file: program, args };
+  if (programRealpath === undefined || !path.isAbsolute(programRealpath)) {
+    throw new Error(`shell sandbox failed: program not found: ${program}`);
+  }
 
   const temp = realpath(tmpdir());
   const workspace = realpath(root);
