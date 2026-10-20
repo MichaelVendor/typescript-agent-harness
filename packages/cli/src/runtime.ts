@@ -22,6 +22,7 @@ import {
   webFetchTool,
   webSearchTool,
   executeCommandTool,
+  lookupExecutable,
   TOOLS,
   type Todo,
   type Tool,
@@ -35,6 +36,7 @@ import { activeModel, defaultBaseURL, searchKey } from "./settings.js";
 import {
   loadTahConfig,
   resolveCapabilities,
+  resolveShellSandbox,
   type ResolvedCapabilities,
   type TahMcpExtension,
 } from "./config.js";
@@ -206,6 +208,20 @@ export async function bootRuntime(
       : undefined;
   const builtin = caps.coding;
   const exec = caps.exec;
+  const helperFound =
+    process.platform === "darwin"
+      ? lookupExecutable("sandbox-exec") !== undefined
+      : process.platform === "linux"
+        ? lookupExecutable("bwrap") !== undefined
+        : false;
+  const sandboxState = resolveShellSandbox({
+    exec,
+    platform: process.platform,
+    configSandbox: caps.sandbox,
+    flag: flags.sandbox,
+    flagSet: flags.sandboxSet,
+    helperFound,
+  });
   const mcpCount = caps.mcp.length;
   const chosen = flags.mock ? undefined : activeModel(opts.homeDir ?? os.homedir());
   const hasKey = Boolean(chosen) || Boolean(process.env.DEEPSEEK_API_KEY ?? process.env.OPENAI_API_KEY);
@@ -248,7 +264,7 @@ export async function bootRuntime(
   const discovered = discoverSkills({ cwd: flags.cwd, homeDir: opts.homeDir ?? os.homedir() });
   const skillsCatalog = buildSkillsCatalogSection(discovered.skills);
   const skillsNote = discovered.skills.length > 0 ? ` skills+${discovered.skills.length}` : "";
-  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? " web=on" : ""}${browser ? " browser=on" : ""}${mcpCount > 0 ? ` mcp=${mcpCount}` : ""}${caps.fromConfig ? " config=on" : ""}${vision ? " vision=on" : ""}${caps.allow.length || caps.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
+  const startup = `[tah] cwd=${flags.cwd} llm=${provider}${chosen ? ` model=${chosen.model}` : ""}${flags.persist ? " persist=on" : " persist=off"}${exec ? " exec=on" : " exec=off"}${exec ? ` sandbox=${sandboxState}` : ""}${builtin ? "" : " builtin=off"}${ask ? " approve=on" : " approve=off"}${Number.isFinite(flags.maxSteps) ? ` maxSteps=${flags.maxSteps}` : ""}${flags.systemFile ? ` system=${flags.systemFile}` : ""}${caps.web ? " web=on" : ""}${browser ? " browser=on" : ""}${mcpCount > 0 ? ` mcp=${mcpCount}` : ""}${caps.fromConfig ? " config=on" : ""}${vision ? " vision=on" : ""}${caps.allow.length || caps.deny.length ? " perms=on" : ""}${flags.onceMs >= 0 ? ` once=${flags.onceMs}ms` : ""}${skillsNote}`;
   if (print && !flags.quiet) {
     log(startup);
     if (project) log(describeProject(project, Boolean(flags.systemFile)));
@@ -304,7 +320,13 @@ export async function bootRuntime(
         writeFileTool(flags.cwd),
         editFileTool(flags.cwd),
         todoWriteTool(),
-        ...(exec ? [executeCommandTool(flags.cwd)] : []),
+        ...(exec
+          ? [
+              sandboxState === "off"
+                ? executeCommandTool(flags.cwd)
+                : executeCommandTool(flags.cwd, { sandbox: true }),
+            ]
+          : []),
         ...(ocr ? [readImageTextTool(flags.cwd)] : []),
       ]
     : [];

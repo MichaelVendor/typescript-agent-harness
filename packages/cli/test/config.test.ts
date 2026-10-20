@@ -415,3 +415,20 @@ test("resolveShellSandbox: flags beat config, windows throws, missing helper is 
     "unavailable",
   );
 });
+
+test("bootRuntime startup shows sandbox=off when --no-sandbox", async () => {
+  const cwd = projectDir({});
+  const flags = parseArgv(["--mock", "--no-persist", "--quiet", "--no-sandbox", "run", "hi"]);
+  const { startup, runtime } = await bootRuntime({ ...flags, cwd }, { homeDir });
+  assert.match(startup, /sandbox=off/);
+  await runtime.stop();
+});
+
+test("bootRuntime does not mention sandbox when exec is off", async () => {
+  const cwd = projectDir({});
+  const flags = parseArgv(["--mock", "--no-persist", "--quiet", "--no-exec", "--sandbox", "run", "hi"]);
+  const { startup, runtime } = await bootRuntime({ ...flags, cwd }, { homeDir });
+  assert.match(startup, /exec=off/);
+  assert.doesNotMatch(startup, /sandbox=/);
+  await runtime.stop();
+});
