@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { randomBytes } from "node:crypto";
+import { mkdtempSync, unlinkSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { Runtime } from "@typescript-agent-harness/core";
@@ -32,38 +33,48 @@ test(
   { skip: helperPath === undefined },
   async () => {
     const workspace = mkdtempSync(path.join(tmpdir(), "tah-sbx-"));
-    const outside = mkdtempSync(path.join(tmpdir(), "tah-sbx-out-"));
-    const secret = path.join(outside, "secret.txt");
     const inside = path.join(workspace, "ok.txt");
-    writeFileSync(secret, "nope");
     writeFileSync(inside, "yes");
-    const tool = executeCommandTool(workspace, {
-      sandbox: true,
-      platform: process.platform,
-    });
-    const ctx = liveCtx();
-    const denied = await tool.execute(
-      {
-        program: process.execPath,
-        args: [
-          "-e",
-          `require("node:fs").readFileSync(${JSON.stringify(secret)}, "utf8")`,
-        ],
-      },
-      ctx,
+    const probe = path.join(
+      homedir(),
+      `.tah-sandbox-probe-${randomBytes(8).toString("hex")}`,
     );
-    assert.notEqual(denied.exitCode, 0);
-    const ok = await tool.execute(
-      {
-        program: process.execPath,
-        args: [
-          "-e",
-          `process.stdout.write(require("node:fs").readFileSync(${JSON.stringify(inside)}, "utf8"))`,
-        ],
-      },
-      ctx,
-    );
-    assert.equal(ok.exitCode, 0);
-    assert.equal(ok.stdout, "yes");
+    writeFileSync(probe, "nope");
+    try {
+      const tool = executeCommandTool(workspace, {
+        sandbox: true,
+        platform: process.platform,
+      });
+      const ctx = liveCtx();
+      const denied = await tool.execute(
+        {
+          program: process.execPath,
+          args: [
+            "-e",
+            `require("node:fs").readFileSync(${JSON.stringify(probe)}, "utf8")`,
+          ],
+        },
+        ctx,
+      );
+      assert.notEqual(denied.exitCode, 0);
+      const ok = await tool.execute(
+        {
+          program: process.execPath,
+          args: [
+            "-e",
+            `process.stdout.write(require("node:fs").readFileSync(${JSON.stringify(inside)}, "utf8"))`,
+          ],
+        },
+        ctx,
+      );
+      assert.equal(ok.exitCode, 0);
+      assert.equal(ok.stdout, "yes");
+    } finally {
+      try {
+        unlinkSync(probe);
+      } catch {
+        // probe already removed
+      }
+    }
   },
 );

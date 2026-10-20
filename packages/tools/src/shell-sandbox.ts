@@ -53,13 +53,33 @@ function tempDirs(platform: "darwin" | "linux", tmpdir: string, exists: (path: s
   return [...dirs];
 }
 
-function homeDenyRegex(home: string): string {
-  const escaped = home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function seatbeltPathRegex(dir: string): string {
+  const escaped = dir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return `^${escaped}(/|$)`;
+}
+
+function dataVolumeHomeAlias(home: string): string | undefined {
+  const match = /^\/Users\/([^/]+)$/.exec(home);
+  if (match === null) {
+    return undefined;
+  }
+  return `/System/Volumes/Data/Users/${match[1]}`;
+}
+
+function homeDenyPaths(home: string, homeRealpath: string): string[] {
+  const paths = new Set<string>([home, homeRealpath]);
+  for (const candidate of [home, homeRealpath]) {
+    const alias = dataVolumeHomeAlias(candidate);
+    if (alias !== undefined) {
+      paths.add(alias);
+    }
+  }
+  return [...paths];
 }
 
 function darwinProfile(input: {
   home: string;
+  homeRealpath: string;
   workspace: string;
   install: string | undefined;
   temp: string[];
@@ -74,8 +94,12 @@ function darwinProfile(input: {
     "(allow sysctl-read)",
     "(allow ipc-posix-shm)",
     "(allow file-read* file-map-executable)",
-    `(deny file-read* file-write* (regex #"${homeDenyRegex(input.home)}"))`,
   ];
+  for (const dir of homeDenyPaths(input.home, input.homeRealpath)) {
+    lines.push(
+      `(deny file-read* file-write* file-map-executable (regex #"${seatbeltPathRegex(dir)}"))`,
+    );
+  }
   if (input.install !== undefined) {
     lines.push(`(allow file-read* file-map-executable (subpath "${input.install}"))`);
   }
@@ -112,6 +136,7 @@ export function shellSandboxArgv(input: {
   userArgs: string[];
   readyFile: string;
   tmpdir: string;
+  homeRealpath?: string;
   exists: (path: string) => boolean;
 }): { args: string[]; profile?: string } {
   const install = installRoot(input.programRealpath, input.home, input.workspace);
@@ -121,6 +146,7 @@ export function shellSandboxArgv(input: {
   if (input.platform === "darwin") {
     const profile = darwinProfile({
       home: input.home,
+      homeRealpath: input.homeRealpath ?? input.home,
       workspace: input.workspace,
       install,
       temp,
