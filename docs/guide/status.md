@@ -25,6 +25,6 @@
 
 另有 macOS 客户端（`apps/desktop`，v0.35，见 [设计说明](/design/desktop)）：窗口里跑 `tah serve`，不发布到 npm；打 `v*.*.*` tag 时 CI 打包 arm64 `.dmg` 并挂到 GitHub Release。
 
-未做：shell/sandbox、插件市场。MCP 已接官方客户端（stdio、远程 HTTP、工具 + 资源 + 提示词；配置见 [config](/design/config)）。上网用官方 `web_fetch` / `web_search`；需要点击、填表、登录时用内置浏览器 `browser_open`（v0.31，见 [内置浏览器](/design/browser)）。
+未做：插件市场。MCP 已接官方客户端（stdio、远程 HTTP、工具 + 资源 + 提示词；配置见 [config](/design/config)）。上网用官方 `web_fetch` / `web_search`；需要点击、填表、登录时用内置浏览器 `browser_open`（v0.31，见 [内置浏览器](/design/browser)）。
 
 各版本「踩了什么坑、为何改、怎么改」见 [版本踩坑与改动](/guide/lessons)。

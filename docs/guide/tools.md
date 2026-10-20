@@ -116,7 +116,7 @@ Main Agent
 | `web_search` | 0.31 | 搜索网页，返回标题 / 链接 / 摘要（`max_results` 1–10，默认 5）和实际用的 `engine`。0.37.4 起不需要 key：先问 Exa，失败或没结果再查 Bing；配了 Tavily key 只用 Tavily。见下文 |
 | `browser_open` | 0.31 | 启动内置浏览器（Playwright MCP + 本机 Chrome），可带 `url`；浏览器没开时需要审批，已开时直接放行。打开后挂上 18 个 `browser_*` 工具（`browser_navigate` / `browser_snapshot` / `browser_find` / `browser_click` / `browser_type` / `browser_fill_form` / `browser_take_screenshot` / `browser_close` 等），结果超过 3 万字符截断，截图不回传给模型；`browser_file_upload` 每次审批，`browser_close` 后撤下这些工具。见 [内置浏览器](/design/browser) |
 | `ask_user` | 0.37 | 向用户提 1–4 个选择题（每题 2–5 个选项，可多选，用户也能自己输入），等回答后把答案交回模型；只在 `tah serve` / `tah chat` 挂，`--yes` 不影响。见 [让用户选择](/design/ask-user) |
-| `execute_command` | 9 | 工作区 cwd 起进程（非 shell；无 sandbox）；默认 30 秒超时，模型可按次传 `timeoutMs`（最长 10 分钟） |
+| `execute_command` | 9 | 工作区 cwd 起进程（非 shell）。macOS / Linux 上默认经 `sandbox-exec` / `bwrap` 限制文件系统：项目目录可写，家目录其余部分不可读，网络仍可用，环境变量仍继承。`--no-sandbox` 关掉。助手不在 PATH 时该次调用失败。默认 30 秒超时，模型可按次传 `timeoutMs`（最长 10 分钟） |
 | `grep` | 11 | 工作区正则搜索（跳过 `node_modules` / `dist` / 点文件） |
 | MCP ping | 4 | `inProcessPingBackend` |
 | MCP stdio / HTTP | 6 | `stdioMcpBackend` / `httpMcpBackend`（官方 `@modelcontextprotocol/client`） |

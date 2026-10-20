@@ -35,6 +35,8 @@ npx @typescript-agent-harness/cli --mock chat
 | `--quiet` | 只打印模型回复；`tah run` 只在结束时输出最后一条回复，调工具前说的话不输出，适合脚本（v0.26.2） |
 | `--exec` | 挂上 `execute_command`（**默认开**） |
 | `--no-exec` | 关掉 `execute_command` |
+| `--sandbox` | macOS / Linux 上默认开；`execute_command` 经 `sandbox-exec` / `bwrap` 限制文件系统 |
+| `--no-sandbox` | 关掉沙箱；盖过 `capabilities.coding.sandbox`（`--yes` 不关沙箱） |
 | `--yes` / `-y` | 跳过 `write_file` / `edit_file` / `execute_command` 的审批 |
 | `--max-steps <n>` | 每轮 LLM 上限（**默认不限**，Ctrl+C 停） |
 | `--system-file <path>` | 用文件内容替换默认角色「workspace coding agent」（v0.22） |

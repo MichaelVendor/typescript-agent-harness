@@ -57,7 +57,7 @@
 
 | 键 | 含义 |
 | --- | --- |
-| `capabilities.coding` | `true` / `false`，或 `{ "exec": boolean }`（默认 `exec: true`）。挂 `list_files` / `read_file` / `grep` / `write_file` / `edit_file`，以及可选的 `execute_command` |
+| `capabilities.coding` | `true` / `false`，或 `{ "exec"?: boolean, "sandbox"?: boolean }`（默认 `exec: true`；省略 `sandbox` 时 darwin / linux 为开，win32 为关）。挂 `list_files` / `read_file` / `grep` / `write_file` / `edit_file`，以及可选的 `execute_command` |
 | `capabilities.web` | 官方 `web_fetch`（读网页）与 `web_search`（搜索；没 key 用 Exa + Bing，有 Tavily key 用 Tavily，v0.37.4）。省略时跟随 `coding`；写 `false` 关掉（v0.31） |
 | `capabilities.browser` | 内置浏览器（Playwright MCP）：先只挂 `browser_open`，调用并经用户批准后才启动 Chrome、挂上 18 个浏览器工具。省略时跟随 `web`；写 `false` 关掉；`--mock` 时不挂（v0.31，见 [内置浏览器](/design/browser)） |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |

@@ -1,6 +1,6 @@
 # Shell 沙箱设计
 
-状态：📐 待实现
+状态：✅ 已实现（计划：[2026-10-20-shell-sandbox.md](../plans/2026-10-20-shell-sandbox.md)）
 
 ## 背景
 
