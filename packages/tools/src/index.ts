@@ -16,6 +16,7 @@ export {
   type ExecuteCommandOptions,
   type ExecuteCommandOutput,
 } from "./exec-tool.js";
+export { installRoot, shellSandboxArgv } from "./shell-sandbox.js";
 export type {
   Tool,
   ToolContext,
