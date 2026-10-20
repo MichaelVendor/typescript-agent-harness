@@ -20,6 +20,7 @@ import {
   type AttachmentStore,
 } from "./attachments/store.js";
 import type { Browser } from "./browser.js";
+import { applySlashPrompts, type SlashPrompt } from "./mcp-slash.js";
 import { loadProject, type Project } from "./project.js";
 import {
   addUsage,
@@ -370,14 +371,17 @@ export function rememberAlways(ask: ApprovalPluginOptions["ask"]): ApprovalPlugi
 
 const reason = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/^tah: /, "");
 
-/** Model prompt keeps the attachment text; a slash skill is appended and never shown as the user line. */
-function promptWithSkills(
+/** Model prompt keeps the attachment text; a slash skill or MCP prompt is appended and never shown as the user line. */
+async function promptWithSkills(
   prompt: string,
   display: string,
   skills: SkillSummary[],
-): { modelText: string; suffix: string } {
+  prompts: SlashPrompt[],
+): Promise<{ modelText: string; suffix: string }> {
   try {
-    const suffix = applySlashSkills(display, skills).modelSuffix;
+    const skillSuffix = applySlashSkills(display, skills).modelSuffix;
+    const promptSuffix = await applySlashPrompts(display, prompts, new Set(skills.map((skill) => skill.name)));
+    const suffix = [skillSuffix, promptSuffix].filter((part) => part.length > 0).join("\n\n");
     if (!suffix) return { modelText: prompt, suffix: "" };
     return { modelText: `${prompt}\n\n${suffix}`, suffix };
   } catch {
@@ -491,6 +495,7 @@ export async function createChatHost(
   let sessions: SessionService;
   let project: Project | undefined;
   let skills: SkillSummary[] = [];
+  let mcpPrompts: SlashPrompt[] = [];
   let skillWarnings: string[] = [];
   let images: ImageAccess = "none";
   let browser: Browser | undefined;
@@ -500,6 +505,7 @@ export async function createChatHost(
     sessions = runtime.get(SESSION);
     project = booted.project;
     skills = booted.skills;
+    mcpPrompts = booted.mcpPrompts;
     skillWarnings = booted.warnings;
     images = booted.vision ? "vision" : booted.ocr ? "ocr" : "none";
     browser = booted.browser;
@@ -699,8 +705,8 @@ export async function createChatHost(
   const sendNow = async (text: string, attachmentIds: string[]) => {
     const { refs, display, meta } = checked(text, attachmentIds);
     const prompt = composeAttachmentPrompt(display, refs, images);
-    const { modelText, suffix } = promptWithSkills(prompt, display, skills);
     const run = async () => {
+      const { modelText, suffix } = await promptWithSkills(prompt, display, skills, mcpPrompts);
       if (images === "vision" && refs.some((r) => r.kind === "image")) {
         const images = await Promise.all(
           refs.filter((r) => r.kind === "image").map(async (r) => ({

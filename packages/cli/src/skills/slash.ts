@@ -1,14 +1,10 @@
 import { loadSkillBody } from "./load.js";
 import { listSkillResources } from "./resources.js";
 import { renderSkillContent } from "./render.js";
+import { extractSlashSkills } from "./slash-names.js";
 import type { SkillSummary } from "./types.js";
 
-const SLASH_RE = /(?:^|\s)\/([a-z0-9]+(?:-[a-z0-9]+)*)(?=\s|$)/g;
-
-export function extractSlashSkills(text: string): { names: string[]; displayText: string } {
-  const names = [...text.matchAll(new RegExp(SLASH_RE.source, "g"))].map((m) => m[1]!);
-  return { names, displayText: text };
-}
+export { extractSlashSkills };
 
 export function applySlashSkills(
   text: string,
@@ -34,8 +30,12 @@ export function applySlashSkills(
   return { displayText: text, modelSuffix: parts.join("\n\n") };
 }
 
-/** Drop a model-only skill payload so transcripts keep the user's original text. */
+/** Drop a model-only skill or MCP prompt payload so transcripts keep the user's original text. */
 export function stripSkillInjection(text: string): string {
-  const idx = text.indexOf("\n\n<skill_content ");
+  let idx = -1;
+  for (const marker of ["\n\n<skill_content ", "\n\n<mcp_prompt "]) {
+    const at = text.indexOf(marker);
+    if (at >= 0 && (idx < 0 || at < idx)) idx = at;
+  }
   return idx < 0 ? text : text.slice(0, idx);
 }

@@ -143,6 +143,7 @@ async function main(): Promise<void> {
 
   if (flags.command === "chat") {
     const { applySlashSkills } = await import("./skills/slash.js");
+    const { applySlashPrompts } = await import("./mcp-slash.js");
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -156,7 +157,7 @@ async function main(): Promise<void> {
       rl.close();
       throw err;
     }
-    const { runtime, streamed, skills } = booted;
+    const { runtime, streamed, skills, mcpPrompts } = booted;
     const turnUsage = emptyUsage();
     runtime.on("llm.response", (e) => addUsage(turnUsage, (e as { usage?: typeof turnUsage }).usage));
     const takeUsage = () => {
@@ -237,7 +238,9 @@ async function main(): Promise<void> {
         running = true;
         try {
           let from = session.steps.length;
-          const suffix = applySlashSkills(line, skills).modelSuffix;
+          const skillSuffix = applySlashSkills(line, skills).modelSuffix;
+          const promptSuffix = await applySlashPrompts(line, mcpPrompts, new Set(skills.map((skill) => skill.name)));
+          const suffix = [skillSuffix, promptSuffix].filter((part) => part.length > 0).join("\n\n");
           const modelText = suffix ? `${line}\n\n${suffix}` : line;
           let result = await session.run(modelText);
           endTurn(result, session, flags.quiet, streamed, from, takeUsage());
