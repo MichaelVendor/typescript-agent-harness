@@ -4,6 +4,7 @@ import path from "node:path";
 import { agentPlugin, SESSION, type Session } from "@typescript-agent-harness/agent";
 import { Runtime, type Plugin } from "@typescript-agent-harness/core";
 import { LLM, llmPlugin, type TokenUsage } from "@typescript-agent-harness/llm";
+import type { McpBackend } from "@typescript-agent-harness/mcp";
 import {
   approvalPlugin,
   permissionsPlugin,
@@ -21,6 +22,7 @@ import {
   webFetchTool,
   webSearchTool,
   executeCommandTool,
+  TOOLS,
   type Todo,
   type Tool,
 } from "@typescript-agent-harness/tools";
@@ -34,6 +36,7 @@ import {
   loadTahConfig,
   resolveCapabilities,
   type ResolvedCapabilities,
+  type TahMcpExtension,
 } from "./config.js";
 import { createMarkdownStream, dim, renderMarkdown, useColor } from "./markdown.js";
 import { loadProject, ProjectError, type Project } from "./project.js";
@@ -85,6 +88,65 @@ function noModelPlugin(): Plugin {
   };
 }
 
+export function mcpServerLabel(server: TahMcpExtension): string {
+  return server.transport === "http" ? server.url : [server.command, ...server.args].join(" ");
+}
+
+export function rejectContextNameClash(remoteNames: readonly string[], contextNames: readonly string[]): void {
+  for (const name of contextNames) {
+    if (remoteNames.includes(name)) throw new Error(`Duplicate tool name: ${name}`);
+  }
+}
+
+type McpServer = { label: string; backend: McpBackend };
+
+/** Startup list/connect failures name the server. HTTP errors already use this prefix. */
+function rethrowStartup(label: string, err: unknown): never {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.startsWith("MCP server failed (")) throw err;
+  throw new Error(`MCP server failed (${label}): ${message}`);
+}
+
+function withStartupErrors(backend: McpBackend, label: string): McpBackend {
+  const guard = <T>(run: () => Promise<T>): Promise<T> =>
+    run().catch((err: unknown) => rethrowStartup(label, err));
+  const close = backend.close;
+  return {
+    listTools: () => guard(() => backend.listTools()),
+    callTool: (name, args) => backend.callTool(name, args),
+    listResources: () => guard(() => backend.listResources()),
+    readResource: (uri) => backend.readResource(uri),
+    listPrompts: () => guard(() => backend.listPrompts()),
+    getPrompt: (name, args) => backend.getPrompt(name, args),
+    ...(close ? { close: () => close() } : {}),
+  };
+}
+
+async function collectMcpPrompts(servers: McpServer[]) {
+  const listed: { server: McpServer; prompts: Awaited<ReturnType<McpBackend["listPrompts"]>> }[] = [];
+  for (const server of servers) {
+    listed.push({ server, prompts: await server.backend.listPrompts() });
+  }
+  const copies = new Map<string, number>();
+  for (const { prompts } of listed) {
+    for (const name of new Set(prompts.map((prompt) => prompt.name))) {
+      copies.set(name, (copies.get(name) ?? 0) + 1);
+    }
+  }
+  return listed.flatMap(({ server, prompts }) =>
+    prompts.map((prompt) => ({
+      name: prompt.name,
+      server: server.label,
+      required: prompt.arguments?.some((arg) => arg.required === true) ?? false,
+      copies: copies.get(prompt.name) ?? 1,
+      async load() {
+        const messages = await server.backend.getPrompt(prompt.name);
+        return messages.map((message) => message.text).join("\n\n");
+      },
+    })),
+  );
+}
+
 /**
  * `print: false` leaves stdout alone; the caller subscribes to runtime events itself (the TUI).
  * `project` skips reading the project files (a reload has already loaded them).
@@ -115,6 +177,14 @@ export async function bootRuntime(
   ocr: boolean;
   /** The built-in browser; undefined when it is off (`capabilities.browser`, `--mock`). */
   browser: Browser | undefined;
+  /** Prompt names advertised by connected MCP servers. Empty when MCP is off. */
+  mcpPrompts: {
+    name: string;
+    server: string;
+    required: boolean;
+    copies: number;
+    load(): Promise<string>;
+  }[];
 }> {
   const ask = flags.yes ? undefined : opts.ask;
   const project = "project" in opts ? opts.project : await loadProject(flags.cwd);
@@ -295,21 +365,51 @@ export async function bootRuntime(
     .use(toolsPlugin({ tools }));
   if (browser) runtime.use(browser.plugin);
 
+  const mcpServers: McpServer[] = [];
   if (caps.mcp.length > 0) {
-    const { mcpPlugin, stdioMcpBackend } = await import("@typescript-agent-harness/mcp");
+    const seen = new Set<string>();
+    for (const server of caps.mcp) {
+      const label = mcpServerLabel(server);
+      if (seen.has(label)) throw new Error(`duplicate MCP server label: ${label}`);
+      seen.add(label);
+    }
+    const { contextToolsFromMcp, httpMcpBackend, mcpPlugin, stdioMcpBackend } = await import(
+      "@typescript-agent-harness/mcp"
+    );
     for (let i = 0; i < caps.mcp.length; i++) {
       const server = caps.mcp[i]!;
+      const label = mcpServerLabel(server);
+      const backend = withStartupErrors(
+        server.transport === "http"
+          ? httpMcpBackend({ url: server.url, headers: server.headers })
+          : stdioMcpBackend({ command: server.command, args: server.args, cwd: flags.cwd }),
+        label,
+      );
+      mcpServers.push({ label, backend });
       runtime.use(
         mcpPlugin({
           ...(caps.mcp.length > 1 ? { name: `mcp:${i + 1}` } : {}),
-          backend: stdioMcpBackend({
-            command: server.command,
-            args: server.args,
-            cwd: flags.cwd,
-          }),
+          backend,
         }),
       );
     }
+    runtime.use({
+      name: "mcp-context",
+      async setup(ctx) {
+        const tools = ctx.get(TOOLS);
+        const fixed = await contextToolsFromMcp(mcpServers);
+        const remoteNames = (
+          await Promise.all(
+            mcpServers.map(async ({ backend }) => (await backend.listTools()).map((tool) => tool.name)),
+          )
+        ).flat();
+        rejectContextNameClash(
+          remoteNames,
+          fixed.map((tool) => tool.name),
+        );
+        for (const tool of fixed) tools.register(tool);
+      },
+    });
   }
 
   runtime.use(
@@ -337,6 +437,15 @@ export async function bootRuntime(
   for (const plugin of project?.plugins ?? []) runtime.use(plugin);
 
   await runtime.start();
+  let mcpPrompts: Awaited<ReturnType<typeof collectMcpPrompts>> = [];
+  if (mcpServers.length > 0) {
+    try {
+      mcpPrompts = await collectMcpPrompts(mcpServers);
+    } catch (err) {
+      await runtime.stop();
+      throw err;
+    }
+  }
   return {
     runtime,
     streamed,
@@ -348,6 +457,7 @@ export async function bootRuntime(
     vision,
     ocr,
     browser,
+    mcpPrompts,
   };
 }
 

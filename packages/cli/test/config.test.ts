@@ -11,7 +11,7 @@ import {
   parseTahConfig,
   resolveCapabilities,
 } from "../dist/config.js";
-import { bootRuntime } from "../dist/runtime.js";
+import { bootRuntime, mcpServerLabel, rejectContextNameClash } from "../dist/runtime.js";
 import { addModel, setModelVision, setSearchKey } from "../dist/settings.js";
 
 const homeDir = mkdtempSync(path.join(tmpdir(), "tah-home-"));
@@ -324,8 +324,20 @@ test("bootRuntime mounts every extensions.mcp server; a repeated tool name fails
   });
   await assert.rejects(
     () => bootRuntime({ ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd: clash }, { homeDir }),
-    /Duplicate tool name: ping/,
+    /duplicate MCP server label:/,
   );
+});
+
+test("a remote tool named list_resources clashes with the fixed tool", () => {
+  assert.throws(
+    () => rejectContextNameClash(["list_resources"], ["list_resources", "read_resource"]),
+    /Duplicate tool name: list_resources/,
+  );
+});
+
+test("identical stdio mcp commands share a label", () => {
+  assert.equal(mcpServerLabel({ transport: "stdio", command: "npx", args: ["-y", "pkg"] }), "npx -y pkg");
+  assert.equal(mcpServerLabel({ transport: "http", url: "https://example.com/mcp", headers: {} }), "https://example.com/mcp");
 });
 
 test("permissions in tah.config.json hide tools; --deny replaces the config list", async () => {
