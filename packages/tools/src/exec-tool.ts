@@ -121,10 +121,11 @@ function sandboxLaunch(
   if (programRealpath === undefined) return { file: program, args };
 
   const temp = realpath(tmpdir());
+  const workspace = realpath(root);
   const readyFile = path.join(temp, `tah-sandbox-${randomBytes(8).toString("hex")}.ready`);
   const built = shellSandboxArgv({
     platform,
-    workspace: root,
+    workspace,
     home: options.homedir ?? homedir(),
     programRealpath,
     userArgs: args,

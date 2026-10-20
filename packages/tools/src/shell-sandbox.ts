@@ -53,28 +53,46 @@ function tempDirs(platform: "darwin" | "linux", tmpdir: string, exists: (path: s
   return [...dirs];
 }
 
+function homeDenyRegex(home: string): string {
+  const escaped = home.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return `^${escaped}(/|$)`;
+}
+
 function darwinProfile(input: {
+  home: string;
   workspace: string;
   install: string | undefined;
   temp: string[];
   exists: (path: string) => boolean;
 }): string {
-  const lines: string[] = ["(version 1)", "(deny default)"];
+  const lines: string[] = [
+    "(version 1)",
+    "(deny default)",
+    "(allow process-fork)",
+    "(allow process-exec)",
+    "(allow mach-lookup)",
+    "(allow sysctl-read)",
+    "(allow ipc-posix-shm)",
+    "(allow file-read* file-map-executable)",
+    `(deny file-read* file-write* (regex #"${homeDenyRegex(input.home)}"))`,
+  ];
+  if (input.install !== undefined) {
+    lines.push(`(allow file-read* file-map-executable (subpath "${input.install}"))`);
+  }
+  for (const dir of input.temp) {
+    lines.push(`(deny file-read* (subpath "${dir}"))`);
+    lines.push(`(allow file-write* (subpath "${dir}"))`);
+  }
+  lines.push(
+    `(allow file-read* file-write* file-map-executable (subpath "${input.workspace}"))`,
+  );
   for (const dir of SYSTEM_DIRS) {
     if (input.exists(dir)) {
-      lines.push(`(allow file-read* file-exec (subpath "${dir}"))`);
+      lines.push(`(allow file-read* file-map-executable (subpath "${dir}"))`);
     }
-  }
-  lines.push(`(allow file-read* file-write* file-exec (subpath "${input.workspace}"))`);
-  for (const dir of input.temp) {
-    lines.push(`(allow file-read* file-write* file-exec (subpath "${dir}"))`);
-  }
-  if (input.install !== undefined) {
-    lines.push(`(allow file-read* file-exec (subpath "${input.install}"))`);
   }
   lines.push('(allow file-read* file-write* (subpath "/dev"))');
   lines.push("(allow network*)");
-  lines.push("(allow process*)");
   return lines.join("\n");
 }
 
@@ -102,6 +120,7 @@ export function shellSandboxArgv(input: {
 
   if (input.platform === "darwin") {
     const profile = darwinProfile({
+      home: input.home,
       workspace: input.workspace,
       install,
       temp,
