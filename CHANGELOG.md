@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0 — 2026-10-20
+
+**MCP:** The client is `@modelcontextprotocol/client`. Stdio and remote HTTP both connect through it: remote tries Streamable HTTP, then one SSE attempt with the same headers. Remote tools still register as tools. `list_resources`, `read_resource`, and `get_prompt` appear only when that server actually has resources or prompts. In `tah chat` and `tah serve`, `/name` expands a prompt into `<mcp_prompt>` when the name matches the skill pattern; a local skill with the same name wins, and required arguments or duplicate names stay unexpanded (`get_prompt` still works). `tah.config.json` accepts `url` and `headers`; `command` and `url` cannot both be set. `--mcp` still replaces the whole list with one stdio server. `tah run` does not expand slash prompts.
+
 ## 1.2.0 — 2026-10-19
 
 **Tokens:** `turn.end` and `turn.error` include this turn's `usage` and `sessionUsage` (totals since this process opened the session). The `tah serve` status bar, `tah chat`, and `tah run` show `in` / `out`. Totals are not stored; opening the session again starts from zero.
