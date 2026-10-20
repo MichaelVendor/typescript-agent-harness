@@ -71,7 +71,30 @@ test("parseTahConfig accepts capabilities and mcp", () => {
   });
   assert.deepEqual(cfg.capabilities?.coding, { exec: false });
   assert.equal(cfg.capabilities?.vision, true);
-  assert.deepEqual(cfg.extensions?.mcp, [{ command: "node", args: ["s.mjs"] }]);
+  assert.deepEqual(cfg.extensions?.mcp, [
+    { transport: "stdio", command: "node", args: ["s.mjs"] },
+  ]);
+});
+
+test("mcp url and headers parse; command and url together fail", () => {
+  const parsed = parseTahConfig({
+    extensions: { mcp: { url: "https://example.com/mcp", headers: { Authorization: "Bearer x" } } },
+  });
+  assert.deepEqual(parsed.extensions?.mcp, [
+    { transport: "http", url: "https://example.com/mcp", headers: { Authorization: "Bearer x" } },
+  ]);
+  assert.throws(
+    () => parseTahConfig({ extensions: { mcp: { command: "npx", url: "https://example.com/mcp" } } }),
+    /must set command or url, not both/,
+  );
+  assert.throws(
+    () => parseTahConfig({ extensions: { mcp: { headers: { A: "b" } } } }),
+    /must set command or url/,
+  );
+  assert.throws(
+    () => parseTahConfig({ extensions: { mcp: { url: "https://example.com/mcp", headers: { A: 1 } } } }),
+    /headers/,
+  );
 });
 
 test("parseTahConfig accepts several mcp servers and permissions", () => {
@@ -333,7 +356,7 @@ test("permissions in tah.config.json hide tools; --deny replaces the config list
     flagBits({ mcpCommand: "node", mcpArgs: ["b.mjs"] }),
     undefined,
   );
-  assert.deepEqual(mcpReplaced.mcp, [{ command: "node", args: ["b.mjs"] }]);
+  assert.deepEqual(mcpReplaced.mcp, [{ transport: "stdio", command: "node", args: ["b.mjs"] }]);
 });
 
 test("resolveCapabilities: browser follows web unless the config sets it", () => {

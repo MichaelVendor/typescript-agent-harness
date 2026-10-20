@@ -3,7 +3,9 @@ import path from "node:path";
 import type { CliFlags } from "./args.js";
 import { isProject, ProjectError, type Project } from "./project.js";
 
-export type TahMcpExtension = { command: string; args: string[] };
+export type TahMcpExtension =
+  | { transport: "stdio"; command: string; args: string[] }
+  | { transport: "http"; url: string; headers: Record<string, string> };
 
 export type TahPermissions = {
   allow?: string[];
@@ -54,14 +56,41 @@ function bad(rel: string, detail: string): never {
   throw new ProjectError(`tah: ${rel}: ${detail}`);
 }
 
+const MCP_KEYS = new Set(["command", "args", "url", "headers"]);
+
+function parseMcpHeaders(
+  headers: unknown,
+  rel: string,
+  label: string,
+): Record<string, string> {
+  if (!isObject(headers)) bad(rel, `${label}.headers must be an object`);
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value !== "string") bad(rel, `${label}.headers values must be strings`);
+    out[key] = value;
+  }
+  return out;
+}
+
 function parseMcpServer(mcp: unknown, rel: string, label: string): TahMcpExtension {
   if (!isObject(mcp)) bad(rel, `${label} must be an object`);
   for (const key of Object.keys(mcp)) {
-    if (key !== "command" && key !== "args") bad(rel, `unknown mcp option "${key}"`);
+    if (!MCP_KEYS.has(key)) bad(rel, `unknown mcp option "${key}"`);
   }
-  if (typeof mcp.command !== "string" || mcp.command.length === 0) {
-    bad(rel, `${label}.command must be a non-empty string`);
+  const hasCommand = typeof mcp.command === "string" && mcp.command.length > 0;
+  const hasUrl = typeof mcp.url === "string" && mcp.url.length > 0;
+  if (hasCommand && hasUrl) bad(rel, `${label} must set command or url, not both`);
+  if (!hasCommand && !hasUrl) bad(rel, `${label} must set command or url`);
+  if (hasUrl) {
+    if ("args" in mcp) bad(rel, `${label}.args is only valid with command`);
+    if ("headers" in mcp && !isObject(mcp.headers)) {
+      bad(rel, `${label}.headers must be an object`);
+    }
+    let headers: Record<string, string> = {};
+    if ("headers" in mcp) headers = parseMcpHeaders(mcp.headers, rel, label);
+    return { transport: "http", url: mcp.url as string, headers };
   }
+  if ("headers" in mcp) bad(rel, `${label}.headers is only valid with url`);
   let args: string[] = [];
   if ("args" in mcp) {
     if (!Array.isArray(mcp.args) || mcp.args.some((a) => typeof a !== "string")) {
@@ -69,7 +98,7 @@ function parseMcpServer(mcp: unknown, rel: string, label: string): TahMcpExtensi
     }
     args = mcp.args as string[];
   }
-  return { command: mcp.command, args };
+  return { transport: "stdio", command: mcp.command as string, args };
 }
 
 function parseToolList(value: unknown, rel: string, label: string): string[] {
@@ -219,7 +248,11 @@ export function resolveCapabilities(
     if (c.vision !== undefined) vision = c.vision;
   }
   if (config?.extensions?.mcp) {
-    mcp = config.extensions.mcp.map((server) => ({ command: server.command, args: [...server.args] }));
+    mcp = config.extensions.mcp.map((server) =>
+      server.transport === "stdio"
+        ? { transport: "stdio", command: server.command, args: [...server.args] }
+        : { transport: "http", url: server.url, headers: { ...server.headers } },
+    );
   }
   if (config?.permissions?.allow) allow = [...config.permissions.allow];
   if (config?.permissions?.deny) deny = [...config.permissions.deny];
@@ -228,7 +261,7 @@ export function resolveCapabilities(
   if (flags.execSet) execWanted = flags.exec;
   if (flags.visionSet) vision = flags.vision;
   if (flags.mcpCommand) {
-    mcp = [{ command: flags.mcpCommand, args: [...flags.mcpArgs] }];
+    mcp = [{ transport: "stdio", command: flags.mcpCommand, args: [...flags.mcpArgs] }];
   }
   if (flags.allow.length > 0) allow = [...flags.allow];
   if (flags.deny.length > 0) deny = [...flags.deny];
