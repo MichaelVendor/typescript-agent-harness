@@ -66,11 +66,14 @@ permission.visible / permission.check  →  execute  →  tool.finished | tool.f
 
 ## MCP
 
-进程内 ping 与 `stdioMcpBackend` 都适配成同一个 `Tool`。没有把官方 MCP SDK 绑进内核。
+进程内 ping 与官方 `@modelcontextprotocol/client`（stdio / 远程 HTTP）都经 `McpBackend` 适配成同一个 `Tool`。
 
 ```ts
 runtime.use(mcpPlugin({ backend: inProcessPingBackend() }));
+// 多服务时 mcpPlugin 只登记各服务的工具；list_resources / read_resource / get_prompt 由 bootRuntime 按需另挂
 ```
+
+远程 MCP 的工具与 stdio 一样进注册表。有资源能力时才有 `list_resources` / `read_resource`；有提示词能力时才有 `get_prompt`。`tah chat` / `tah serve` 里符合 skill 命名规则的提示词可用 `/名字` 展开（包在 `<mcp_prompt>` 里）；与 skill 同名时用 skill。
 
 对 Loop 而言没有「MCP 特殊路径」——只有 `ToolService.execute`。
 
@@ -116,7 +119,7 @@ Main Agent
 | `execute_command` | 9 | 工作区 cwd 起进程（非 shell；无 sandbox）；默认 30 秒超时，模型可按次传 `timeoutMs`（最长 10 分钟） |
 | `grep` | 11 | 工作区正则搜索（跳过 `node_modules` / `dist` / 点文件） |
 | MCP ping | 4 | `inProcessPingBackend` |
-| MCP stdio | 6 | `stdioMcpBackend` |
+| MCP stdio / HTTP | 6 | `stdioMcpBackend` / `httpMcpBackend`（官方 `@modelcontextprotocol/client`） |
 
 ### `web_search` 的搜索来源（0.37.4）
 

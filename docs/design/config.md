@@ -46,7 +46,7 @@
   "extensions": {
     "mcp": [
       { "command": "npx", "args": ["-y", "some-mcp-server"] },
-      { "command": "npx", "args": ["-y", "another-mcp-server"] }
+      { "url": "https://example.com/mcp", "headers": { "Authorization": "Bearer …" } }
     ]
   },
   "permissions": {
@@ -61,7 +61,7 @@
 | `capabilities.web` | 官方 `web_fetch`（读网页）与 `web_search`（搜索；没 key 用 Exa + Bing，有 Tavily key 用 Tavily，v0.37.4）。省略时跟随 `coding`；写 `false` 关掉（v0.31） |
 | `capabilities.browser` | 内置浏览器（Playwright MCP）：先只挂 `browser_open`，调用并经用户批准后才启动 Chrome、挂上 18 个浏览器工具。省略时跟随 `web`；写 `false` 关掉；`--mock` 时不挂（v0.31，见 [内置浏览器](/design/browser)） |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |
-| `extensions.mcp` | 一个 `{ "command": string, "args"?: string[] }`，或这样的数组。每个都是一个 stdio MCP 服务。单个对象与旧文件相同，读进来当成只有一项的数组。两个服务给出同名工具时启动失败，错误里带工具名。`--mcp` / `--mcp-arg` 盖掉整份列表，不往后面追加 |
+| `extensions.mcp` | 一个服务项，或这样的数组。每项只能是 stdio `{ "command": string, "args"?: string[] }`（`args` 缺省 `[]`，元素须为字符串），或远程 `{ "url": string, "headers"?: Record<string, string> }`（`headers` 为 HTTP 请求头，值须为字符串；缺省为无额外请求头）。`command` 与 `url` 只能出现一个，也不能两个都没有；其它键报配置错误。远程先走 Streamable HTTP，失败则同一组 `headers` 再试一次 SSE。启动时某个服务连不上，整个进程起不来（远程两次都失败时错误里含两种方式各自原因；`headers` 不写入错误文本）。连上后单次工具调用失败只让该次失败。两个服务给出同名工具时启动失败，错误里带工具名。`--mcp` / `--mcp-arg` 盖掉整份列表，变成一个 stdio 服务，不往后面追加 |
 | `permissions.allow` | 工具名数组。写了就只有这些工具可见、可跑。命令行 `--allow`（可重复）盖掉这一项；没写 `--allow` 时用配置 |
 | `permissions.deny` | 工具名数组。这些工具不可见、不可跑，并且压过 `allow`。命令行 `--deny` 盖掉这一项 |
 
@@ -139,7 +139,7 @@ npx tah --no-exec chat # CLI 关掉 execute_command，覆盖 config 里 coding.e
 }
 ```
 
-包名与环境变量（API key 等）以所选 MCP 的说明为准。要挂多个服务，把 `mcp` 写成数组。命令行 `--mcp` / `--mcp-arg` 盖掉整份列表，不追加。工具权限写在 `permissions.allow` / `permissions.deny`（`deny` 压过 `allow`）；`--allow` / `--deny` 只盖掉自己那一项。
+包名与环境变量（API key 等）以所选 MCP 的说明为准。远程服务把 API key 等写在 `headers` 里。要挂多个服务，把 `mcp` 写成数组；stdio 与 `url` 可混用。命令行 `--mcp` / `--mcp-arg` 盖掉整份列表，不追加（没有 URL 专用 CLI 参数）。工具权限写在 `permissions.allow` / `permissions.deny`（`deny` 压过 `allow`）；`--allow` / `--deny` 只盖掉自己那一项。
 
 `tah init` 会生成示例 `tah.config.json`（仅 `coding: true`，已存在则跳过）。
 

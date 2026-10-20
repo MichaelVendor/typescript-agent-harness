@@ -1,6 +1,6 @@
 # 生态：Permissions / MCP / Scheduler / Subagent
 
-状态：✅ Phase 4 + 6 stdio
+状态：✅ Phase 4 + 6 + 官方 MCP 客户端
 
 ## Permissions
 
@@ -41,11 +41,16 @@ MCP 后端被适配成同一个 `Tool`，再 `tools.register`。Loop 看不到 M
 ```ts
 runtime.use(mcpPlugin({ backend: inProcessPingBackend() }));
 // or: stdioMcpBackend({ command: "npx", args: ["-y", "@modelcontextprotocol/server-everything"] })
+// or: httpMcpBackend({ url: "https://example.com/mcp", headers: { Authorization: "Bearer …" } })
 ```
 
-CLI：`tah --mcp <cmd> --mcp-arg …`（默认关）。
+CLI：`tah --mcp <cmd> --mcp-arg …`（默认关）。`tah.config.json` 里也可写远程 `url` / `headers`（见 [配置参考](/design/config)）。
 
-`McpBackend` 是接缝：进程内 `ping` 与 stdio 子进程（JSON-RPC + `Content-Length`）都实现同一接口。没有把官方 SDK 绑进内核。
+stdio 与远程 HTTP 都走官方 `@modelcontextprotocol/client`。每个服务自己的工具照旧登记；至少有一个服务列出资源或提示词时，才额外挂上 `list_resources` / `read_resource` 或 `get_prompt`（全局各一个，聚合全部已连接服务）。
+
+`tah chat` 与 `tah serve` 里，提示词名字符合 skill 规则（`^[a-z0-9]+(?:-[a-z0-9]+)*$`）时可用 `/名字` 展开：用户看到的那一行保持原样，补充文本包在 `<mcp_prompt name="...">` 里。与本地 skill 同名时用 skill。必填参数、多服务同名时不展开，仍可用 `get_prompt`（同名时要带 `server`）。
+
+`McpBackend` 是接缝：进程内 `ping`、stdio、远程 HTTP 都实现同一接口（含 `listResources` / `readResource` / `listPrompts` / `getPrompt`）。
 
 ## Subagent
 
