@@ -95,21 +95,9 @@ function darwinProfile(input: {
     "(allow ipc-posix-shm)",
     "(allow file-read* file-map-executable)",
   ];
-  for (const dir of homeDenyPaths(input.home, input.homeRealpath)) {
-    lines.push(
-      `(deny file-read* file-write* file-map-executable (regex #"${seatbeltPathRegex(dir)}"))`,
-    );
-  }
-  if (input.install !== undefined) {
-    lines.push(`(allow file-read* file-map-executable (subpath "${input.install}"))`);
-  }
   for (const dir of input.temp) {
-    lines.push(`(deny file-read* (subpath "${dir}"))`);
-    lines.push(`(allow file-write* (subpath "${dir}"))`);
+    lines.push(`(allow file-read* file-write* file-map-executable (subpath "${dir}"))`);
   }
-  lines.push(
-    `(allow file-read* file-write* file-map-executable (subpath "${input.workspace}"))`,
-  );
   for (const dir of SYSTEM_DIRS) {
     if (input.exists(dir)) {
       lines.push(`(allow file-read* file-map-executable (subpath "${dir}"))`);
@@ -117,6 +105,17 @@ function darwinProfile(input: {
   }
   lines.push('(allow file-read* file-write* (subpath "/dev"))');
   lines.push("(allow network*)");
+  for (const dir of homeDenyPaths(input.home, input.homeRealpath)) {
+    lines.push(
+      `(deny file-read* file-write* file-map-executable (regex #"${seatbeltPathRegex(dir)}"))`,
+    );
+  }
+  lines.push(
+    `(allow file-read* file-write* file-map-executable (subpath "${input.workspace}"))`,
+  );
+  if (input.install !== undefined) {
+    lines.push(`(allow file-read* file-map-executable (subpath "${input.install}"))`);
+  }
   return lines.join("\n");
 }
 
