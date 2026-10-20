@@ -1,7 +1,21 @@
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import type { Readable } from "node:stream";
 import { backendFromClient } from "./client-backend.js";
 import type { McpBackend } from "./types.js";
+
+const STDERR_TAIL_BYTES = 2048;
+
+/** Consume piped child stderr so the transport cannot block on a full pipe. */
+function drainStderr(stderr: Readable | null): void {
+  if (!stderr) return;
+  let tail = "";
+  stderr.on("data", (chunk: Buffer | string) => {
+    const text = typeof chunk === "string" ? chunk : chunk.toString();
+    tail = (tail + text).slice(-STDERR_TAIL_BYTES);
+  });
+  stderr.resume();
+}
 
 export type StdioMcpOptions = {
   command: string;
@@ -19,19 +33,19 @@ export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
     started ??= (async () => {
       const c = new Client({ name: "typescript-agent-harness", version: "1.2.0" });
       client = c;
-      await c.connect(
-        new StdioClientTransport({
-          command: options.command,
-          args: options.args ?? [],
-          ...(options.cwd ? { cwd: options.cwd } : {}),
-          env: Object.fromEntries(
-            Object.entries({ ...process.env, ...options.env }).filter(
-              (e): e is [string, string] => e[1] !== undefined,
-            ),
+      const transport = new StdioClientTransport({
+        command: options.command,
+        args: options.args ?? [],
+        ...(options.cwd ? { cwd: options.cwd } : {}),
+        env: Object.fromEntries(
+          Object.entries({ ...process.env, ...options.env }).filter(
+            (e): e is [string, string] => e[1] !== undefined,
           ),
-          stderr: "pipe",
-        }),
-      );
+        ),
+        stderr: "pipe",
+      });
+      drainStderr(transport.stderr as Readable | null);
+      await c.connect(transport);
       return c;
     })();
     return started;

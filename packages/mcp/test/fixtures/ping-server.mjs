@@ -4,6 +4,8 @@
  * Each message is written in two chunks so clients must join partial lines.
  */
 
+import { writeSync } from "node:fs";
+
 let buffer = "";
 
 function write(msg) {
@@ -55,6 +57,12 @@ function handle(msg) {
   if (name === "env") {
     const value = process.env[msg.params?.arguments?.name] ?? "";
     write({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: value }] } });
+    return;
+  }
+  if (name === "noisy") {
+    const chunk = "x".repeat(1024);
+    for (let i = 0; i < 2048; i++) writeSync(2, chunk);
+    write({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: "quiet" }] } });
     return;
   }
   if (name === "fail") {

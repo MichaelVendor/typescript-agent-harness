@@ -78,3 +78,13 @@ test("stdio child inherits the parent env, and options.env overrides keys withou
     delete process.env.TAH_MCP_TEST_OVERRIDE;
   }
 });
+
+test("a server that writes a lot to stderr does not block", { timeout: 10_000 }, async () => {
+  const backend = stdioMcpBackend({ command: process.execPath, args: [fixture] });
+  try {
+    const out = (await backend.callTool("noisy", {})) as { content: Array<{ text: string }> };
+    assert.equal(out.content[0]?.text, "quiet");
+  } finally {
+    await backend.close?.();
+  }
+});
