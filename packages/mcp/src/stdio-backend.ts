@@ -24,15 +24,11 @@ export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
           command: options.command,
           args: options.args ?? [],
           ...(options.cwd ? { cwd: options.cwd } : {}),
-          ...(options.env
-            ? {
-                env: Object.fromEntries(
-                  Object.entries(options.env).filter(
-                    (e): e is [string, string] => e[1] !== undefined,
-                  ),
-                ),
-              }
-            : {}),
+          env: Object.fromEntries(
+            Object.entries({ ...process.env, ...options.env }).filter(
+              (e): e is [string, string] => e[1] !== undefined,
+            ),
+          ),
           stderr: "pipe",
         }),
       );

@@ -52,6 +52,11 @@ function handle(msg) {
     write({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: `pong:${text}` }] } });
     return;
   }
+  if (name === "env") {
+    const value = process.env[msg.params?.arguments?.name] ?? "";
+    write({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: value }] } });
+    return;
+  }
   if (name === "fail") {
     write({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: "boom" }], isError: true } });
     return;
