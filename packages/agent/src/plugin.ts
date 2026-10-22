@@ -24,6 +24,19 @@ export type AgentPluginOptions = {
   contextChars?: number;
 };
 
+/**
+ * Message count for a session list. `listSessions` only carries the head of the
+ * transcript, so a head that does not parse is a long session, not a broken one.
+ */
+function messageCountOf(head: string): number {
+  try {
+    const parsed = JSON.parse(head) as unknown;
+    return Array.isArray(parsed) ? parsed.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** History up to (not including) the user message that starts turn `turns + 1`. */
 function firstTurns(messages: ChatMessage[], turns: number | undefined): ChatMessage[] {
   if (turns === undefined) return messages;
@@ -157,7 +170,7 @@ export function agentPlugin(options: AgentPluginOptions = {}): Plugin {
             return rows.map((row) => ({
               id: row.id,
               state: asState(row.status),
-              messageCount: (JSON.parse(row.messagesJson) as unknown[]).length,
+              messageCount: messageCountOf(row.messagesHead),
             }));
           }
           return [...sessions.values()].map((s) => ({

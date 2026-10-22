@@ -1,3 +1,4 @@
+import { summarize } from "./summary.js";
 import type {
   PersistedCheckpoint,
   PersistedEvent,
@@ -17,8 +18,15 @@ export function createMemoryStorage(): StorageService {
     async getSession(id) {
       return sessions.get(id);
     },
+    async hasSession(id) {
+      return sessions.has(id);
+    },
     async listSessions() {
-      return [...sessions.values()];
+      return [...sessions.values()]
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((row) =>
+          summarize(row.id, row.status, row.maxSteps, row.messagesJson, row.createdAt, row.updatedAt),
+        );
     },
     async appendEvent(event) {
       events.push(event);

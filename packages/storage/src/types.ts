@@ -8,6 +8,17 @@ export type PersistedSession = {
   updatedAt: number;
 };
 
+/** List row. Carries the head of `messages_json`, never `steps_json`. */
+export type SessionSummary = {
+  id: string;
+  status: string;
+  maxSteps: number;
+  messagesHead: string;
+  messagesChars: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
 export type PersistedEvent = {
   id: string;
   sessionId: string;
@@ -28,7 +39,9 @@ export type PersistedCheckpoint = {
 export type StorageService = {
   saveSession(row: PersistedSession): Promise<void>;
   getSession(id: string): Promise<PersistedSession | undefined>;
-  listSessions(): Promise<PersistedSession[]>;
+  /** Existence check that does not read the session row. */
+  hasSession(id: string): Promise<boolean>;
+  listSessions(): Promise<SessionSummary[]>;
   appendEvent(event: PersistedEvent): Promise<void>;
   listEvents(sessionId: string): Promise<PersistedEvent[]>;
   saveCheckpoint(row: PersistedCheckpoint): Promise<void>;

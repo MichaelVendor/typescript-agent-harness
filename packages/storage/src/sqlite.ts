@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { MESSAGE_HEAD_CHARS } from "./summary.js";
 import type {
   PersistedCheckpoint,
   PersistedEvent,
@@ -49,7 +50,14 @@ export function createSqliteStorage(filePath: string): StorageService {
       updated_at = excluded.updated_at
   `);
   const selectSession = db.prepare(`SELECT * FROM sessions WHERE id = ?`);
-  const selectSessions = db.prepare(`SELECT * FROM sessions ORDER BY updated_at DESC`);
+  const sessionExists = db.prepare(`SELECT 1 AS present FROM sessions WHERE id = ?`);
+  const selectSessions = db.prepare(`
+    SELECT id, status, max_steps,
+           substr(messages_json, 1, ${MESSAGE_HEAD_CHARS}) AS messages_head,
+           length(messages_json) AS messages_chars,
+           created_at, updated_at
+    FROM sessions ORDER BY updated_at DESC
+  `);
   const insertEvent = db.prepare(`
     INSERT OR IGNORE INTO events (id, session_id, type, payload_json, created_at)
     VALUES (?, ?, ?, ?, ?)
@@ -90,12 +98,29 @@ export function createSqliteStorage(filePath: string): StorageService {
       );
     },
     async getSession(id) {
+      // Node 22.14's StatementSync does not keep DatabaseSync alive. Copying a
+      // column can GC `db` and finalize the statement mid-read (nodejs/node#66487).
+      void db;
       const row = selectSession.get(id) as Record<string, unknown> | undefined;
       return row ? asSession(row) : undefined;
     },
+    async hasSession(id) {
+      void db;
+      const row = sessionExists.get(id) as Record<string, unknown> | undefined;
+      return row !== undefined;
+    },
     async listSessions() {
+      void db;
       const rows = selectSessions.all() as Record<string, unknown>[];
-      return rows.map(asSession);
+      return rows.map((row) => ({
+        id: String(row.id),
+        status: String(row.status),
+        maxSteps: Number(row.max_steps),
+        messagesHead: String(row.messages_head),
+        messagesChars: Number(row.messages_chars),
+        createdAt: Number(row.created_at),
+        updatedAt: Number(row.updated_at),
+      }));
     },
     async appendEvent(event) {
       insertEvent.run(

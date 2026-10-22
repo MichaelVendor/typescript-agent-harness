@@ -19,13 +19,16 @@ const STORAGE = createServiceKey<StorageService>("storage");
 type StorageService = {
   saveSession(row: PersistedSession): Promise<void>;
   getSession(id: string): Promise<PersistedSession | undefined>;
-  listSessions(): Promise<PersistedSession[]>;
+  hasSession(id: string): Promise<boolean>;
+  listSessions(): Promise<SessionSummary[]>;
   appendEvent(event: PersistedEvent): Promise<void>;
   listEvents(sessionId: string): Promise<PersistedEvent[]>;
   saveCheckpoint(row: PersistedCheckpoint): Promise<void>;
   latestCheckpoint(sessionId: string): Promise<PersistedCheckpoint | undefined>;
 };
 ```
+
+`listSessions` 只返回列表需要的摘要：`messagesHead` 是 `messages_json` 的前 64 KB，`messagesChars` 是全文长度，不读 `steps_json`。打开某个会话仍走 `getSession`，读完整行。`hasSession` 只判断 id 在不在。
 
 `driver: "memory"` 用于测试与无文件场景；`"sqlite"` 为默认。
 

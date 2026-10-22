@@ -24,58 +24,37 @@ test("sessionPreview prefers text, then file names, never bare (attachments)", (
   assert.equal(displayUserText("hi"), "hi");
 });
 
+function listed(id: string, content: string) {
+  const messagesJson = JSON.stringify([{ role: "user", content }]);
+  return {
+    id,
+    status: "completed",
+    maxSteps: 32,
+    messagesHead: messagesJson,
+    messagesChars: messagesJson.length,
+    createdAt: 1,
+    updatedAt: 2,
+  };
+}
+
 test("toRows uses attachment names and custom titles", () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-preview-"));
   const store = createAttachmentStore(cwd);
   const ref = store.save({ name: "shot.png", mime: "image/png", data: Buffer.from("x") });
   const content = composeAttachmentPrompt("", [ref]);
-  const rows = toRows(
-    [
-      {
-        id: "session_1",
-        status: "completed",
-        maxSteps: 32,
-        messagesJson: JSON.stringify([{ role: "user", content }]),
-        stepsJson: "[]",
-        createdAt: 1,
-        updatedAt: 2,
-      },
-    ],
-    cwd,
-  );
+  const rows = toRows([listed("session_1", content)], cwd);
   assert.equal(rows[0]?.preview, "shot.png");
   assert.equal(rows[0]?.title, undefined);
 
   setSessionTitle(cwd, "session_1", "My screenshot");
-  const titled = toRows(
-    [
-      {
-        id: "session_1",
-        status: "completed",
-        maxSteps: 32,
-        messagesJson: JSON.stringify([{ role: "user", content }]),
-        stepsJson: "[]",
-        createdAt: 1,
-        updatedAt: 2,
-      },
-    ],
-    cwd,
-  );
+  const titled = toRows([listed("session_1", content)], cwd);
   assert.equal(titled[0]?.title, "My screenshot");
   assert.match(readFileSync(path.join(cwd, ".tah", "session-titles.json"), "utf8"), /My screenshot/);
 });
 
 test("toRows reports pinned / archived; archiving unpins", () => {
   const cwd = mkdtempSync(path.join(tmpdir(), "tah-flags-"));
-  const row = (id: string) => ({
-    id,
-    status: "completed",
-    maxSteps: 32,
-    messagesJson: JSON.stringify([{ role: "user", content: id }]),
-    stepsJson: "[]",
-    createdAt: 1,
-    updatedAt: 2,
-  });
+  const row = (id: string) => listed(id, id);
   const rows = () => toRows([row("a"), row("b")], cwd);
 
   setSessionFlag(cwd, "a", "pinned", true);

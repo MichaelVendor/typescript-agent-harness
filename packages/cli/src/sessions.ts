@@ -1,5 +1,9 @@
 import type { ChatMessage, ContentPart } from "@typescript-agent-harness/llm";
-import type { PersistedSession, StorageService } from "@typescript-agent-harness/storage";
+import {
+  isTruncated,
+  type SessionSummary,
+  type StorageService,
+} from "@typescript-agent-harness/storage";
 import type { AttachmentMeta } from "./attachments/store.js";
 import { parseUserContent } from "./attachments/compose.js";
 import { loadSessionFlags } from "./session-flags.js";
@@ -52,21 +56,32 @@ export function displayUserText(text: string): string {
   return PLACEHOLDERS.has(t) ? "" : text;
 }
 
-export function toRows(rows: PersistedSession[], cwd?: string): SessionRow[] {
+function describe(row: SessionSummary): { preview: string; turns: number } {
+  let messages: ChatMessage[];
+  try {
+    const parsed = JSON.parse(row.messagesHead) as unknown;
+    if (!Array.isArray(parsed)) return { preview: "New chat", turns: 0 };
+    messages = parsed as ChatMessage[];
+  } catch {
+    return { preview: isTruncated(row) ? "…" : "New chat", turns: 0 };
+  }
+  const users = messages.flatMap((m) => (m?.role === "user" ? [userPayload(m.content)] : []));
+  const first = users[0] ?? { text: "", attachments: [] as AttachmentMeta[] };
+  return { preview: sessionPreview(first.text, first.attachments), turns: users.length };
+}
+
+export function toRows(rows: SessionSummary[], cwd?: string): SessionRow[] {
   const titles = cwd !== undefined ? loadSessionTitles(cwd) : {};
   const flags = cwd !== undefined ? loadSessionFlags(cwd) : { pinned: [], archived: [] };
   const pinned = new Set(flags.pinned);
   const archived = new Set(flags.archived);
   return rows.map((row) => {
-    const messages = JSON.parse(row.messagesJson) as ChatMessage[];
-    const users = messages.flatMap((m) => (m.role === "user" ? [userPayload(m.content)] : []));
-    const first = users[0] ?? { text: "", attachments: [] as AttachmentMeta[] };
-    const preview = sessionPreview(first.text, first.attachments);
+    const { preview, turns } = describe(row);
     const title = titles[row.id];
     return {
       id: row.id,
       state: row.status,
-      turns: users.length,
+      turns,
       updatedAt: row.updatedAt,
       preview,
       ...(title !== undefined ? { title } : {}),

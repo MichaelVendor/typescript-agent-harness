@@ -829,14 +829,12 @@ export async function createChatHost(
       ready(async () => toRows(await (await storageOf(runtime)).listSessions(), flags.cwd)),
     renameSession: (id, title) =>
       ready(async () => {
-        const row = await (await storageOf(runtime)).getSession(id);
-        if (!row) throw new Error(`no session "${id}"`);
+        if (!(await (await storageOf(runtime)).hasSession(id))) throw new Error(`no session "${id}"`);
         return setSessionTitle(flags.cwd, id, title);
       }),
     setSessionFlag: (id, flag, on) =>
       ready(async () => {
-        const row = await (await storageOf(runtime)).getSession(id);
-        if (!row) throw new Error(`no session "${id}"`);
+        if (!(await (await storageOf(runtime)).hasSession(id))) throw new Error(`no session "${id}"`);
         setSessionFlag(flags.cwd, id, flag, on);
       }),
     reload: () =>
