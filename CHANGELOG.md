@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 — 2026-10-22
+
+**Sessions:** `listSessions` no longer reads `steps_json`. On Node 22.14, copying a large column during the list let the `DatabaseSync` get garbage-collected, the statement was finalized mid-read, and `tah serve` exited (`statement has been finalized`, nodejs/node#66487). The list now returns a `SessionSummary`: the first 64 KB of `messages_json` plus its full length. Opening a session still loads the full row. `hasSession` checks that an id exists without reading it.
+
 ## 1.4.0 — 2026-10-20
 
 **Shell sandbox:** `execute_command` on macOS and Linux starts inside a filesystem sandbox (`sandbox-exec` on macOS, `bwrap` on Linux). The project can be read and written; existing system directories can be read and executed; the temp directory can be read, written, and executed; home is hidden except the install prefix of the program being run. Network stays available and the environment is inherited. It is on by default when the tool is mounted. `capabilities.coding.sandbox` and `--sandbox` / `--no-sandbox` override it, and the later flag wins. `--no-exec` leaves the tool unmounted. Windows exits at startup with `shell sandbox is unavailable on windows` when the sandbox would be on. A missing helper prints `sandbox=unavailable` and each call throws instead of running unsandboxed.
