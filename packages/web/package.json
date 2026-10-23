@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/web",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "description": "tah serve web UI; built into packages/cli/dist/web",
   "type": "module",

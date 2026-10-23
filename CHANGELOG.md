@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0 — 2026-10-23
+
+**Images:** `tah chat` pastes an image from the system clipboard (macOS, Linux, Windows) or a pasted image path, and stores it in `<cwd>/.tah/attachments/`. The scrollback draws that message's images, images named in the reply (a Markdown image or a bare path, including a size note glued to the path), and images named by a tool path or by an `execute_command` stdout line. png, jpeg, webp, and gif only, at most 20 images and 20 MiB each. iTerm — the protocol Cursor and VS Code terminals use — receives the original bytes for all four. Kitty and Sixel draw PNG and skip the other kinds. `--plain` and a non-TTY print no image sequences.
+
+**Web** (`tah serve`): a reply that names a workspace image shows it under the text. A code block, and the command on an approval card, has a copy icon. Body text is 14px and code is 13px.
+
 ## 1.4.1 — 2026-10-22
 
 **Sessions:** `listSessions` no longer reads `steps_json`. On Node 22.14, copying a large column during the list let the `DatabaseSync` get garbage-collected, the statement was finalized mid-read, and `tah serve` exited (`statement has been finalized`, nodejs/node#66487). The list now returns a `SessionSummary`: the first 64 KB of `messages_json` plus its full length. Opening a session still loads the full row. `hasSession` checks that an id exists without reading it.
