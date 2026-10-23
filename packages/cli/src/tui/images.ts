@@ -355,3 +355,12 @@ export function encodeImage(input: {
   if (protocol === "kitty") return encodeKitty(bytes, cols, rows);
   return encodeSixel(bytes, cols, rows);
 }
+
+/**
+ * Ink's text filter keeps SGR and OSC but drops APC (Kitty transmit) and DCS (Sixel), so those go to
+ * the terminal directly (`raw`, in order) and only what Ink keeps stays in `text`.
+ */
+export function splitImage(encoded: string): { text: string; raw: string } {
+  const sequence = /\x1b[_P][\s\S]*?\x1b\\/g;
+  return { text: encoded.replace(sequence, ""), raw: (encoded.match(sequence) ?? []).join("") };
+}

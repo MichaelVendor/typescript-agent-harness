@@ -3,10 +3,30 @@ import { test } from "node:test";
 import { mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { render } from "ink-testing-library";
+import { createElement } from "react";
+import { App } from "../dist/tui/app.js";
 import { Transcript } from "../dist/tui/transcript.js";
 import { pastedImagePaths, readClipboard } from "../dist/tui/clipboard.js";
-import { encodeImage, fitCells, imageKind, imagePaths, imageProtocol } from "../src/tui/images.ts";
+import { encodeImage, fitCells, imageKind, imagePaths, imageProtocol, splitImage } from "../src/tui/images.ts";
 import { renderMarkdown } from "../src/markdown.ts";
+
+const stubHost = {
+  sessionId: "s1",
+  approve: true,
+  on: () => () => {},
+  send: async () => {},
+  continueTurn: async () => {},
+  cancel() {},
+  answer() {},
+  reset: async () => {},
+  resume: async () => {},
+  fork: async () => {},
+  listSessions: async () => [],
+  renameSession: async () => undefined,
+  setSessionFlag: async () => {},
+  close: async () => {},
+};
 
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]);
 const cwd = "/proj";
@@ -219,4 +239,50 @@ test("imagePaths accepts a file under a symlinked cwd", () => {
   const io = { realpath: (p: string) => realpathSync(p), size: () => png1.length, head: () => png1 };
   assert.deepEqual(imagePaths(`see ${shot}`, link, io), [shot]);
   assert.deepEqual(imagePaths("see shot.png", link, io), [shot]);
+});
+
+test("splitImage keeps only what Ink passes in text", () => {
+  const kitty = splitImage(encodeImage({ protocol: "kitty", bytes: png1, columns: 80 }));
+  assert.ok(kitty.raw.includes("\x1b_G"));
+  assert.ok(!kitty.text.includes("\x1b_G"));
+  assert.ok(kitty.text.includes("\u{10EEEE}"));
+  assert.ok(kitty.raw.endsWith("\x1b\\"));
+  const sixel = splitImage(encodeImage({ protocol: "sixel", bytes: png1, columns: 80 }));
+  assert.ok(sixel.raw.includes("\x1bP"));
+  assert.ok(!sixel.text.includes("\x1bP"));
+  assert.match(sixel.text, /^\n+$/);
+  const iterm = splitImage(encodeImage({ protocol: "iterm", bytes: png1, columns: 80 }));
+  assert.equal(iterm.raw, "");
+  assert.ok(iterm.text.includes("\x1b]1337"));
+});
+
+test("a static item writes its kitty transmit to stdout once", async () => {
+  const images = encodeImage({ protocol: "kitty", bytes: png1, columns: 80 });
+  const transcript = new Transcript((s) => s);
+  const writes: string[] = [];
+  const original = process.stdout.write;
+  // The test runner reports over stdout, so only the image sequences are swallowed.
+  process.stdout.write = ((chunk: string | Uint8Array, ...rest: unknown[]) => {
+    writes.push(String(chunk));
+    if (String(chunk).includes("\x1b_G")) return true;
+    return (original as (...args: unknown[]) => boolean).call(process.stdout, chunk, ...rest);
+  }) as typeof process.stdout.write;
+  try {
+    const app = render(createElement(App, { host: stubHost, transcript, maxSteps: Infinity, color: false } as never));
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    transcript.snapshot = {
+      ...transcript.snapshot,
+      items: [...transcript.snapshot.items, { id: 99, kind: "tool", tool: "t", summary: "", ok: true, result: "", images }],
+    };
+    transcript.apply({ type: "notice", text: "tick" });
+    await new Promise((r) => setTimeout(r, 100));
+    transcript.apply({ type: "notice", text: "tick2" });
+    await new Promise((r) => setTimeout(r, 100));
+    app.unmount();
+  } finally {
+    process.stdout.write = original;
+  }
+  const out = writes.join("");
+  assert.ok(out.includes("\x1b_G"));
+  assert.equal(out.split("\x1b_G").length - 1, 1);
 });

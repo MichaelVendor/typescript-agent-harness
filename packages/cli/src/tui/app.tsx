@@ -1,5 +1,5 @@
 import { Box, Static, Text, useApp, useBoxMetrics, useCursor, useInput, usePaste, useWindowSize } from "ink";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatContinuePrompt, formatPrompt } from "../approve.js";
 import type { Question } from "../ask-user.js";
 import type { ChatHost } from "../host.js";
@@ -17,6 +17,7 @@ import {
   slashQuery,
   type Editor,
 } from "./editor.js";
+import { splitImage } from "./images.js";
 import type { Item, RunningTool, Snapshot, Transcript } from "./transcript.js";
 
 const SPINNER = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
@@ -50,6 +51,15 @@ function ToolLine(props: { tool: string; summary: string; status: "running" | "o
   );
 }
 
+/** `raw` (Kitty/Sixel) can't pass through Ink's text filter, so it is written once, when the item first shows. */
+function ItemImages({ images }: { images: string }) {
+  const { text, raw } = splitImage(images);
+  useLayoutEffect(() => {
+    if (raw) process.stdout.write(raw);
+  }, []);
+  return <Text>{text}</Text>;
+}
+
 function StaticItem({ item }: { item: Item }) {
   switch (item.kind) {
     case "user":
@@ -59,21 +69,21 @@ function StaticItem({ item }: { item: Item }) {
             <Text color="cyan">{"› "}</Text>
             <Text>{item.text}</Text>
           </Box>
-          {item.images ? <Text>{item.images}</Text> : null}
+          {item.images ? <ItemImages images={item.images} /> : null}
         </Box>
       );
     case "assistant":
       return (
         <Box flexDirection="column">
           <Text>{item.text || " "}</Text>
-          {item.images ? <Text>{item.images}</Text> : null}
+          {item.images ? <ItemImages images={item.images} /> : null}
         </Box>
       );
     case "tool":
       return (
         <Box flexDirection="column">
           <ToolLine tool={item.tool} summary={item.summary} status={item.ok ? "ok" : "failed"} result={item.result} />
-          {item.images ? <Text>{item.images}</Text> : null}
+          {item.images ? <ItemImages images={item.images} /> : null}
         </Box>
       );
     case "todos":
