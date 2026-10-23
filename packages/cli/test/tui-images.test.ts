@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Transcript } from "../dist/tui/transcript.js";
-import { pastedImagePaths, readClipboard } from "../src/tui/clipboard.ts";
+import { pastedImagePaths, readClipboard } from "../dist/tui/clipboard.js";
 import { encodeImage, fitCells, imageKind, imagePaths, imageProtocol } from "../src/tui/images.ts";
 import { renderMarkdown } from "../src/markdown.ts";
 
@@ -208,4 +208,15 @@ test("without a painter nothing is drawn; summaries are not scanned; failures sk
   t.apply({ type: "tool.end", callId: "1", tool: "t", ok: true, summary: shot, result: "no path" });
   t.apply({ type: "user", text: "x", attachments: [{ id: "a", kind: "image", name: "s", mime: "image/png", bytes: 1, sha256: "a" }] });
   assert.ok(t.snapshot.items.every((i) => !("images" in i)));
+});
+
+test("imagePaths accepts a file under a symlinked cwd", () => {
+  const real = realpathSync(mkdtempSync(path.join(tmpdir(), "tah-real-")));
+  const link = path.join(realpathSync(mkdtempSync(path.join(tmpdir(), "tah-link-"))), "ws");
+  symlinkSync(real, link);
+  const shot = path.join(real, "shot.png");
+  writeFileSync(shot, png1);
+  const io = { realpath: (p: string) => realpathSync(p), size: () => png1.length, head: () => png1 };
+  assert.deepEqual(imagePaths(`see ${shot}`, link, io), [shot]);
+  assert.deepEqual(imagePaths("see shot.png", link, io), [shot]);
 });

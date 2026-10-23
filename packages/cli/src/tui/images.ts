@@ -98,6 +98,13 @@ export function imagePaths(
 ): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
+  // Files are compared by realpath, so the workspace root must be too (macOS /var and /tmp are symlinks).
+  let root = cwd;
+  try {
+    root = io.realpath(cwd);
+  } catch {
+    // keep the raw cwd
+  }
 
   for (const raw of collectCandidates(text)) {
     if (result.length >= MAX_IMAGE_PATHS) break;
@@ -111,7 +118,7 @@ export function imagePaths(
     } catch {
       continue;
     }
-    if (!insideWorkspace(real, cwd)) continue;
+    if (!insideWorkspace(real, root)) continue;
     if (io.size(real) > MAX_IMAGE_BYTES) continue;
     if (!imageKind(io.head(real))) continue;
     if (seen.has(real)) continue;

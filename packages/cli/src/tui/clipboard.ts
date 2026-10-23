@@ -1,4 +1,4 @@
-import { imageKind } from "./images.ts";
+import { imageKind } from "./images.js";
 
 export type CommandResult = { stdout: Buffer; code: number | null; missing?: boolean };
 export type RunCommand = (file: string, args: string[]) => Promise<CommandResult>;
