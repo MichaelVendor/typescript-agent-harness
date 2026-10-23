@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { codeBlock, codePath, fileQuery, linkPath, relativeTo, touchesFiles } from "../src/preview-view.ts";
+import { codeBlock, codePath, fileQuery, linkPath, relativeTo, replyImages, touchesFiles } from "../src/preview-view.ts";
 
 test("inline code that looks like a file path", () => {
   for (const [code, file] of [
@@ -18,6 +18,21 @@ test("inline code that looks like a file path", () => {
   for (const code of ["npm test", "foo.bar()", "useState", "1.5", "a = b", "https://x.dev/a.md", "C:", "'a.md'", "", "x\ny.md", "v0.35"]) {
     assert.equal(codePath(code), null, code);
   }
+});
+
+test("a reply's image paths are kept and web addresses are not", () => {
+  const text = [
+    "文件位置： `tmp/starry_night.jpg`（1600×1000）",
+    "open /Users/me/proj/tmp/starry_night.jpg",
+    "saved: tmp/starry_night.jpg",
+    "https://x.dev/a.png",
+    "![sky](tmp/other.png)",
+  ].join("\n");
+  assert.deepEqual(replyImages(text), [
+    "tmp/starry_night.jpg",
+    "/Users/me/proj/tmp/starry_night.jpg",
+    "tmp/other.png",
+  ]);
 });
 
 test("markdown links to files; web, mail and anchors are not", () => {

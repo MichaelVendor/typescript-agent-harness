@@ -1,5 +1,6 @@
 import type { ApprovalAnswer } from "@typescript-agent-harness/cli";
 import type { Approval } from "../state";
+import { CopyButton } from "./CopyButton";
 
 const PREVIEW_LINES = 8;
 
@@ -46,7 +47,10 @@ export function ApprovalCard({ approval, onAnswer }: { approval: Approval; onAns
   return (
     <div className="card approval" role="dialog" aria-label="approval">
       <div className="card-title">{title}</div>
-      <pre className="card-body">{body}</pre>
+      <div className="code-block">
+        <CopyButton text={body} />
+        <pre className="card-body">{body}</pre>
+      </div>
       <div className="card-actions">
         <button className="primary" onClick={() => onAnswer("yes")}>
           Allow once

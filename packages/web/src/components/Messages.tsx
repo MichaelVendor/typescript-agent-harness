@@ -4,8 +4,9 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { fileRawURL } from "../api";
 import { opensInPanel } from "../browser-view";
-import { codePath, linkPath, type FileTarget } from "../preview-view";
+import { codePath, linkPath, replyImages, type FileTarget } from "../preview-view";
 import type { Entry } from "../state";
+import { CopyButton } from "./CopyButton";
 import { ChevronIcon } from "./Sidebar";
 import { ToolLine } from "./ToolLine";
 
@@ -46,6 +47,9 @@ function fileLinks(onOpen: Open, onBrowse: Browse): Components {
         </a>
       );
     },
+    pre({ children }) {
+      return <CodeFence>{children}</CodeFence>;
+    },
     code({ node: _node, children, ...rest }) {
       const file = typeof children === "string" && !children.includes("\n") ? codePath(children) : null;
       if (!file) return <code {...rest}>{children}</code>;
@@ -74,14 +78,43 @@ function fileLinks(onOpen: Open, onBrowse: Browse): Components {
   };
 }
 
+/** A fenced code block, with a button that copies the text as shown. */
+function CodeFence({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLPreElement>(null);
+  return (
+    <div className="code-block">
+      <CopyButton text={() => ref.current?.innerText ?? ""} />
+      <pre ref={ref}>{children}</pre>
+    </div>
+  );
+}
+
+function ReplyImage({ file, onOpen }: { file: string; onOpen: Open }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <button type="button" className="reply-image" title={file} onClick={() => onOpen({ path: file })}>
+      <img src={fileRawURL({ path: file }, 0)} alt="" onError={() => setFailed(true)} />
+    </button>
+  );
+}
+
 /** No raw HTML: replies can echo file contents, and this page can approve commands. */
 const Reply = memo(function Reply({ text, onOpen, onBrowse }: { text: string; onOpen: Open; onBrowse: Browse }) {
   const components = useMemo(() => fileLinks(onOpen, onBrowse), [onOpen, onBrowse]);
+  const images = useMemo(() => replyImages(text), [text]);
   return (
     <div className="reply">
       <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={components}>
         {text}
       </Markdown>
+      {images.length ? (
+        <div className="reply-images">
+          {images.map((file) => (
+            <ReplyImage key={file} file={file} onOpen={onOpen} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 });

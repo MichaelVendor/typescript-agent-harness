@@ -1,15 +1,16 @@
 :root {
   --bg: #ffffff;
-  --panel: #f6f7f9;
-  --border: #e3e5e8;
-  --text: #1f2328;
-  --muted: #6b7280;
-  --accent: #0e7490;
+  --panel: #f3f3f3;
+  --selected: #e8e8e8;
+  --border: #e6e6e6;
+  --text: #2b2b2b;
+  --muted: #737373;
+  --accent: #1a1a1a;
   --accent-text: #ffffff;
-  --ok: #15803d;
-  --fail: #b91c1c;
-  --warn: #b45309;
-  --code-bg: #f3f4f6;
+  --ok: #1a7f37;
+  --fail: #cf222e;
+  --warn: #9a6700;
+  --code-bg: #f6f6f6;
   --hl-keyword: #cf222e;
   --hl-string: #0a3069;
   --hl-comment: #6e7781;
@@ -17,9 +18,9 @@
   --hl-title: #8250df;
   --hl-attr: #953800;
   color-scheme: light dark;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 15px;
-  line-height: 1.6;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--text);
   background: var(--bg);
 }
@@ -81,8 +82,9 @@ button.danger {
 
 code,
 pre {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
   font-size: 13px;
+  line-height: 1.5;
 }
 
 .app {
@@ -108,8 +110,8 @@ pre {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
 }
 .brand-mark {
   display: flex;
@@ -133,7 +135,7 @@ pre {
   border: none;
   border-radius: 8px;
   background: transparent;
-  font-size: 14px;
+  font-size: 13px;
   text-align: left;
 }
 .new-session svg {
@@ -175,7 +177,7 @@ pre {
   gap: 6px;
   margin: 0 8px 6px;
   padding: 3px 4px 3px 8px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--bg);
   color: var(--muted);
@@ -188,7 +190,7 @@ pre {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
 }
 .sidebar mark {
   background: #fde68a;
@@ -260,8 +262,7 @@ pre {
   background: var(--bg);
 }
 .session-item.current {
-  background: var(--bg);
-  box-shadow: inset 2px 0 0 var(--accent);
+  background: var(--selected);
 }
 .session {
   display: flex;
@@ -816,7 +817,7 @@ main {
 }
 
 .user {
-  margin: 20px 0 8px;
+  margin: 16px 0 8px;
   padding: 8px 12px;
   border-radius: 8px;
   background: var(--panel);
@@ -832,11 +833,81 @@ main {
 .reply {
   word-break: break-word;
 }
-.reply pre {
+.reply p {
+  margin: 0.35em 0;
+}
+.reply h1,
+.reply h2,
+.reply h3,
+.reply h4 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  margin: 0.75em 0 0.25em;
+}
+.reply ul,
+.reply ol {
+  margin: 0.3em 0;
+  padding-left: 1.4em;
+}
+.reply li {
+  margin: 0.15em 0;
+}
+.reply-images {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+button.reply-image {
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+}
+.reply-images img {
+  display: block;
+  max-width: min(100%, 720px);
+  max-height: 480px;
+  border-radius: 8px;
+}
+.code-block {
+  position: relative;
+}
+.code-block > .copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--muted);
+  background: var(--bg);
+}
+.code-block > .copy-btn:hover {
+  color: var(--text);
+}
+.reply .code-block {
+  margin: 0.6em 0;
+}
+.reply pre,
+.reply .code-block pre {
+  margin: 0;
   background: var(--code-bg);
-  padding: 10px 12px;
-  border-radius: 6px;
+  padding: 8px 40px 8px 12px;
+  border-radius: 8px;
   overflow-x: auto;
+}
+.card .code-block {
+  margin: 0 0 12px;
+}
+.card .code-block .card-body {
+  margin: 0;
+  padding-right: 40px;
 }
 .reply :not(pre) > code {
   background: var(--code-bg);
