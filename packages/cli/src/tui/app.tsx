@@ -288,9 +288,10 @@ export function App({ host, transcript, maxSteps, color, images }: AppProps) {
   };
 
   const pasteImages = (text: string): boolean => {
-    if (!images || !accepting(transcript.snapshot)) return false;
+    if (!images) return false;
     const paths = pastedImagePaths(text, images.isImageFile);
     if (!paths) return false;
+    if (!accepting(transcript.snapshot)) return true;
     const added: PendingImage[] = [];
     let error: string | undefined;
     for (const p of paths) {
@@ -307,7 +308,9 @@ export function App({ host, transcript, maxSteps, color, images }: AppProps) {
 
   const pasteClipboard = () => {
     if (!images) return;
-    void ingestClipboard(images).then(({ image, error }) => addImages(image ? [image] : [], error));
+    void ingestClipboard(images)
+      .then(({ image, error }) => addImages(image ? [image] : [], error))
+      .catch((err) => setImageError(err instanceof Error ? err.message : String(err)));
   };
 
   const answer = (id: string, a: "yes" | "always" | "no") => host.answer(id, a);

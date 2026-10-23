@@ -3,7 +3,7 @@ import { closeSync, openSync, readFileSync, readSync } from "node:fs";
 import path from "node:path";
 import { render } from "ink";
 import type { CliFlags } from "../args.js";
-import { AttachmentError, createAttachmentStore } from "../attachments/store.js";
+import { createAttachmentStore } from "../attachments/store.js";
 import { createChatHost } from "../host.js";
 import { renderMarkdown, useColor } from "../markdown.js";
 import { App, type AppProps } from "./app.js";
@@ -49,8 +49,7 @@ export async function runTui(flags: CliFlags): Promise<void> {
       const ref = attachments.save({ name, mime: MIME[kind], data: bytes });
       return { id: ref.id, name: ref.name };
     } catch (err) {
-      if (err instanceof AttachmentError) return { error: err.message };
-      throw err;
+      return { error: err instanceof Error ? err.message : String(err) };
     }
   };
   const images: NonNullable<AppProps["images"]> = {
@@ -60,8 +59,7 @@ export async function runTui(flags: CliFlags): Promise<void> {
       try {
         return save(readFileSync(file), path.basename(file));
       } catch (err) {
-        if (err instanceof AttachmentError) return { error: err.message };
-        return { error: `cannot read ${file}` };
+        return { error: err instanceof Error ? err.message : String(err) };
       }
     },
     isImageFile: (file) => {

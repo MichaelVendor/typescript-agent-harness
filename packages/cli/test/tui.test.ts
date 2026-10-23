@@ -326,3 +326,108 @@ test("a rejected send puts the pending images back, ahead of images added meanwh
   assert.match(app.lastFrame() ?? "", /1-clipboard\.png 2-clipboard\.png/);
   app.unmount();
 });
+
+test("a rejected send puts the pending images back, ahead of images added meanwhile", async () => {
+  let reject: (e: Error) => void = () => {};
+  const failingHost = {
+    ...host,
+    send: () => new Promise<void>((_, rej) => (reject = rej)),
+  };
+  let n = 0;
+  const images = {
+    readClipboard: async () => ({ bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }),
+    save: (_bytes: Buffer, name: string) => ({ id: String(++n), name: `${n}-${name}` }),
+    copyFile: () => ({ error: "unused" }),
+    isImageFile: () => false,
+  };
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, { host: failingHost, transcript, maxSteps: Infinity, color: false, images } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 40));
+  transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+  app.stdin.write("\x1bv");
+  await settle();
+  app.stdin.write("\r");
+  await settle();
+  assert.doesNotMatch(app.lastFrame() ?? "", /1-clipboard\.png/);
+  app.stdin.write("\x1bv");
+  await settle();
+  reject(new Error("boom"));
+  await settle();
+  assert.match(app.lastFrame() ?? "", /1-clipboard\.png 2-clipboard\.png/);
+  app.unmount();
+});
+
+test("an all-image paste is dropped while a question or the step-limit prompt is open", async () => {
+  const copied: string[] = [];
+  const images = {
+    readClipboard: async () => ({ error: "clipboard has no image" }),
+    save: (_bytes: Buffer, name: string) => ({ id: "1", name }),
+    copyFile: (p: string) => {
+      copied.push(p);
+      return { id: "1", name: p };
+    },
+    isImageFile: (p: string) => p.endsWith(".png"),
+  };
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, {
+      host: { ...host, answerQuestion() {}, skipQuestion() {} },
+      transcript,
+      maxSteps: Infinity,
+      color: false,
+      images,
+    } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 40));
+  transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+  transcript.apply({ type: "user", text: "go" });
+  transcript.apply({
+    type: "question",
+    id: "q1",
+    questions: [{ question: "Which?", options: ["a", "b"] }],
+  });
+  await settle();
+  app.stdin.write("\x1b[200~/tmp/q.png\x1b[201~");
+  await settle();
+  assert.deepEqual(copied, []);
+  assert.doesNotMatch(app.lastFrame() ?? "", /q\.png/);
+  app.stdin.write("1");
+  await settle();
+  transcript.apply({ type: "turn.end", state: "completed", finishReason: "max_steps", rounds: 1 });
+  await settle();
+  app.stdin.write("\x1b[200~/tmp/s.png\x1b[201~");
+  await settle();
+  assert.deepEqual(copied, []);
+  assert.doesNotMatch(app.lastFrame() ?? "", /s\.png/);
+  app.unmount();
+});
+
+test("a throwing clipboard save shows on the gray line and does not crash", async () => {
+  const errors: unknown[] = [];
+  const onError = (e: unknown) => errors.push(e);
+  process.on("unhandledRejection", onError);
+  process.on("uncaughtException", onError);
+  try {
+    const images = {
+      readClipboard: async () => ({ bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }),
+      save: () => {
+        throw new Error("ENOSPC: no space left");
+      },
+      copyFile: () => ({ error: "unused" }),
+      isImageFile: () => false,
+    };
+    const transcript = new Transcript((s) => s);
+    const app = render(createElement(App, { host, transcript, maxSteps: Infinity, color: false, images } as never));
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    app.stdin.write("\x1bv");
+    await new Promise((r) => setTimeout(r, 60));
+    assert.match(app.lastFrame() ?? "", /ENOSPC: no space left/);
+    assert.deepEqual(errors, []);
+    app.unmount();
+  } finally {
+    process.off("unhandledRejection", onError);
+    process.off("uncaughtException", onError);
+  }
+});
