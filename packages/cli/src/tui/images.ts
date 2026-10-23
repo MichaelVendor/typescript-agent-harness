@@ -76,15 +76,23 @@ function extensionOk(raw: string): boolean {
   return IMAGE_EXTENSIONS.has(ext);
 }
 
+/** Models write `` `shot.jpg`（1600×1000） ``. Keep the path, drop the wrapping and the trailing note. */
+function normalizeCandidate(word: string): string {
+  const stripped = word.replace(/^[`'"“”‘’(<\[]+/, "");
+  const cut = /^(.*?\.(?:png|jpe?g|webp|gif))(?![A-Za-z0-9])/i.exec(stripped);
+  if (cut?.[1]) return cut[1];
+  return stripped.replace(/[`'"“”‘’>)\].,;:!?。，、；：！？）】》」』]+$/u, "");
+}
+
 function collectCandidates(text: string): string[] {
   const plain = stripAnsi(text);
   const out: string[] = [];
   const md = /!\[[^\]]*\]\(([^)\s]+)\)/g;
   for (const match of plain.matchAll(md)) {
-    out.push(match[1]!);
+    out.push(normalizeCandidate(match[1]!));
   }
   for (const word of plain.split(/\s+/)) {
-    if (word) out.push(word);
+    if (word) out.push(normalizeCandidate(word));
   }
   return out;
 }

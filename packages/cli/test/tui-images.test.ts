@@ -76,6 +76,22 @@ test("imagePaths keeps workspace images and drops the rest", () => {
   assert.deepEqual(imagePaths(text, cwd, io), ["/proj/shot.png", "/proj/.tah/browser/page.png"]);
 });
 
+test("imagePaths accepts a path glued to a following note", () => {
+  const file = "/proj/tmp/starry_night.jpg";
+  const files: Record<string, Buffer> = { [file]: png };
+  const io = {
+    realpath(p: string) {
+      if (!(p in files)) throw new Error("missing");
+      return p;
+    },
+    size: () => 10,
+    head: (p: string) => files[p] ?? Buffer.alloc(0),
+  };
+  const raw = "文件位置： `tmp/starry_night.jpg`（1600×1000，JPEG，约 45KB（估算））";
+  assert.deepEqual(imagePaths(raw, cwd, io), [file]);
+  assert.deepEqual(imagePaths(`saved: ${file}`, cwd, io), [file]);
+});
+
 test("imagePaths stops at 20", () => {
   const files: Record<string, Buffer> = {};
   for (let i = 0; i < 25; i++) files[`/proj/${i}.png`] = png;
@@ -211,6 +227,39 @@ test("a user image and a tool path become protocol sequences", () => {
   const tool = items.find((i) => i.kind === "tool");
   assert.match(user && "images" in user ? user.images ?? "" : "", /\x1b\]1337/);
   assert.match(tool && "images" in tool ? tool.images ?? "" : "", /\x1b\]1337/);
+});
+
+test("a generated image is drawn from prose, command output, or the tool path", () => {
+  const cwd = realpathSync(mkdtempSync(path.join(tmpdir(), "tah-img-")));
+  const shot = path.join(cwd, "starry_night.jpg");
+  writeFileSync(shot, png1);
+  const painter = {
+    cwd,
+    columns: () => 80,
+    protocol: "iterm" as const,
+    readFile: (p: string) => (p === shot ? png1 : undefined),
+    attachmentPath: () => undefined,
+  };
+  const transcript = new Transcript((s) => s, painter);
+  transcript.apply({ type: "text", delta: `文件位置： \`${shot}\`（1600×1000）\n\n` });
+  transcript.apply({ type: "turn.end", state: "completed", finishReason: "stop", rounds: 1 });
+  transcript.apply({
+    type: "tool.end",
+    callId: "1",
+    tool: "execute_command",
+    ok: true,
+    summary: "python3 gen.py",
+    result: "exit 0",
+    imageText: `saved: ${shot}`,
+  });
+  transcript.apply({ type: "tool.end", callId: "2", tool: "read_file", ok: true, summary: "nope", result: "1 lines", path: shot });
+  const imageOf = (item: { kind: string; images?: string } | undefined) => (item && "images" in item ? item.images ?? "" : "");
+  const assistant = transcript.snapshot.items.find((i) => i.kind === "assistant");
+  const tools = transcript.snapshot.items.filter((i) => i.kind === "tool");
+  assert.match(imageOf(assistant), /\x1b\]1337/);
+  assert.equal(tools.length, 2);
+  assert.match(imageOf(tools[0]), /\x1b\]1337/);
+  assert.match(imageOf(tools[1]), /\x1b\]1337/);
 });
 
 test("without a painter nothing is drawn; summaries are not scanned; failures skip", () => {

@@ -44,7 +44,7 @@ import { watchProject } from "./watch.js";
 export type HistoryItem =
   | { role: "user"; text: string; attachments?: AttachmentMeta[] }
   | { role: "assistant"; text: string }
-  | { role: "tool"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string };
+  | { role: "tool"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string; imageText?: string };
 
 export type SessionEvent = {
   type: "session";
@@ -62,7 +62,7 @@ export type HostEvent =
   | { type: "user"; text: string; attachments?: AttachmentMeta[] }
   | { type: "text"; delta: string }
   | { type: "tool.start"; callId: string; tool: string; summary: string; path?: string }
-  | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string }
+  | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string; imageText?: string }
   | { type: "todos"; todos: Todo[] }
   | { type: "approval"; id: string; tool: string; input: unknown }
   | { type: "approval.end"; id: string; answer: ApprovalAnswer }
@@ -214,6 +214,17 @@ export function toolResult(tool: string, ok: boolean, output: unknown): string {
   return "done";
 }
 
+/** Lines of a command's stdout that name an image. The visible result stays `exit 0`. */
+function commandImageText(tool: string, output: unknown): string | undefined {
+  if (tool !== "execute_command" || !output || typeof output !== "object") return undefined;
+  const stdout = (output as { stdout?: unknown }).stdout;
+  if (typeof stdout !== "string" || stdout.length === 0) return undefined;
+  const lines = stdout.split("\n").filter((line) => /\.(?:png|jpe?g|webp|gif)\b/i.test(line));
+  if (lines.length === 0) return undefined;
+  const text = lines.join("\n");
+  return text.length > 4000 ? text.slice(0, 4000) : text;
+}
+
 /** The list from the last successful `todo_write`; tool outputs are stored as JSON text. */
 export function todosOf(messages: ChatMessage[]): Todo[] | undefined {
   const todoCalls = new Set<string>();
@@ -272,6 +283,7 @@ export function historyOf(
       } catch {}
       const ok = !(output && typeof output === "object" && "error" in output);
       const file = toolPath(call.name, call.arguments);
+      const imageText = commandImageText(call.name, output);
       history.push({
         role: "tool",
         callId: call.id,
@@ -280,6 +292,7 @@ export function historyOf(
         ok,
         result: toolResult(call.name, ok, output),
         ...(file ? { path: file } : {}),
+        ...(imageText ? { imageText } : {}),
       });
       const skipped = skippedQuestions(call.name, call.arguments, output);
       if (skipped) history.push({ role: "assistant", text: skipped });
@@ -420,7 +433,16 @@ export async function createChatHost(
   const toolEnd = (callId: string, tool: string, ok: boolean, output: unknown) => {
     const call = calls.get(callId) ?? { summary: "" };
     calls.delete(callId);
-    emit({ type: "tool.end", callId, tool, ...call, ok, result: toolResult(tool, ok, output) });
+    const imageText = commandImageText(tool, output);
+    emit({
+      type: "tool.end",
+      callId,
+      tool,
+      ...call,
+      ok,
+      result: toolResult(tool, ok, output),
+      ...(imageText ? { imageText } : {}),
+    });
   };
 
   let streamedText = false;

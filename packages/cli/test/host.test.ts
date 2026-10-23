@@ -508,6 +508,27 @@ test("historyOf keeps the last turns and pairs tool calls with their results", (
   ]);
 });
 
+test("execute_command history keeps image lines from stdout and still shows exit", () => {
+  const { history } = historyOf(
+    [
+      { role: "user", content: "draw" },
+      {
+        role: "assistant",
+        toolCalls: [{ id: "c1", name: "execute_command", arguments: { program: "python3", args: ["gen.py"] } }],
+      },
+      {
+        role: "tool",
+        toolCallId: "c1",
+        content: JSON.stringify({ exitCode: 0, stdout: "seed: 1\nsaved: tmp/starry_night.jpg\n", stderr: "" }),
+      },
+    ],
+    1,
+  );
+  const tool = history.find((item) => item.role === "tool");
+  assert.equal(tool?.role === "tool" ? tool.result : "", "exit 0");
+  assert.equal(tool?.role === "tool" ? tool.imageText : "", "saved: tmp/starry_night.jpg");
+});
+
 test("todosOf returns the last successful todo_write list", () => {
   const list = (status: string) => [{ content: "fix bug", status }];
   const write = (id: string, output: unknown) => [

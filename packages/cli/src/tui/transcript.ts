@@ -155,6 +155,13 @@ export class Transcript {
     return out.length ? { images: out.join("\n") } : {};
   }
 
+  private toolImages(event: { result: string; path?: string; imageText?: string }): string[] {
+    const parts = [event.result];
+    if (event.path) parts.push(event.path);
+    if (event.imageText) parts.push(event.imageText);
+    return this.textImages(parts.join("\n"));
+  }
+
   private textImages(text: string): string[] {
     if (!this.painter) return [];
     try {
@@ -227,7 +234,7 @@ export class Transcript {
           summary: event.summary,
           ok: event.ok,
           result: event.result,
-          ...this.images(this.textImages(event.result)),
+          ...this.images(this.toolImages(event)),
         });
         this.set({ tools: this.snapshot.tools.filter((t) => t.callId !== event.callId) });
         return;
@@ -309,7 +316,7 @@ export class Transcript {
           summary: h.summary,
           ok: h.ok,
           result: h.result,
-          ...this.images(this.textImages(h.result)),
+          ...this.images(this.toolImages(h)),
         });
       }
     }
