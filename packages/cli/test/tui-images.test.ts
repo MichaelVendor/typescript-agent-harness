@@ -87,6 +87,7 @@ test("encodeImage writes the protocol or nothing", () => {
   assert.ok(iterm.endsWith("\n"));
   const sixel = encodeImage({ protocol: "sixel", bytes: png1, columns: 80 });
   assert.match(sixel, /^\x1bPq/);
+  assert.match(sixel, /#\d+;2;\d+;\d+;\d+#\d+@/);
   assert.equal(encodeImage({ protocol: "none", bytes: png1, columns: 80 }), "");
   assert.equal(encodeImage({ protocol: "kitty", bytes: Buffer.from([0xff, 0xd8, 0xff]), columns: 80 }), "");
   assert.equal(renderMarkdown("![a](shot.png)").includes("\x1b]1337"), false);
@@ -104,4 +105,14 @@ test("kitty image ids stay within 1..255 and wrap", () => {
   assert.ok(ids.every((id) => id >= 1 && id <= 255));
   assert.ok(ids.includes(255));
   assert.equal(ids[255], ids[0]);
+});
+
+test("kitty grid never exceeds the diacritics table", () => {
+  const wide = Buffer.from(png1);
+  wide.writeUInt32BE(10000, 16);
+  wide.writeUInt32BE(20, 20);
+  const out = encodeImage({ protocol: "kitty", bytes: wide, columns: 1000 });
+  assert.ok(Number(/,c=(\d+),/.exec(out)![1]) <= 297);
+  const firstRow = out.slice(out.indexOf("\x1b\\") + 2).split("\n")[0]!;
+  assert.equal(firstRow.split("\u{10EEEE}").length - 1, 297);
 });

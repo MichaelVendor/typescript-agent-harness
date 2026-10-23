@@ -185,17 +185,18 @@ function cellSize(kind: ImageKind, bytes: Buffer, columns: number): { cols: numb
   return { cols: Math.max(1, Math.min(40, columns)), rows: 12 };
 }
 
-function encodeKitty(bytes: Buffer, cols: number, rows: number): string {
+function encodeKitty(bytes: Buffer, wantCols: number, wantRows: number): string {
+  const cols = Math.min(wantCols, DIACRITICS.length);
+  const rows = Math.min(wantRows, DIACRITICS.length);
   const id = nextImageId;
   nextImageId = (nextImageId % 255) + 1;
   const transmit = `\x1b_Ga=T,f=100,t=d,q=2,U=1,i=${id},c=${cols},r=${rows};${bytes.toString("base64")}\x1b\\`;
   const color = `\x1b[38;5;${id}m`;
-  const last = DIACRITICS.length - 1;
   const lines: string[] = [];
   for (let row = 0; row < rows; row++) {
     let line = color;
     for (let col = 0; col < cols; col++) {
-      line += "\u{10EEEE}" + DIACRITICS[Math.min(row, last)] + DIACRITICS[Math.min(col, last)];
+      line += "\u{10EEEE}" + DIACRITICS[row] + DIACRITICS[col];
     }
     lines.push(line + "\x1b[39m");
   }
@@ -286,7 +287,7 @@ function encodeSixel(bytes: Buffer, cols: number, rows: number): string {
   const image = decodePng(bytes);
   if (!image) return "";
 
-  // Nearest-neighbour scale to cols x rows pixels; -1 marks transparent.
+  // Nearest-neighbour scale to cols x rows pixels.
   const pixels = new Int16Array(cols * rows);
   const used = new Set<number>();
   for (let y = 0; y < rows; y++) {
@@ -294,10 +295,6 @@ function encodeSixel(bytes: Buffer, cols: number, rows: number): string {
     for (let x = 0; x < cols; x++) {
       const sx = Math.min(image.width - 1, Math.floor((x * image.width) / cols));
       const o = (sy * image.width + sx) * 4;
-      if (image.data[o + 3]! < 128) {
-        pixels[y * cols + x] = -1;
-        continue;
-      }
       const index = ((image.data[o]! >> 6) << 4) | ((image.data[o + 1]! >> 6) << 2) | (image.data[o + 2]! >> 6);
       pixels[y * cols + x] = index;
       used.add(index);
@@ -315,8 +312,7 @@ function encodeSixel(bytes: Buffer, cols: number, rows: number): string {
     const band = new Set<number>();
     for (let y = top; y < Math.min(rows, top + 6); y++) {
       for (let x = 0; x < cols; x++) {
-        const index = pixels[y * cols + x]!;
-        if (index >= 0) band.add(index);
+        band.add(pixels[y * cols + x]!);
       }
     }
     let first = true;
