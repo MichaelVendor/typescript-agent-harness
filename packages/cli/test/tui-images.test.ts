@@ -118,15 +118,23 @@ test("pastedImagePaths accepts only an all-image paste", () => {
 test("readClipboard picks the platform command", async () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
   const seen: string[] = [];
+  let darwinScript: string | undefined;
   const run = async (file: string, args: string[]) => {
     seen.push(`${file} ${args[0] ?? ""}`);
     if (file === "wl-paste") return { stdout: Buffer.alloc(0), code: 127, missing: true };
     if (file === "xclip") return { stdout: png, code: 0 };
-    if (file === "osascript") return { stdout: Buffer.from(png.toString("base64")), code: 0 };
+    if (file === "osascript") {
+      const eIdx = args.indexOf("-e");
+      if (eIdx >= 0) darwinScript = args[eIdx + 1];
+      return { stdout: Buffer.from(png.toString("base64")), code: 0 };
+    }
     if (file === "powershell.exe") return { stdout: png, code: 0 };
     return { stdout: Buffer.alloc(0), code: 1 };
   };
   assert.deepEqual(await readClipboard("darwin", run), { bytes: png });
+  assert.ok(darwinScript);
+  assert.equal(darwinScript!.includes("print("), false);
+  assert.equal(darwinScript!.includes("base64EncodedStringWithOptions"), true);
   assert.deepEqual(await readClipboard("linux", run), { bytes: png });
   assert.equal(seen.includes("wl-paste --type"), true);
   assert.equal(seen.includes("xclip -selection"), true);

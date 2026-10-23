@@ -7,7 +7,9 @@ const NO_IMAGE = "clipboard has no image";
 const UNAVAILABLE = "image clipboard unavailable";
 
 const MAC_CLIPBOARD_SCRIPT = [
+  'ObjC.import("stdlib");',
   'ObjC.import("AppKit");',
+  "(function(){",
   "var pb=$.NSPasteboard.generalPasteboard;",
   "var img=$.NSImage.alloc.initWithPasteboard(pb);",
   "if(img.isNil())$.exit(1);",
@@ -15,7 +17,8 @@ const MAC_CLIPBOARD_SCRIPT = [
   "var rep=$.NSBitmapImageRep.imageRepWithData(tiff);",
   "var png=rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG,$());",
   "if(!png||png.length===0)$.exit(1);",
-  "print(ObjC.unwrap(png.base64EncodedStringWithOptions(0)));",
+  "return ObjC.unwrap(png.base64EncodedStringWithOptions(0));",
+  "})()",
 ].join("");
 
 const WIN_CLIPBOARD_COMMAND = [
