@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { Transcript } from "../dist/tui/transcript.js";
 import { pastedImagePaths, readClipboard } from "../src/tui/clipboard.ts";
 import { encodeImage, fitCells, imageKind, imagePaths, imageProtocol } from "../src/tui/images.ts";
 import { renderMarkdown } from "../src/markdown.ts";
@@ -153,4 +157,55 @@ test("kitty grid never exceeds the diacritics table", () => {
   assert.ok(Number(/,c=(\d+),/.exec(out)![1]) <= 297);
   const firstRow = out.slice(out.indexOf("\x1b\\") + 2).split("\n")[0]!;
   assert.equal(firstRow.split("\u{10EEEE}").length - 1, 297);
+});
+
+test("a user image and a tool path become protocol sequences", () => {
+  const cwd = realpathSync(mkdtempSync(path.join(tmpdir(), "tah-img-")));
+  const shot = path.join(cwd, "shot.png");
+  writeFileSync(shot, png1);
+  const painter = {
+    cwd,
+    columns: () => 80,
+    protocol: "iterm" as const,
+    readFile: (p: string) => (p === shot ? png1 : undefined),
+    attachmentPath: (id: string) => (id === "a" ? shot : undefined),
+  };
+  const transcript = new Transcript((s) => s, painter);
+  transcript.apply({
+    type: "user",
+    text: "look",
+    attachments: [{ id: "a", kind: "image", name: "shot.png", mime: "image/png", bytes: png1.length, sha256: "abc" }],
+  });
+  transcript.apply({ type: "tool.end", callId: "1", tool: "browser_take_screenshot", ok: true, summary: "page", result: `saved ${shot}` });
+  const items = transcript.snapshot.items;
+  const user = items.find((i) => i.kind === "user");
+  const tool = items.find((i) => i.kind === "tool");
+  assert.match(user && "images" in user ? user.images ?? "" : "", /\x1b\]1337/);
+  assert.match(tool && "images" in tool ? tool.images ?? "" : "", /\x1b\]1337/);
+});
+
+test("without a painter nothing is drawn; summaries are not scanned; failures skip", () => {
+  const cwd = realpathSync(mkdtempSync(path.join(tmpdir(), "tah-img-")));
+  const shot = path.join(cwd, "shot.png");
+  writeFileSync(shot, png1);
+  const plain = new Transcript((s) => s);
+  plain.apply({ type: "text", delta: `see ${shot}\n\n` });
+  plain.apply({ type: "turn.end", rounds: 1, finishReason: "stop" } as never);
+  plain.apply({ type: "tool.end", callId: "1", tool: "t", ok: true, summary: shot, result: shot });
+  assert.ok(plain.snapshot.items.length > 0);
+  assert.ok(plain.snapshot.items.every((i) => !("images" in i)));
+
+  const throwing = {
+    cwd,
+    columns: () => 80,
+    protocol: "iterm" as const,
+    readFile: (): Buffer => {
+      throw new Error("boom");
+    },
+    attachmentPath: () => shot,
+  };
+  const t = new Transcript((s) => s, throwing);
+  t.apply({ type: "tool.end", callId: "1", tool: "t", ok: true, summary: shot, result: "no path" });
+  t.apply({ type: "user", text: "x", attachments: [{ id: "a", kind: "image", name: "s", mime: "image/png", bytes: 1, sha256: "a" }] });
+  assert.ok(t.snapshot.items.every((i) => !("images" in i)));
 });

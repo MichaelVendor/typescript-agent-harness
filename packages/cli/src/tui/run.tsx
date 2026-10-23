@@ -1,14 +1,30 @@
+import { readFileSync } from "node:fs";
 import { render } from "ink";
 import type { CliFlags } from "../args.js";
+import { createAttachmentStore } from "../attachments/store.js";
 import { createChatHost } from "../host.js";
 import { renderMarkdown, useColor } from "../markdown.js";
 import { App } from "./app.js";
+import { imageProtocol } from "./images.js";
 import { Transcript } from "./transcript.js";
 
 export async function runTui(flags: CliFlags): Promise<void> {
   const host = await createChatHost(flags);
   const color = useColor();
-  const transcript = new Transcript(color ? renderMarkdown : (s) => s.replace(/^\n+|\n+$/g, ""));
+  const attachments = createAttachmentStore(flags.cwd);
+  const transcript = new Transcript(color ? renderMarkdown : (s) => s.replace(/^\n+|\n+$/g, ""), {
+    cwd: flags.cwd,
+    columns: () => process.stdout.columns || 80,
+    protocol: imageProtocol(process.env),
+    readFile: (p) => {
+      try {
+        return readFileSync(p);
+      } catch {
+        return undefined;
+      }
+    },
+    attachmentPath: (id) => attachments.get(id)?.path,
+  });
   host.on((event) => transcript.apply(event));
   const app = render(<App host={host} transcript={transcript} maxSteps={flags.maxSteps} color={color} />, {
     exitOnCtrlC: false,

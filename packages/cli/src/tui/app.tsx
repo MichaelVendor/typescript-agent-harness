@@ -54,15 +54,28 @@ function StaticItem({ item }: { item: Item }) {
   switch (item.kind) {
     case "user":
       return (
-        <Box marginTop={1}>
-          <Text color="cyan">{"› "}</Text>
-          <Text>{item.text}</Text>
+        <Box marginTop={1} flexDirection="column">
+          <Box>
+            <Text color="cyan">{"› "}</Text>
+            <Text>{item.text}</Text>
+          </Box>
+          {item.images ? <Text>{item.images}</Text> : null}
         </Box>
       );
     case "assistant":
-      return <Text>{item.text || " "}</Text>;
+      return (
+        <Box flexDirection="column">
+          <Text>{item.text || " "}</Text>
+          {item.images ? <Text>{item.images}</Text> : null}
+        </Box>
+      );
     case "tool":
-      return <ToolLine tool={item.tool} summary={item.summary} status={item.ok ? "ok" : "failed"} result={item.result} />;
+      return (
+        <Box flexDirection="column">
+          <ToolLine tool={item.tool} summary={item.summary} status={item.ok ? "ok" : "failed"} result={item.result} />
+          {item.images ? <Text>{item.images}</Text> : null}
+        </Box>
+      );
     case "todos":
       return (
         <Box flexDirection="column" marginLeft={2}>
