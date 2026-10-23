@@ -92,3 +92,15 @@ export async function readClipboard(
   if (platform === "win32") return readWin32(run);
   return { error: UNAVAILABLE };
 }
+
+export async function ingestClipboard(images: {
+  readClipboard(): Promise<{ bytes?: Buffer; error?: string }>;
+  save(bytes: Buffer, name: string): { id: string; name: string } | { error: string };
+}): Promise<{ image?: { id: string; name: string }; error?: string }> {
+  const { bytes, error } = await images.readClipboard();
+  if (error || !bytes) return { error: error ?? NO_IMAGE };
+  const kind = imageKind(bytes);
+  if (!kind) return { error: NO_IMAGE };
+  const saved = images.save(bytes, `clipboard.${kind}`);
+  return "error" in saved ? { error: saved.error } : { image: saved };
+}

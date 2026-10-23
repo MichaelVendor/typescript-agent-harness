@@ -17,6 +17,7 @@ import {
   slashQuery,
   type Editor,
 } from "./editor.js";
+import { ingestClipboard, pastedImagePaths } from "./clipboard.js";
 import { splitImage } from "./images.js";
 import type { Item, RunningTool, Snapshot, Transcript } from "./transcript.js";
 
@@ -182,9 +183,22 @@ function QuestionPrompt({ questions, progress }: { questions: Question[]; progre
   );
 }
 
-export type AppProps = { host: ChatHost; transcript: Transcript; maxSteps: number; color: boolean };
+export type PendingImage = { id: string; name: string };
 
-export function App({ host, transcript, maxSteps, color }: AppProps) {
+export type AppProps = {
+  host: ChatHost;
+  transcript: Transcript;
+  maxSteps: number;
+  color: boolean;
+  images?: {
+    readClipboard(): Promise<{ bytes?: Buffer; error?: string }>;
+    save(bytes: Buffer, name: string): { id: string; name: string } | { error: string };
+    copyFile(path: string): { id: string; name: string } | { error: string };
+    isImageFile(path: string): boolean;
+  };
+};
+
+export function App({ host, transcript, maxSteps, color, images }: AppProps) {
   const snap = useSyncExternalStore(transcript.subscribe, () => transcript.snapshot);
   const { exit } = useApp();
   const { columns, rows } = useWindowSize();
@@ -193,6 +207,9 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
   const [menuIndex, setMenuIndex] = useState(0);
   const [picker, setPicker] = useState<{ rows: SessionRow[]; index: number } | undefined>();
   const [exiting, setExiting] = useState(false);
+  const [pending, setPending] = useState<PendingImage[]>([]);
+  const pendingRef = useRef(pending);
+  const [imageError, setImageError] = useState<string | undefined>();
   const inputRef = useRef(null);
   const inputBox = useBoxMetrics(inputRef);
   const { setCursorPosition } = useCursor();
@@ -200,6 +217,10 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
   const update = (next: (e: Editor) => Editor) => {
     editorRef.current = next(editorRef.current);
     setEditor(editorRef.current);
+  };
+  const setPendingImages = (next: PendingImage[]) => {
+    pendingRef.current = next;
+    setPending(next);
   };
   const fail = (err: unknown) => transcript.note(`[tah] ${err instanceof Error ? err.message : String(err)}`, "error");
   const quit = () => setExiting(true);
@@ -240,13 +261,49 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
 
   const submit = () => {
     const current = editorRef.current;
-    if (isBlank(current)) return;
+    const ids = pendingRef.current.map((i) => i.id);
+    if (isBlank(current) && ids.length === 0) return;
     const text = editorText(current);
     const cmd = parseCommand(text);
     if (cmd && transcript.snapshot.busy) return;
     update(() => emptyEditor());
     if (cmd) return runCommand(cmd);
-    host.send(text).catch(fail);
+    setPendingImages([]);
+    setImageError(undefined);
+    (ids.length ? host.send(text.trim(), ids) : host.send(text)).catch(fail);
+  };
+
+  /** Keys and pastes only reach the editor when no card or prompt owns the keyboard. */
+  const accepting = (s: Snapshot) => !s.approval && !picker && !s.question && !(s.stepLimit && !s.busy) && !exiting;
+
+  const addImages = (added: PendingImage[], error?: string) => {
+    if (added.length) {
+      setPendingImages([...pendingRef.current, ...added]);
+      setImageError(error);
+    } else if (error) setImageError(error);
+  };
+
+  const pasteImages = (text: string): boolean => {
+    if (!images || !accepting(transcript.snapshot)) return false;
+    const paths = pastedImagePaths(text, images.isImageFile);
+    if (!paths) return false;
+    const added: PendingImage[] = [];
+    let error: string | undefined;
+    for (const p of paths) {
+      const result = images.copyFile(p);
+      if ("error" in result) {
+        error = result.error;
+        break;
+      }
+      added.push(result);
+    }
+    addImages(added, error);
+    return true;
+  };
+
+  const pasteClipboard = () => {
+    if (!images) return;
+    void ingestClipboard(images).then(({ image, error }) => addImages(image ? [image] : [], error));
   };
 
   const answer = (id: string, a: "yes" | "always" | "no") => host.answer(id, a);
@@ -268,7 +325,7 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
   };
   const progress = progressOf(snap.question?.id ?? "");
 
-  usePaste((text) => update((e) => insert(e, text)), { isActive: !snap.approval && !picker && !exiting });
+  usePaste((text) => pasteImages(text) || update((e) => insert(e, text)), { isActive: !snap.approval && !picker && !exiting });
 
   useInput((input, key) => {
     const s = transcript.snapshot;
@@ -339,6 +396,8 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
       return;
     }
 
+    if (key.meta && input === "v" && !s.question) return pasteClipboard();
+
     if (key.ctrl && input === "d") {
       if (!s.busy && isBlank(editorRef.current)) quit();
       return;
@@ -369,12 +428,16 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
     const last = s.queue.at(-1);
     if (key.upArrow && last && isBlank(editorRef.current)) {
       host.removeQueued(last.id);
+      if (last.attachments?.length) setPendingImages([...pendingRef.current, ...last.attachments.map(({ id, name }) => ({ id, name }))]);
       return update(() => insert(emptyEditor(), last.text));
     }
     if (key.upArrow) return update((e) => move(e, "up"));
     if (key.downArrow) return update((e) => move(e, "down"));
     if (key.home || (key.ctrl && input === "a")) return update((e) => move(e, "home"));
     if (key.end || (key.ctrl && input === "e")) return update((e) => move(e, "end"));
+    if (key.backspace && pendingRef.current.length && editorText(editorRef.current) === "") {
+      return setPendingImages(pendingRef.current.slice(0, -1));
+    }
     if (key.backspace) return update(backspace);
     if (key.delete) return update(deleteForward);
     if (key.escape || key.tab || key.ctrl || key.meta) return;
@@ -420,9 +483,11 @@ export function App({ host, transcript, maxSteps, color }: AppProps) {
           {snap.queue.map((q) => (
             <Text key={q.id} dimColor={!q.held} {...(q.held ? { color: "yellow" } : {})} wrap="truncate">
               {q.held ? "  paused  " : "  queued  "}
-              {q.text}
+              {[q.text, ...(q.attachments ?? []).map((a) => a.name)].filter(Boolean).join(" ")}
             </Text>
           ))}
+          {imageError ? <Text dimColor wrap="truncate">{imageError}</Text> : null}
+          {pending.length ? <Text dimColor wrap="truncate">{pending.map((i) => i.name).join(" ")}</Text> : null}
           <Box ref={inputRef} borderStyle="round" borderColor={typing ? "cyan" : "gray"} paddingX={1} flexDirection="column">
             {layout.rows.map((row, i) => (
               <Text key={i} wrap="truncate">

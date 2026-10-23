@@ -7,7 +7,7 @@ import { render } from "ink-testing-library";
 import { createElement } from "react";
 import { App } from "../dist/tui/app.js";
 import { Transcript } from "../dist/tui/transcript.js";
-import { pastedImagePaths, readClipboard } from "../dist/tui/clipboard.js";
+import { ingestClipboard, pastedImagePaths, readClipboard } from "../dist/tui/clipboard.js";
 import { encodeImage, fitCells, imageKind, imagePaths, imageProtocol, splitImage } from "../src/tui/images.ts";
 import { renderMarkdown } from "../src/markdown.ts";
 
@@ -285,4 +285,20 @@ test("a static item writes its kitty transmit to stdout once", async () => {
   const out = writes.join("");
   assert.ok(out.includes("\x1b_G"));
   assert.equal(out.split("\x1b_G").length - 1, 1);
+});
+
+test("ingestClipboard calls the injected reader", async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  const calls: string[] = [];
+  const images = {
+    readClipboard: async () => {
+      calls.push("read");
+      return { bytes: png };
+    },
+    save: (_bytes: Buffer, name: string) => ({ id: "9", name }),
+  };
+  assert.deepEqual(await ingestClipboard(images), { image: { id: "9", name: "clipboard.png" } });
+  assert.deepEqual(calls, ["read"]);
+  const empty = { readClipboard: async () => ({ error: "clipboard has no image" }), save: images.save };
+  assert.deepEqual(await ingestClipboard(empty), { error: "clipboard has no image" });
 });

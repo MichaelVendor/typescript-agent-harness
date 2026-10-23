@@ -204,3 +204,93 @@ test("the terminal cursor sits in the input box after a reply and follows typing
     stdin.destroy();
   }
 });
+
+test("a paste of only image paths is saved and not inserted", async () => {
+  const saved: string[] = [];
+  const sent: { text: string; ids?: string[] }[] = [];
+  const recordingHost = {
+    ...host,
+    send: async (text: string, ids?: string[]) => {
+      sent.push({ text, ids });
+    },
+  };
+  const images = {
+    readClipboard: async () => ({ error: "clipboard has no image" }),
+    save: (_bytes: Buffer, name: string) => ({ id: "1", name }),
+    copyFile: (p: string) => {
+      saved.push(p);
+      return { id: String(saved.length), name: p };
+    },
+    isImageFile: (p: string) => p.endsWith(".png"),
+  };
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, { host: recordingHost, transcript, maxSteps: Infinity, color: false, images } as never),
+  );
+  transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+  app.stdin.write("\x1b[200~/tmp/a.png\x1b[201~");
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(saved, ["/tmp/a.png"]);
+  assert.equal(sent.length, 0);
+  app.stdin.write("\r");
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(sent[0], { text: "", ids: ["1"] });
+  app.unmount();
+});
+
+test("without images, a typed image path is sent as plain text with no attachment ids", async () => {
+  const sent: { text: string; ids?: string[] }[] = [];
+  const recordingHost = {
+    ...host,
+    send: async (text: string, ids?: string[]) => {
+      sent.push({ text, ids });
+    },
+  };
+  const transcript = new Transcript((s) => s);
+  const app = render(createElement(App, { host: recordingHost, transcript, maxSteps: Infinity, color: false } as never));
+  transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+  app.stdin.write("/tmp/a.png");
+  await new Promise((r) => setTimeout(r, 30));
+  app.stdin.write("\r");
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(sent[0]?.text, "/tmp/a.png");
+  assert.equal(sent[0]?.ids, undefined);
+  app.unmount();
+});
+
+test("Alt+V attaches the clipboard image, an empty Backspace removes it, and errors show above the input", async () => {
+  const sent: { text: string; ids?: string[] }[] = [];
+  const recordingHost = {
+    ...host,
+    send: async (text: string, ids?: string[]) => {
+      sent.push({ text, ids });
+    },
+  };
+  let clip: { bytes?: Buffer; error?: string } = { bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47]) };
+  const images = {
+    readClipboard: async () => clip,
+    save: (_bytes: Buffer, name: string) => ({ id: "7", name }),
+    copyFile: () => ({ error: "unused" }),
+    isImageFile: () => false,
+  };
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, { host: recordingHost, transcript, maxSteps: Infinity, color: false, images } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 40));
+  transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+  app.stdin.write("\x1bv");
+  await settle();
+  assert.match(app.lastFrame() ?? "", /clipboard\.png/);
+  app.stdin.write("\x7f");
+  await settle();
+  assert.doesNotMatch(app.lastFrame() ?? "", /clipboard\.png/);
+  clip = { error: "clipboard has no image" };
+  app.stdin.write("\x1bv");
+  await settle();
+  assert.match(app.lastFrame() ?? "", /clipboard has no image/);
+  app.stdin.write("\r");
+  await settle();
+  assert.equal(sent.length, 0);
+  app.unmount();
+});
