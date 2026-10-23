@@ -186,7 +186,8 @@ function cellSize(kind: ImageKind, bytes: Buffer, columns: number): { cols: numb
 }
 
 function encodeKitty(bytes: Buffer, cols: number, rows: number): string {
-  const id = nextImageId++;
+  const id = nextImageId;
+  nextImageId = (nextImageId % 255) + 1;
   const transmit = `\x1b_Ga=T,f=100,t=d,q=2,U=1,i=${id},c=${cols},r=${rows};${bytes.toString("base64")}\x1b\\`;
   const color = `\x1b[38;5;${id}m`;
   const last = DIACRITICS.length - 1;

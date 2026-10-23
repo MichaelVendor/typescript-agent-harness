@@ -92,3 +92,16 @@ test("encodeImage writes the protocol or nothing", () => {
   assert.equal(renderMarkdown("![a](shot.png)").includes("\x1b]1337"), false);
   assert.equal(renderMarkdown("![a](shot.png)").includes("\x1b_G"), false);
 });
+
+test("kitty image ids stay within 1..255 and wrap", () => {
+  const ids: number[] = [];
+  for (let i = 0; i < 256; i++) {
+    const out = encodeImage({ protocol: "kitty", bytes: png1, columns: 80 });
+    const id = Number(/,i=(\d+),/.exec(out)![1]);
+    assert.ok(out.includes(`\x1b[38;5;${id}m`));
+    ids.push(id);
+  }
+  assert.ok(ids.every((id) => id >= 1 && id <= 255));
+  assert.ok(ids.includes(255));
+  assert.equal(ids[255], ids[0]);
+});
