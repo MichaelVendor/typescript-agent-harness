@@ -5,6 +5,8 @@ export type ImageKind = "png" | "jpeg" | "gif" | "webp";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_IMAGE_PATHS = 20;
+/** Kitty's limit on the base64 payload of one escape. */
+const KITTY_CHUNK = 4096;
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 
@@ -197,7 +199,13 @@ function encodeKitty(bytes: Buffer, wantCols: number, wantRows: number): string 
   const rows = Math.min(wantRows, DIACRITICS.length);
   const id = nextImageId;
   nextImageId = (nextImageId % 255) + 1;
-  const transmit = `\x1b_Ga=T,f=100,t=d,q=2,U=1,i=${id},c=${cols},r=${rows};${bytes.toString("base64")}\x1b\\`;
+  const data = bytes.toString("base64");
+  let transmit = "";
+  for (let at = 0; at === 0 || at < data.length; at += KITTY_CHUNK) {
+    const keys = at === 0 ? `a=T,f=100,t=d,q=2,U=1,i=${id},c=${cols},r=${rows},` : "";
+    const more = at + KITTY_CHUNK < data.length ? 1 : 0;
+    transmit += `\x1b_G${keys}m=${more};${data.slice(at, at + KITTY_CHUNK)}\x1b\\`;
+  }
   const color = `\x1b[38;5;${id}m`;
   const lines: string[] = [];
   for (let row = 0; row < rows; row++) {
@@ -248,8 +256,8 @@ function decodePng(bytes: Buffer): Rgba | undefined {
     }
     if (!width || !height || !channels || idat.length === 0) return undefined;
 
-    const raw = inflateSync(Buffer.concat(idat));
     const stride = width * channels;
+    const raw = inflateSync(Buffer.concat(idat), { maxOutputLength: height * (stride + 1) });
     if (raw.length !== height * (stride + 1)) return undefined;
 
     const out = Buffer.alloc(height * stride);
@@ -357,10 +365,10 @@ export function encodeImage(input: {
 }
 
 /**
- * Ink's text filter keeps SGR and OSC but drops APC (Kitty transmit) and DCS (Sixel), so those go to
- * the terminal directly (`raw`, in order) and only what Ink keeps stays in `text`.
+ * Ink's output drops APC (Kitty transmit), DCS (Sixel) and every OSC but OSC 8 (so iTerm's OSC 1337),
+ * so those go to the terminal directly (`raw`, in order) and only what Ink keeps stays in `text`.
  */
 export function splitImage(encoded: string): { text: string; raw: string } {
-  const sequence = /\x1b[_P][\s\S]*?\x1b\\/g;
+  const sequence = /\x1b[_P][\s\S]*?\x1b\\|\x1b\]1337;[\s\S]*?\x07/g;
   return { text: encoded.replace(sequence, ""), raw: (encoded.match(sequence) ?? []).join("") };
 }

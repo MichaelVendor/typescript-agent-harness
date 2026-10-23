@@ -52,7 +52,7 @@ function ToolLine(props: { tool: string; summary: string; status: "running" | "o
   );
 }
 
-/** `raw` (Kitty/Sixel) can't pass through Ink's text filter, so it is written once, when the item first shows. */
+/** `raw` (Kitty/Sixel/iTerm) can't pass through Ink's text filter, so it is written once, when the item first shows. */
 function ItemImages({ images }: { images: string }) {
   const { text, raw } = splitImage(images);
   useLayoutEffect(() => {

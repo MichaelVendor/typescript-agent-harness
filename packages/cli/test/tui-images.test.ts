@@ -106,7 +106,16 @@ test("encodeImage writes the protocol or nothing", () => {
   const kitty = encodeImage({ protocol: "kitty", bytes: png1, columns: 80 });
   assert.equal(kitty.split("\n").length, 1);
   assert.ok(kitty.includes("\u{10EEEE}"));
-  assert.ok(kitty.includes(png1.toString("base64")));
+  assert.ok(kitty.includes(`m=0;${png1.toString("base64")}\x1b\\`));
+  assert.equal(kitty.split("\x1b_G").length - 1, 1);
+  const big = Buffer.concat([png1, Buffer.alloc(5000)]);
+  const chunks = encodeImage({ protocol: "kitty", bytes: big, columns: 80 }).match(/\x1b_G[^;]*;[^\x1b]*\x1b\\/g)!;
+  assert.equal(chunks.length, 2);
+  assert.match(chunks[0]!, /^\x1b_Ga=T,.*,i=\d+,c=\d+,r=\d+,m=1;/);
+  assert.match(chunks[1]!, /^\x1b_Gm=0;/);
+  const payloads = chunks.map((c) => c.slice(c.indexOf(";") + 1, -2));
+  assert.equal(payloads[0]!.length, 4096);
+  assert.equal(payloads.join(""), big.toString("base64"));
   const iterm = encodeImage({ protocol: "iterm", bytes: png1, columns: 80 });
   assert.match(iterm, /\x1b\]1337;File=.*height=1;/);
   assert.ok(iterm.endsWith("\n"));
@@ -252,8 +261,34 @@ test("splitImage keeps only what Ink passes in text", () => {
   assert.ok(!sixel.text.includes("\x1bP"));
   assert.match(sixel.text, /^\n+$/);
   const iterm = splitImage(encodeImage({ protocol: "iterm", bytes: png1, columns: 80 }));
-  assert.equal(iterm.raw, "");
-  assert.ok(iterm.text.includes("\x1b]1337"));
+  assert.match(iterm.raw, /^\x1b\]1337;File=[^\x07]*\x07$/);
+  assert.match(iterm.text, /^\n+$/);
+});
+
+test("a static item writes its iTerm image to stdout", async () => {
+  const images = encodeImage({ protocol: "iterm", bytes: png1, columns: 80 });
+  const transcript = new Transcript((s) => s);
+  const writes: string[] = [];
+  const original = process.stdout.write;
+  process.stdout.write = ((chunk: string | Uint8Array, ...rest: unknown[]) => {
+    writes.push(String(chunk));
+    if (String(chunk).includes("\x1b]1337")) return true;
+    return (original as (...args: unknown[]) => boolean).call(process.stdout, chunk, ...rest);
+  }) as typeof process.stdout.write;
+  try {
+    const app = render(createElement(App, { host: stubHost, transcript, maxSteps: Infinity, color: false } as never));
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    transcript.snapshot = {
+      ...transcript.snapshot,
+      items: [...transcript.snapshot.items, { id: 99, kind: "tool", tool: "t", summary: "", ok: true, result: "", images }],
+    };
+    transcript.apply({ type: "notice", text: "tick" });
+    await new Promise((r) => setTimeout(r, 100));
+    app.unmount();
+  } finally {
+    process.stdout.write = original;
+  }
+  assert.ok(writes.includes(images.slice(0, images.indexOf("\x07") + 1)));
 });
 
 test("a static item writes its kitty transmit to stdout once", async () => {
