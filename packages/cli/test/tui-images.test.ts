@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fitCells, imageKind, imagePaths } from "../src/tui/images.ts";
+import { encodeImage, fitCells, imageKind, imagePaths, imageProtocol } from "../src/tui/images.ts";
+import { renderMarkdown } from "../src/markdown.ts";
 
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0]);
 const cwd = "/proj";
+const png1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 test("imageKind recognizes the four formats", () => {
   assert.equal(imageKind(png), "png");
@@ -56,4 +61,34 @@ test("imagePaths stops at 20", () => {
   };
   const text = Object.keys(files).join(" ");
   assert.equal(imagePaths(text, cwd, io).length, 20);
+});
+
+test("imageProtocol follows the terminal", () => {
+  assert.equal(imageProtocol({ KITTY_WINDOW_ID: "1" }), "kitty");
+  assert.equal(imageProtocol({ TERM_PROGRAM: "ghostty" }), "kitty");
+  assert.equal(imageProtocol({ TERM: "xterm-kitty" }), "kitty");
+  assert.equal(imageProtocol({ WEZTERM_EXECUTABLE: "/wezterm" }), "kitty");
+  assert.equal(imageProtocol({ TERM_PROGRAM: "WezTerm" }), "kitty");
+  assert.equal(imageProtocol({ TERM_PROGRAM: "vscode" }), "iterm");
+  assert.equal(imageProtocol({ TERM_PROGRAM: "iTerm.app" }), "iterm");
+  assert.equal(imageProtocol({ WT_SESSION: "1" }), "sixel");
+  assert.equal(imageProtocol({ TERM: "foot" }), "sixel");
+  assert.equal(imageProtocol({ TERM: "xterm-256color" }), "none");
+  assert.equal(imageProtocol({ TERM_PROGRAM: "vscode", KITTY_WINDOW_ID: "1" }), "kitty");
+});
+
+test("encodeImage writes the protocol or nothing", () => {
+  const kitty = encodeImage({ protocol: "kitty", bytes: png1, columns: 80 });
+  assert.equal(kitty.split("\n").length, 1);
+  assert.ok(kitty.includes("\u{10EEEE}"));
+  assert.ok(kitty.includes(png1.toString("base64")));
+  const iterm = encodeImage({ protocol: "iterm", bytes: png1, columns: 80 });
+  assert.match(iterm, /\x1b\]1337;File=.*height=1;/);
+  assert.ok(iterm.endsWith("\n"));
+  const sixel = encodeImage({ protocol: "sixel", bytes: png1, columns: 80 });
+  assert.match(sixel, /^\x1bPq/);
+  assert.equal(encodeImage({ protocol: "none", bytes: png1, columns: 80 }), "");
+  assert.equal(encodeImage({ protocol: "kitty", bytes: Buffer.from([0xff, 0xd8, 0xff]), columns: 80 }), "");
+  assert.equal(renderMarkdown("![a](shot.png)").includes("\x1b]1337"), false);
+  assert.equal(renderMarkdown("![a](shot.png)").includes("\x1b_G"), false);
 });
