@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { pastedImagePaths, readClipboard } from "../src/tui/clipboard.ts";
 import { encodeImage, fitCells, imageKind, imagePaths, imageProtocol } from "../src/tui/images.ts";
 import { renderMarkdown } from "../src/markdown.ts";
 
@@ -105,6 +106,35 @@ test("kitty image ids stay within 1..255 and wrap", () => {
   assert.ok(ids.every((id) => id >= 1 && id <= 255));
   assert.ok(ids.includes(255));
   assert.equal(ids[255], ids[0]);
+});
+
+test("pastedImagePaths accepts only an all-image paste", () => {
+  const ok = (p: string) => p === "/tmp/a.png" || p === "shot.jpeg";
+  assert.deepEqual(pastedImagePaths("/tmp/a.png shot.jpeg", ok), ["/tmp/a.png", "shot.jpeg"]);
+  assert.equal(pastedImagePaths("/tmp/a.png and more", ok), undefined);
+  assert.equal(pastedImagePaths("   ", ok), undefined);
+});
+
+test("readClipboard picks the platform command", async () => {
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  const seen: string[] = [];
+  const run = async (file: string, args: string[]) => {
+    seen.push(`${file} ${args[0] ?? ""}`);
+    if (file === "wl-paste") return { stdout: Buffer.alloc(0), code: 127, missing: true };
+    if (file === "xclip") return { stdout: png, code: 0 };
+    if (file === "osascript") return { stdout: Buffer.from(png.toString("base64")), code: 0 };
+    if (file === "powershell.exe") return { stdout: png, code: 0 };
+    return { stdout: Buffer.alloc(0), code: 1 };
+  };
+  assert.deepEqual(await readClipboard("darwin", run), { bytes: png });
+  assert.deepEqual(await readClipboard("linux", run), { bytes: png });
+  assert.equal(seen.includes("wl-paste --type"), true);
+  assert.equal(seen.includes("xclip -selection"), true);
+  assert.deepEqual(await readClipboard("win32", run), { bytes: png });
+  const missing = async () => ({ stdout: Buffer.alloc(0), code: 127, missing: true });
+  assert.deepEqual(await readClipboard("linux", missing), { error: "image clipboard unavailable" });
+  const empty = async () => ({ stdout: Buffer.alloc(0), code: 1 });
+  assert.deepEqual(await readClipboard("darwin", empty), { error: "clipboard has no image" });
 });
 
 test("kitty grid never exceeds the diacritics table", () => {
