@@ -261,7 +261,8 @@ export function App({ host, transcript, maxSteps, color, images }: AppProps) {
 
   const submit = () => {
     const current = editorRef.current;
-    const ids = pendingRef.current.map((i) => i.id);
+    const sending = pendingRef.current;
+    const ids = sending.map((i) => i.id);
     if (isBlank(current) && ids.length === 0) return;
     const text = editorText(current);
     const cmd = parseCommand(text);
@@ -270,7 +271,10 @@ export function App({ host, transcript, maxSteps, color, images }: AppProps) {
     if (cmd) return runCommand(cmd);
     setPendingImages([]);
     setImageError(undefined);
-    (ids.length ? host.send(text.trim(), ids) : host.send(text)).catch(fail);
+    (ids.length ? host.send(text.trim(), ids) : host.send(text)).catch((err) => {
+      if (sending.length) setPendingImages([...sending, ...pendingRef.current]);
+      fail(err);
+    });
   };
 
   /** Keys and pastes only reach the editor when no card or prompt owns the keyboard. */

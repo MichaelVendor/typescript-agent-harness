@@ -294,3 +294,35 @@ test("Alt+V attaches the clipboard image, an empty Backspace removes it, and err
   assert.equal(sent.length, 0);
   app.unmount();
 });
+
+test("a rejected send puts the pending images back, ahead of images added meanwhile", async () => {
+  let reject: (e: Error) => void = () => {};
+  const failingHost = {
+    ...host,
+    send: () => new Promise<void>((_, rej) => (reject = rej)),
+  };
+  let n = 0;
+  const images = {
+    readClipboard: async () => ({ bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47]) }),
+    save: (_bytes: Buffer, name: string) => ({ id: String(++n), name: `${n}-${name}` }),
+    copyFile: () => ({ error: "unused" }),
+    isImageFile: () => false,
+  };
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, { host: failingHost, transcript, maxSteps: Infinity, color: false, images } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 40));
+  transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+  app.stdin.write("\x1bv");
+  await settle();
+  app.stdin.write("\r");
+  await settle();
+  assert.doesNotMatch(app.lastFrame() ?? "", /1-clipboard\.png/);
+  app.stdin.write("\x1bv");
+  await settle();
+  reject(new Error("boom"));
+  await settle();
+  assert.match(app.lastFrame() ?? "", /1-clipboard\.png 2-clipboard\.png/);
+  app.unmount();
+});
