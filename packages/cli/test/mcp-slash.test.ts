@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applySlashPrompts } from "../src/mcp-slash.ts";
+import { applySlashPrompts, listSlashPrompts } from "../src/mcp-slash.ts";
 
 const prompt = (over: Partial<{ required: boolean; copies: number; text: string; name: string }> = {}) => ({
   name: over.name ?? "review-code",
@@ -8,6 +8,22 @@ const prompt = (over: Partial<{ required: boolean; copies: number; text: string;
   required: over.required ?? false,
   copies: over.copies ?? 1,
   async load() { return over.text ?? "be brief"; },
+});
+
+test("listSlashPrompts keeps only expandible unique kebab names", () => {
+  assert.deepEqual(
+    listSlashPrompts(
+      [
+        prompt(),
+        prompt({ name: "skip-me", required: true }),
+        prompt({ name: "dup", copies: 2 }),
+        prompt({ name: "Review" }),
+        prompt({ name: "taken" }),
+      ],
+      new Set(["taken"]),
+    ),
+    [{ name: "review-code", description: "MCP prompt (alpha)" }],
+  );
 });
 
 test("a legal prompt name expands and the user line is not included", async () => {

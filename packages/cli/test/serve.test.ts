@@ -210,6 +210,8 @@ function fakeHost() {
     reload: async () => {
       reloads++;
     },
+    skills: [],
+    slashPrompts: [],
     close: async () => {},
   };
   return { host, emit, finish: () => finish(), reloads: () => reloads, answered };
@@ -784,8 +786,16 @@ test("skills: list home + folder skills; import one or a folder of them (symlink
     assert.equal(s.reloads(), 1);
     assert.equal((await api.post("/api/skills/import", { path: path.join(from, "not-a-skill") })).status, 400);
 
-    const listed = JSON.parse((await api.get("/api/skills")).body).skills.map((k: { name: string; source: string }) => [k.name, k.source]);
-    assert.deepEqual(listed, [["good", "home"], ["linked", "home"], ["local", "folder"]]);
+    const body = JSON.parse((await api.get("/api/skills")).body) as {
+      skills: { name: string; source: string; userInvocable: boolean }[];
+      prompts: { name: string; description: string }[];
+    };
+    assert.deepEqual(
+      body.skills.map((k) => [k.name, k.source]),
+      [["good", "home"], ["linked", "home"], ["local", "folder"]],
+    );
+    assert.ok(body.skills.every((k) => k.userInvocable === true));
+    assert.deepEqual(body.prompts, []);
 
     assert.equal((await api.post("/api/skills/remove", { name: "good" })).status, 200);
     assert.equal(s.reloads(), 2);

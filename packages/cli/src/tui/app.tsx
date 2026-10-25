@@ -464,7 +464,15 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
   // Slash completion stays closed while busy — a slash command is not queued.
   const mention = mode === "normal" ? fileMentionQuery(editor.lines[editor.row] ?? "", editor.col) : undefined;
   const query = mention === undefined ? slashQuery(editor) : undefined;
-  const matches = query && !snap.busy ? matchCommands(query) : [];
+  const matches =
+    query && !snap.busy
+      ? matchCommands(query, [
+          ...host.skills
+            .filter((s) => s.userInvocable)
+            .map((s) => ({ name: s.name, description: s.description })),
+          ...host.slashPrompts,
+        ])
+      : [];
   const files = mention !== undefined ? matchFiles(root, mention) : [];
   const historyMatches = mode === "history" ? promptHistory.current.search(historyQuery) : [];
   const historyPick = historyMatches.length === 0 ? 0 : Math.min(historyIndex, historyMatches.length - 1);
@@ -775,10 +783,13 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
       const selected = matches[Math.min(menuIndex, matches.length - 1)]!;
       if (key.upArrow) return setMenuIndex((i) => (i - 1 + matches.length) % matches.length);
       if (key.downArrow) return setMenuIndex((i) => (i + 1) % matches.length);
+      // Tab always inserts. Enter inserts unless the line already equals the pick (then fall through to submit).
       if (key.tab) return update(() => insert(emptyEditor(), `${selected.name}${selected.args ? " " : ""}`));
       if (key.return && !key.meta && !key.shift) {
-        update(() => emptyEditor());
-        return runCommand(parseCommand(selected.name)!);
+        const typed = editorText(editorRef.current).trim();
+        if (typed !== selected.name) {
+          return update(() => insert(emptyEditor(), `${selected.name}${selected.args ? " " : ""}`));
+        }
       }
     }
 

@@ -8,6 +8,23 @@ export type SlashPrompt = {
   load(): Promise<string>;
 };
 
+/** Names that `/name` would expand (menu + send). Skill names and non-expandable prompts are omitted. */
+export function listSlashPrompts(
+  prompts: Pick<SlashPrompt, "name" | "server" | "required" | "copies">[],
+  skillNames: ReadonlySet<string>,
+): { name: string; description: string }[] {
+  const out: { name: string; description: string }[] = [];
+  const seen = new Set<string>();
+  for (const prompt of prompts) {
+    if (seen.has(prompt.name)) continue;
+    seen.add(prompt.name);
+    if (!SKILL_NAME_RE.test(prompt.name) || skillNames.has(prompt.name)) continue;
+    if (prompt.copies !== 1 || prompt.required) continue;
+    out.push({ name: prompt.name, description: `MCP prompt (${prompt.server})` });
+  }
+  return out;
+}
+
 type SlashScan = {
   extractSlashSkills(text: string): { names: string[]; displayText: string };
 };

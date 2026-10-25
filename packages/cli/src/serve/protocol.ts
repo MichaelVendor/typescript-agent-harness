@@ -85,7 +85,16 @@ export type SettingsView = {
 
 /** `GET /api/skills`: what the open folder loads. `home` = `~/.tah/skills` (every folder); `folder` = inside the open folder. */
 export type SkillsView = {
-  skills: { name: string; description: string; source: "home" | "folder"; path: string }[];
+  skills: {
+    name: string;
+    description: string;
+    source: "home" | "folder";
+    path: string;
+    /** When true, `/name` in the composer injects the skill (slash autocomplete lists these). */
+    userInvocable: boolean;
+  }[];
+  /** MCP prompts that `/name` can expand (also listed in slash autocomplete). */
+  prompts: { name: string; description: string }[];
 };
 
 /** `POST /api/skills/import`; `skipped` entries read `<name>: <reason>`. */

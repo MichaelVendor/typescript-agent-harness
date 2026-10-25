@@ -85,6 +85,26 @@ test("slash commands: menu filter and parsing", () => {
   assert.deepEqual(matchCommands("/re").map((c) => c.name), ["/resume", "/reset"]);
   assert.deepEqual(matchCommands("/").length, 6);
   assert.deepEqual(matchCommands("/x"), []);
+  assert.deepEqual(
+    matchCommands("/", [{ name: "pdf", description: "PDF tools" }]).map((c) => c.name),
+    ["/resume", "/sessions", "/fork", "/compact", "/reset", "/exit", "/pdf"],
+  );
+  assert.deepEqual(
+    matchCommands("/p", [{ name: "pdf", description: "PDF tools" }]).map((c) => c.name),
+    ["/pdf"],
+  );
+  // Built-in wins over a skill with the same slash name.
+  assert.deepEqual(
+    matchCommands("/reset", [{ name: "reset", description: "skill" }]).map((c) => c.name),
+    ["/reset"],
+  );
+  assert.deepEqual(
+    matchCommands("/r", [
+      { name: "pdf", description: "PDF" },
+      { name: "review-code", description: "MCP prompt (alpha)" },
+    ]).map((c) => c.name),
+    ["/resume", "/reset", "/review-code"],
+  );
   assert.deepEqual(parseCommand("/resume"), { kind: "pick" });
   assert.deepEqual(parseCommand("/resume 2"), { kind: "resume", ref: "2" });
   assert.deepEqual(parseCommand("/sessions"), { kind: "pick" });

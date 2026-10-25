@@ -196,14 +196,19 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           : null,
     };
   };
-  const skillsView = (): SkillsView => ({
-    skills: discoverSkills({ cwd: workspaces.cwd, homeDir: opts.home }).skills.map((s) => ({
-      name: s.name,
-      description: s.description,
-      source: s.source === "home" ? "home" : "folder",
-      path: s.skillFile,
-    })),
-  });
+  const skillsView = (): SkillsView => {
+    const discovered = discoverSkills({ cwd: workspaces.cwd, homeDir: opts.home }).skills;
+    return {
+      skills: discovered.map((s) => ({
+        name: s.name,
+        description: s.description,
+        source: s.source === "home" ? "home" : "folder",
+        path: s.skillFile,
+        userInvocable: s.userInvocable,
+      })),
+      prompts: [...host().slashPrompts],
+    };
+  };
   /** The open folder rebuilds its LLM when the active model changed; other folders read settings when opened. */
   const changeModels = async (change: () => void, res: ServerResponse) => {
     hub.assertIdle();

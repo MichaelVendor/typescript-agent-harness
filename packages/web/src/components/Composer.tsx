@@ -7,7 +7,12 @@ type Draft = AttachmentMeta & { status: "uploading" | "ready" | "error"; error?:
 
 type Mention = { start: number; query: string; files: string[]; index: number };
 
-export type SlashCommand = { name: string; description: string; run: "compact" | "reset" | "fork" };
+export type SlashCommand = {
+  name: string;
+  description: string;
+  /** Built-in action; omit for a user-invocable skill (`/name` is sent as a message). */
+  run?: "compact" | "reset" | "fork";
+};
 
 const SLASH: SlashCommand[] = [
   { name: "/compact", description: "压缩上下文", run: "compact" },
@@ -25,7 +30,7 @@ export function Composer(props: {
   disabled: boolean;
   onSend(text: string, attachmentIds: string[]): void;
   onStop(): void;
-  onCommand?(run: SlashCommand["run"]): void;
+  onCommand?(run: NonNullable<SlashCommand["run"]>): void;
   /** Shown left of the send button (the model picker). */
   children?: ReactNode;
 }) {
@@ -33,15 +38,54 @@ export function Composer(props: {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [mention, setMention] = useState<Mention | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [slashExtras, setSlashExtras] = useState<SlashCommand[]>([]);
+  /** After picking from the menu, hide it until the user edits — next Enter sends/runs. */
+  const [slashLocked, setSlashLocked] = useState(false);
   const [hideSuggestion, setHideSuggestion] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const ghost = !text && props.suggestion && !hideSuggestion ? props.suggestion : undefined;
-  const slashMatches =
-    props.onCommand && !props.busy && /^\/\S*$/.test(text.trim())
-      ? SLASH.filter((c) => c.name.startsWith(text.trim()))
-      : [];
+  const slashQuery = text.trim();
+  const slashOpen = !props.busy && !slashLocked && /^\/\S*$/.test(slashQuery);
+  const slashMatches = slashOpen
+    ? [
+        ...(props.onCommand ? SLASH : []),
+        ...slashExtras.filter((c) => !SLASH.some((b) => b.name === c.name)),
+      ].filter((c) => c.name.startsWith(slashQuery))
+    : [];
   useEffect(() => setSlashIndex(0), [text]);
+
+  useEffect(() => {
+    if (!slashOpen) return;
+    let cancelled = false;
+    void api.skills().then(
+      (view) => {
+        if (cancelled) return;
+        const taken = new Set(SLASH.map((c) => c.name));
+        const extras: SlashCommand[] = [];
+        for (const s of view.skills) {
+          if (!s.userInvocable) continue;
+          const name = `/${s.name}`;
+          if (taken.has(name)) continue;
+          taken.add(name);
+          extras.push({ name, description: s.description });
+        }
+        for (const p of view.prompts ?? []) {
+          const name = `/${p.name}`;
+          if (taken.has(name)) continue;
+          taken.add(name);
+          extras.push({ name, description: p.description });
+        }
+        setSlashExtras(extras);
+      },
+      () => {
+        if (!cancelled) setSlashExtras([]);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [slashOpen, props.cwd]);
 
   useEffect(() => {
     setHideSuggestion(false);
@@ -161,22 +205,34 @@ export function Composer(props: {
     }
   };
 
-  const runSlash = (cmd: SlashCommand) => {
-    setText("");
+  /** Insert the pick into the composer; do not run/send (Claude-style). */
+  const pickSlash = (cmd: SlashCommand) => {
+    setText(cmd.name);
     setHideSuggestion(true);
-    props.onCommand?.(cmd.run);
+    setSlashLocked(true);
+    requestAnimationFrame(() => {
+      const el = ref.current;
+      if (!el) return;
+      el.focus();
+      const n = cmd.name.length;
+      el.setSelectionRange(n, n);
+    });
   };
 
   const send = () => {
     const line = text.trim();
-    const cmd = slashMatches.find((c) => c.name === line);
-    if (cmd) {
-      runSlash(cmd);
+    const builtin = SLASH.find((c) => c.name === line && c.run);
+    if (builtin?.run) {
+      setText("");
+      setHideSuggestion(true);
+      setSlashLocked(false);
+      props.onCommand?.(builtin.run);
       return;
     }
     if (!canSend) return;
     props.onSend(text, readyIds);
     setText("");
+    setSlashLocked(false);
     for (const d of drafts) if (d.preview) URL.revokeObjectURL(d.preview);
     setDrafts([]);
   };
@@ -235,7 +291,7 @@ export function Composer(props: {
                 className={i === slashIndex ? "on" : undefined}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  runSlash(cmd);
+                  pickSlash(cmd);
                 }}
               >
                 {cmd.name}
@@ -289,6 +345,7 @@ export function Composer(props: {
             disabled={props.disabled}
             onChange={(e) => {
               setText(e.target.value);
+              setSlashLocked(false);
               if (e.target.value) setHideSuggestion(true);
             }}
             onPaste={(e) => {
@@ -336,9 +393,13 @@ export function Composer(props: {
                   return;
                 }
                 if ((e.key === "Enter" || e.key === "Tab") && slashMatches[slashIndex]) {
-                  e.preventDefault();
-                  runSlash(slashMatches[slashIndex]!);
-                  return;
+                  const selected = slashMatches[slashIndex]!;
+                  // Tab always inserts. Enter inserts unless the line already equals the pick (then send).
+                  if (e.key === "Tab" || text.trim() !== selected.name) {
+                    e.preventDefault();
+                    pickSlash(selected);
+                    return;
+                  }
                 }
               }
               if (mention && mention.files.length > 0) {

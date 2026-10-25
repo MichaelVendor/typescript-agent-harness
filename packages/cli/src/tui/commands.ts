@@ -9,8 +9,23 @@ export const COMMANDS: SlashCommand[] = [
   { name: "/exit", description: "quit" },
 ];
 
-export function matchCommands(query: string): SlashCommand[] {
-  return COMMANDS.filter((c) => c.name.startsWith(query));
+/**
+ * Built-ins first; then extras (user-invocable skills, slashable MCP prompts) as `/name`.
+ * Skips extras that collide with a built-in or an earlier extra.
+ */
+export function matchCommands(
+  query: string,
+  extras: { name: string; description: string }[] = [],
+): SlashCommand[] {
+  const taken = new Set(COMMANDS.map((c) => c.name));
+  const fromExtras: SlashCommand[] = [];
+  for (const item of extras) {
+    const name = item.name.startsWith("/") ? item.name : `/${item.name}`;
+    if (taken.has(name)) continue;
+    taken.add(name);
+    fromExtras.push({ name, description: item.description });
+  }
+  return [...COMMANDS, ...fromExtras].filter((c) => c.name.startsWith(query));
 }
 
 export type ParsedCommand =

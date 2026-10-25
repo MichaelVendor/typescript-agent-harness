@@ -20,7 +20,7 @@ import {
   type AttachmentStore,
 } from "./attachments/store.js";
 import type { Browser } from "./browser.js";
-import { applySlashPrompts, type SlashPrompt } from "./mcp-slash.js";
+import { applySlashPrompts, listSlashPrompts, type SlashPrompt } from "./mcp-slash.js";
 import { decide, type PermissionMode } from "./permission-mode.js";
 import { loadProject, type Project } from "./project.js";
 import {
@@ -130,6 +130,10 @@ export type ChatHost = {
   setSessionFlag(id: string, flag: SessionFlag, on: boolean): Promise<void>;
   /** Rebuilds the runtime (e.g. after the model in settings changed) and keeps the session; needs persist. */
   reload(): Promise<void>;
+  /** Skills the open folder loaded (slash `/name` + Skill tool); updates after reload. */
+  readonly skills: readonly SkillSummary[];
+  /** MCP prompts that `/name` expands (for slash autocomplete). */
+  readonly slashPrompts: readonly { name: string; description: string }[];
   close(): Promise<void>;
 };
 
@@ -892,6 +896,12 @@ export async function createChatHost(
         changed.clear();
         reloadedAt = Date.now();
       }),
+    get skills() {
+      return skills;
+    },
+    get slashPrompts() {
+      return listSlashPrompts(mcpPrompts, new Set(skills.map((s) => s.name)));
+    },
     async close() {
       stopWatching();
       await settled();

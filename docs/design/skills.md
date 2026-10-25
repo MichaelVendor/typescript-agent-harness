@@ -97,6 +97,7 @@ v0.30.1 起普通文件夹也读这三处，和 Cursor / Claude Code 读自己�
 
 - 在**直接用户输入**中匹配空白界定的 `/kebab-name`（`tah chat` 与 `tah serve`）。
 - 命中且 `user-invocable !== false`：Host 在发往模型的本轮内容中附加与工具成功时同形的全文（紧挨用户文本之后）；UI transcript 仍只显示用户原话，不伪造一条「用户消息」。
+- Web / TUI 输入 `/` 时的补全菜单列出内置命令、当前已加载且 `user-invocable` 的 skill，以及可 `/name` 展开的 MCP prompt（同名时：内置 > skill > prompt）。选中为**插入**到输入框，再 `Enter` 发送/执行（与 Claude Code 一致）。
 - 这是 `disable-model-invocation: true` 技能的**唯一**入口。
 - 未知名：当作普通文本，不报错打断。
 - 同一消息多个 `/name`：按出现顺序依次附加。
