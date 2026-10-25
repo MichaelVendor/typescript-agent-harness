@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1 — 2026-10-25
+
+**Skills:** `tah skill add <source>` installs Agent Skills from GitHub (`owner/repo`), a git URL, or a local path into `~/.tah/skills` (or `<cwd>/skills` with `--project`). Also `tah skill list` / `remove`. The web Settings → Skills page has **Install from Git…**. Same-name skills are skipped, never overwritten. Needs `git` on PATH. Not a full Claude Code `/plugin` marketplace.
+
 ## 1.6.0 — 2026-10-25
 
 **Terminal** (`tah chat`): closer to Claude Code's interactive mode — keyboard modes (`normal` / `transcript` / `history`), `@` file complete, `Ctrl+R` history search, `Ctrl+G` external editor, `Ctrl+T` todos, `Ctrl+S` stash, empty `?` help, `Ctrl+L` redraw, and readline-style edits (`Ctrl+K/U/W/Y`, `Alt+B/F`). Markdown reflows to the terminal width with syntax highlight and OSC 8 links when the terminal supports them. `Ctrl+O` expands tool results (higher line cap); edit/write diffs color `-` / `+` lines. Permission modes cycle with `Shift+Tab`: manual, accept-edits (file edits skip the prompt), plan (blocks edits and commands).
