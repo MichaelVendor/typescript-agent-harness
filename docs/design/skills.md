@@ -1,6 +1,6 @@
 # 设计说明：Skills（Agent Skills）
 
-状态：✅ 已实现（v0.29）
+状态：✅ 已实现（v0.29；远程安装已落地，随下一版发布）
 
 对齐 [Agent Skills](https://agentskills.io/specification) / Claude Code / [DeepSeek Harness skills](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/skills.md)：渐进披露的 Markdown 指令包，不是可执行插件。
 
@@ -18,14 +18,15 @@ tah 作为本机 coding harness，应能直接消费现成技能目录，并提�
 - `tah chat` / `tah serve` 热更新技能目录（与 `AGENTS.md` / `tools/` 同类）。
 - 实现落在 `packages/cli`（不新建独立 skills 包）。
 
-## 非目标（v1）
+## 非目标
 
-- `tah skill add` / 技能市场 / npm 包装技能包
+- Claude Code 完整 plugin marketplace / Discover 面板 / hooks 插件
+- npm 包装技能包
 - `tah.config.json` 的 `capabilities.skills` 开关
 - 自动执行 `scripts/`
-- 远程 skill provider、DSH 式多层 scope registry
+- DSH 式多层 scope registry
 - 把 skill 正文常驻进 system prompt
-- 递归扫描子目录
+- 递归扫描子目录（安装时只扫一层 + `skills/` + marketplace.json 列表）
 - 独立 `@typescript-agent-harness/skills` 包（需要多宿主复用时再抽）
 
 ## 启用条件
@@ -146,6 +147,24 @@ loadProject / home skills
 
 `tah serve` 的 Settings → Skills 列出当前文件夹加载的 skill（「All folders」= `~/.tah/skills`，「This folder」= 工作目录三处）。「Import skill folder…」弹系统对话框：选中的文件夹有 `SKILL.md` 就导入它一个，否则导入其下一层所有带 `SKILL.md` 的文件夹（如 `~/.cursor/skills`）。复制到 `~/.tah/skills/<name>/`，软链接按实际内容复制；frontmatter 不合格或同名已存在的跳过并说明原因，不覆盖。只能删除 `~/.tah/skills` 里的。导入 / 删除后当前文件夹的 host 重新加载。
 
+## 远程安装
+
+轻量对齐 Claude Code「从 Git 装 skill」，**不做**完整 `/plugin` marketplace。
+
+```bash
+tah skill add anthropics/skills                 # GitHub；装仓库里所有 skill
+tah skill add anthropics/skills/skills/pdf      # 只要其中一个
+tah skill add anthropics/skills --name pdf      # 同上（可重复 --name）
+tah skill add owner/repo#v1.2.0                 # 钉 tag / 分支
+tah skill add https://gitlab.com/org/skills.git
+tah skill add ./my-skills                       # 本地路径（与 Import 相同）
+tah skill add owner/repo --project              # 装进当前目录 skills/
+tah skill list
+tah skill remove pdf
+```
+
+实现：`git clone --depth 1`（可选 `--branch`）到临时目录 → 找 skill 文件夹（自身 / 子目录 / `skills/*` / `.claude-plugin/marketplace.json` 的 `plugins[].skills`）→ 复用 `importSkillsFrom` 拷贝。需要本机有 `git`。同名跳过不覆盖。网页 Settings → Skills 的「Install from Git…」走 `POST /api/skills/add` `{ source }`。
+
 ## 测试
 
 - 四层同名优先级
@@ -170,4 +189,4 @@ loadProject / home skills
 | 路径 | 项目 `skills/` + 只读兼容 `.agents` / `.cursor` + `~/.tah/skills` |
 | 资源 | 按需列出引用，不自动执行 |
 | 落点 | `packages/cli` 内聚 |
-| 安装 | 无市场命令；拷贝/软链目录即可 |
+| 安装 | 本地拷贝 + `tah skill add`（GitHub / git URL）；无完整 marketplace UI |

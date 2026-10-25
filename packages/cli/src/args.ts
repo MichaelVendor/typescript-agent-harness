@@ -41,6 +41,10 @@ export type CliFlags = {
   vision: boolean;
   /** True when `--vision` was passed or `TAH_VISION=1` at parse time. */
   visionSet: boolean;
+  /** `tah skill add`: install into `<cwd>/skills` instead of `~/.tah/skills`. */
+  project: boolean;
+  /** `tah skill add`: only these skill folder names (repeatable). */
+  skillNames: string[];
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -75,6 +79,8 @@ export function parseArgv(argv: string[]): CliFlags {
     watch: true,
     vision: visionFromEnv,
     visionSet: visionFromEnv,
+    project: false,
+    skillNames: [],
   };
   const rest: string[] = [];
   let help = false;
@@ -108,8 +114,14 @@ export function parseArgv(argv: string[]): CliFlags {
     else if (arg === "--vision") {
       flags.vision = true;
       flags.visionSet = true;
-    }
-    else if (arg === "--port") {
+    } else if (arg === "--project") {
+      flags.project = true;
+    } else if (arg === "--name") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--name requires a skill folder name");
+      flags.skillNames.push(next);
+      i += 1;
+    } else if (arg === "--port") {
       const next = argv[i + 1];
       const n = Number(next);
       if (!next || !Number.isInteger(n) || n < 0 || n > 65535) {
@@ -214,6 +226,9 @@ Usage:
   tah agent-host       headless /v1 HTTP (Bearer); default 0.0.0.0:7800
   tah sessions         list saved sessions (newest first; numbers work with --session)
   tah init             scaffold a project (AGENTS.md, tools/, package.json) and install it
+  tah skill add <src>  install skills from GitHub (owner/repo), a git URL, or a local path
+  tah skill list       list skills in ~/.tah/skills
+  tah skill remove <n> remove a skill from ~/.tah/skills
   tah help
   tah version          print the CLI version (also --version, -v)
 
@@ -246,6 +261,13 @@ Flags:
   --no-open           tah serve: do not open the browser
   --no-watch          terminal tah chat / tah serve: do not reload project files on change
   --vision            tah serve: send image attachments as multimodal parts (or TAH_VISION=1)
+  --project           tah skill add: install into <cwd>/skills instead of ~/.tah/skills
+  --name <skill>      tah skill add: only this skill folder (repeatable)
+
+Skill add source:
+  owner/repo[#ref]              GitHub (optional path: owner/repo/skills/pdf)
+  https://…git  |  git@…        any host; append #branch-or-tag
+  ./path  |  /abs               local skill folder or a folder of them
 
 Project (cwd whose package.json depends on @typescript-agent-harness/cli):
   AGENTS.md           replaces the default role (--system-file still wins)

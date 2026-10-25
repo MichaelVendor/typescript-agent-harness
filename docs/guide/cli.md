@@ -222,6 +222,18 @@ export default defineTool({
 
 `skills/<name>/SKILL.md` 放可复用流程说明（对齐 [Agent Skills](https://agentskills.io/specification)）：启动只在 system prompt 里列出 **name + description**；模型用内置 **`skill`** 工具加载正文，或在 `tah chat` / `tah serve` 里输入 **`/hello`** 这类 slash（UI 仍只显示你打的那行字）。也读 `.agents/skills/`、`.cursor/skills/` 与 `~/.tah/skills/`（优先级与格式见 **[Skills 设计](/design/skills)**）。`tah init` 会生成 `skills/hello/SKILL.md` 作试玩示例。工具名 **`skill`** 由 CLI 保留，不要在 `tools/` 里占同名文件。
 
+从 Git 安装（需要本机 `git`）：
+
+```bash
+tah skill add anthropics/skills              # → ~/.tah/skills
+tah skill add anthropics/skills --name pdf   # 只要其中一个
+tah skill add owner/repo --project           # → 当前目录 skills/
+tah skill list
+tah skill remove pdf
+```
+
+网页 Settings → Skills 也可填 `owner/repo` 点 Install from Git。同名不覆盖。不是 Claude Code 的完整 `/plugin` 市场。
+
 ### 热更新（v0.26）
 
 终端里的 `tah chat` 和 `tah serve` 会监听 `AGENTS.md`、`tools/`、`plugins/`、`lib/`（含子目录），以及 `skills/`、`.agents/skills/`、`.cursor/skills/` 与（若存在）`~/.tah/skills/`（v0.29）。保存后自动重新加载，当前会话和历史都保留，新的人设、工具与 skill catalog 从下一轮起生效：

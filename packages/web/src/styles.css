@@ -697,6 +697,22 @@ pre {
 .add-model {
   align-self: flex-start;
 }
+.skill-remote {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.skill-remote input {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+  background: var(--bg);
+  color: var(--text);
+}
 .model-form {
   display: flex;
   flex-direction: column;

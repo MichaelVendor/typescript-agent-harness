@@ -21,6 +21,7 @@ export function SkillsSettings(props: { busy: boolean }) {
   const [result, setResult] = useState<string>();
   const [pending, setPending] = useState(false);
   const [browsing, setBrowsing] = useState(false);
+  const [remote, setRemote] = useState("");
   const locked = props.busy || pending;
 
   useEffect(() => {
@@ -70,6 +71,24 @@ export function SkillsSettings(props: { busy: boolean }) {
     }
   };
 
+  const addRemote = async () => {
+    const source = remote.trim();
+    if (!source) return;
+    setError(undefined);
+    setResult(undefined);
+    setPending(true);
+    try {
+      const r = await api.addSkills({ source });
+      setView(r);
+      setResult(outcome(r));
+      setRemote("");
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
   const card = (s: Skill) => (
     <li key={`${s.source}:${s.name}`} className="model-card">
       <div className="model-main">
@@ -92,9 +111,25 @@ export function SkillsSettings(props: { busy: boolean }) {
   return (
     <>
       <p className="settings-desc">
-        Skills are instructions the agent loads when a task matches. Import a folder with a SKILL.md, or a folder of them such as
-        ~/.cursor/skills or ~/.claude/skills. Imported skills are copied to ~/.tah/skills and work in every folder.
+        Skills are instructions the agent loads when a task matches. Import a local folder with a SKILL.md, or install from
+        GitHub (`owner/repo`, optional `#tag`). Copies go to ~/.tah/skills and work in every folder. Same as{" "}
+        <code>tah skill add</code>.
       </p>
+      <div className="skill-remote">
+        <input
+          type="text"
+          value={remote}
+          disabled={locked}
+          placeholder="anthropics/skills  or  owner/repo/skills/pdf#v1"
+          onChange={(e) => setRemote(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void addRemote();
+          }}
+        />
+        <button type="button" className="add-model" disabled={locked || !remote.trim()} onClick={() => void addRemote()}>
+          Install from Git…
+        </button>
+      </div>
       <button type="button" className="add-model" disabled={locked} onClick={() => void choose()}>
         Import skill folder…
       </button>

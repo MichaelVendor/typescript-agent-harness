@@ -59,6 +59,59 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (flags.command === "skill") {
+    const os = await import("node:os");
+    const home = os.homedir();
+    const parts = flags.prompt.split(/\s+/).filter(Boolean);
+    const sub = parts[0] ?? "";
+    if (sub === "list") {
+      const { listHomeSkills } = await import("./skills/install.js");
+      const names = listHomeSkills(home);
+      console.log(names.length ? names.join("\n") : "(no skills in ~/.tah/skills)");
+      return;
+    }
+    if (sub === "remove") {
+      const name = parts[1];
+      if (!name) {
+        console.error("tah skill remove <name>");
+        process.exitCode = 1;
+        return;
+      }
+      const { removeSkill } = await import("./skills/install.js");
+      removeSkill(home, name);
+      console.log(`removed ${name}`);
+      return;
+    }
+    if (sub === "add") {
+      const source = parts.slice(1).join(" ");
+      if (!source) {
+        console.error("tah skill add <owner/repo|git-url|path> [--project] [--name <skill>]");
+        process.exitCode = 1;
+        return;
+      }
+      const { addRemoteSkills } = await import("./skills/remote.js");
+      try {
+        const result = addRemoteSkills({
+          homeDir: home,
+          cwd: flags.cwd,
+          source,
+          project: flags.project,
+          ...(flags.skillNames.length ? { names: flags.skillNames } : {}),
+        });
+        if (result.imported.length) console.log(`imported ${result.imported.join(", ")}`);
+        else console.log("nothing new imported");
+        for (const line of result.skipped) console.log(`skipped ${line}`);
+      } catch (err) {
+        console.error(`tah skill add: ${err instanceof Error ? err.message : String(err)}`);
+        process.exitCode = 1;
+      }
+      return;
+    }
+    console.error("tah skill add|list|remove");
+    process.exitCode = 1;
+    return;
+  }
+
   const { loadCliEnv, hasLlmKey } = await import("./env.js");
   loadCliEnv(flags.cwd);
 

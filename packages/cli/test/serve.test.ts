@@ -801,6 +801,27 @@ test("skills: list home + folder skills; import one or a folder of them (symlink
   }
 });
 
+test("POST /api/skills/add installs from a local path (same as tah skill add)", async () => {
+  const s = await fakeServer();
+  const api = client(s.base, s.cookie);
+  const pack = path.join(s.home, "pack");
+  mkdirSync(path.join(pack, "remote-one"), { recursive: true });
+  writeFileSync(
+    path.join(pack, "remote-one", "SKILL.md"),
+    "---\nname: remote-one\ndescription: From add API.\n---\nbody\n",
+  );
+  try {
+    const res = await api.post("/api/skills/add", { source: pack });
+    assert.equal(res.status, 200);
+    const body = JSON.parse(res.body);
+    assert.deepEqual(body.imported, ["remote-one"]);
+    assert.ok(existsSync(path.join(s.home, ".tah", "skills", "remote-one", "SKILL.md")));
+    assert.equal(s.reloads(), 1);
+  } finally {
+    await s.close();
+  }
+});
+
 test("recent projects: folders removed from the sidebar that still exist", async () => {
   const s = await fakeServer();
   const api = client(s.base, s.cookie);

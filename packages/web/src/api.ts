@@ -112,6 +112,8 @@ export const api = {
   skills: async () => (await (await call("GET", "/api/skills")).json()) as SkillsView,
   importSkills: async (body: ServeRequest["importSkills"]) =>
     (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,
+  addSkills: async (body: ServeRequest["addSkills"]) =>
+    (await (await call("POST", "/api/skills/add", body)).json()) as SkillsImport,
   removeSkill: async (body: ServeRequest["removeSkill"]) =>
     (await (await call("POST", "/api/skills/remove", body)).json()) as SkillsView,
   browserState: async () => (await (await call("GET", "/api/browser")).json()) as BrowserState,

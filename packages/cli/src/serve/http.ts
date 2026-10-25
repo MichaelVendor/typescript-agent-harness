@@ -25,6 +25,7 @@ import {
 } from "../settings.js";
 import { discoverSkills } from "../skills/discover.js";
 import { importSkills, removeSkill } from "../skills/install.js";
+import { addRemoteSkills } from "../skills/remote.js";
 import type { FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
 import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
@@ -562,6 +563,24 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         const from = str(await readBody(req), "path");
         hub.assertIdle();
         const result = importSkills(opts.home, from);
+        if (result.imported.length) await host().reload();
+        return json(res, 200, { ...skillsView(), ...result });
+      }
+      case "POST /api/skills/add": {
+        const body = await readBody(req);
+        const source = str(body, "source");
+        const project = body.project === true;
+        const names = Array.isArray(body.names)
+          ? body.names.filter((n): n is string => typeof n === "string" && n.length > 0)
+          : undefined;
+        hub.assertIdle();
+        const result = addRemoteSkills({
+          homeDir: opts.home,
+          cwd: workspaces.cwd,
+          source,
+          project,
+          ...(names?.length ? { names } : {}),
+        });
         if (result.imported.length) await host().reload();
         return json(res, 200, { ...skillsView(), ...result });
       }

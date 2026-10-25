@@ -38,6 +38,11 @@ export type ServeRequest = {
   searchKey: { apiKey: string | null };
   /** A skill folder, or a folder of skill folders (e.g. `~/.cursor/skills`), copied into `~/.tah/skills`. */
   importSkills: { path: string };
+  /**
+   * Install from GitHub (`owner/repo`), a git URL, or a local path — same as `tah skill add`.
+   * `project: true` copies into the open folder's `skills/` instead of `~/.tah/skills`.
+   */
+  addSkills: { source: string; project?: boolean; names?: string[] };
   /** Only skills in `~/.tah/skills` can be removed here. */
   removeSkill: { name: string };
   /** System folder dialog starting at `start`; answers `{ path: string | null }` (null = cancelled), 501 when unavailable. */

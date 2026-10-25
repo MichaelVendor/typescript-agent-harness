@@ -1,4 +1,4 @@
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import path from "node:path";
 import { parseSkillMarkdown } from "./parse.js";
 import { SKILL_NAME_RE } from "./types.js";
@@ -14,6 +14,37 @@ const isSkillDir = (dir: string) => {
 };
 
 /**
+ * Copies the given skill folders into `destRoot` (default `~/.tah/skills`).
+ * Names already installed are skipped, never overwritten. Symlinks are dereferenced.
+ */
+export function importSkillsFrom(
+  homeDir: string,
+  dirs: string[],
+  destRoot = homeSkills(homeDir),
+): { imported: string[]; skipped: string[] } {
+  if (dirs.length === 0) throw new Error("no skill folders to import");
+  mkdirSync(destRoot, { recursive: true });
+  const imported: string[] = [];
+  const skipped: string[] = [];
+  for (const dir of dirs) {
+    const name = path.basename(dir);
+    const parsed = parseSkillMarkdown(readFileSync(path.join(dir, "SKILL.md"), "utf8"), name);
+    if (!parsed.ok) {
+      skipped.push(`${name}: ${parsed.warning}`);
+      continue;
+    }
+    const dest = path.join(destRoot, name);
+    if (existsSync(dest) || existsSync(`${dest}.md`)) {
+      skipped.push(`${name}: already installed`);
+      continue;
+    }
+    cpSync(dir, dest, { recursive: true, dereference: true });
+    imported.push(name);
+  }
+  return { imported, skipped };
+}
+
+/**
  * Copies one skill folder (it has a SKILL.md) into `~/.tah/skills`, or every skill folder directly
  * inside `from` (e.g. `~/.cursor/skills`). Names already installed are skipped, never overwritten.
  * Symlinked skills are copied as files, since a relative link would break in the new place.
@@ -26,25 +57,7 @@ export function importSkills(homeDir: string, from: string): { imported: string[
         .map((entry) => path.join(src, entry))
         .filter(isSkillDir);
   if (dirs.length === 0) throw new Error(`no SKILL.md in ${src} or the folders directly inside it`);
-  const root = homeSkills(homeDir);
-  const imported: string[] = [];
-  const skipped: string[] = [];
-  for (const dir of dirs) {
-    const name = path.basename(dir);
-    const parsed = parseSkillMarkdown(readFileSync(path.join(dir, "SKILL.md"), "utf8"), name);
-    if (!parsed.ok) {
-      skipped.push(`${name}: ${parsed.warning}`);
-      continue;
-    }
-    const dest = path.join(root, name);
-    if (existsSync(dest) || existsSync(`${dest}.md`)) {
-      skipped.push(`${name}: already installed`);
-      continue;
-    }
-    cpSync(dir, dest, { recursive: true, dereference: true });
-    imported.push(name);
-  }
-  return { imported, skipped };
+  return importSkillsFrom(homeDir, dirs);
 }
 
 /** Removes a skill from `~/.tah/skills` (folder or flat `<name>.md`). Skills inside a work folder are left alone. */
@@ -54,4 +67,14 @@ export function removeSkill(homeDir: string, name: string): void {
   if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
   else if (existsSync(`${dir}.md`)) rmSync(`${dir}.md`);
   else throw new Error(`no skill "${name}" in ~/.tah/skills`);
+}
+
+/** Lists skill folder names in `~/.tah/skills`. */
+export function listHomeSkills(homeDir: string): string[] {
+  const root = homeSkills(homeDir);
+  if (!existsSync(root)) return [];
+  return readdirSync(root)
+    .filter((entry) => isSkillDir(path.join(root, entry)) || (entry.endsWith(".md") && !entry.startsWith(".")))
+    .map((entry) => (entry.endsWith(".md") ? entry.slice(0, -3) : entry))
+    .sort();
 }
