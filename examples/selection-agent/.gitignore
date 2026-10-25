@@ -1,0 +1,7 @@
+node_modules
+.env
+.tah
+out/
+data/case-state.json
+seller-backend/live.json
+login-state.png

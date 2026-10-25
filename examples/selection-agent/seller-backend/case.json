@@ -1,0 +1,92 @@
+{
+  "spu": "DE2610221",
+  "name": "便于倒水与拆洗的浴室硅胶托盘三件套",
+  "quote": {
+    "status": "已报价",
+    "purchasePrice": 2000,
+    "moldFee": 10000,
+    "moq": 5000,
+    "currency": "CNY",
+    "cnyPerEur": null,
+    "freightEur": null,
+    "fbaFeeEur": null,
+    "referralRate": null,
+    "ask": [
+      "硅胶净重",
+      "成型与后处理",
+      "检验",
+      "包材",
+      "起订量",
+      "模费与摊销"
+    ],
+    "note": "含税€14.99—€16.99、常规采购≤¥30均为待验证目标。三件可能需三个型腔/模具，须分别取得硅胶净重、成型/后处理、检验、包材、MOQ、模费及摊销报价。未联系工厂或下单；不把参考目标存成已核实成本，不从插件毛利率推算本品利润。"
+  },
+  "sample": {
+    "checks": [
+      {
+        "id": "1",
+        "gate": "直接对标ZIHUIEU大小盘、BLESWIN大小盘、TAIVIN两小盘，另购成熟HvOvMvE B098BJ14BB作肋纹背景，每款两套；不混用历史父体评分作为本次子体表现",
+        "result": null
+      },
+      {
+        "id": "2",
+        "gate": "新结构至少两组槽宽与两组边厚试片，使用同一肥皂液、同量5mL染色水、相同放置24h与同一清洗工具，记录取物、提垫、倒水、洗净两面及晾置的完整时间；至少5次重复，中位清洁时间比肋纹对标少≥30%，残留皂垢不更多，才保留清洁优势",
+        "result": null
+      },
+      {
+        "id": "3",
+        "gate": "40mL承水静置24h，底面不得渗漏；湿垫顶面不得与静置液面接触",
+        "result": null
+      },
+      {
+        "id": "4",
+        "gate": "移走全部物品后倒水；不将软托盘作为盛物搬运盘",
+        "result": null
+      },
+      {
+        "id": "5",
+        "gate": "15位目标用户做7天使用与价卡比较，至少9人愿在€14.99选择新套装而不是现有€11.59两盘，且能指出维护收益；至少12人能独立完成正确倒水清洁",
+        "result": null
+      },
+      {
+        "id": "6",
+        "gate": "取得真实报价、模费与MOQ，常规采购目标≤¥30；实测包规/物流/尾程后才能核算利润",
+        "result": null
+      }
+    ],
+    "status": "未试样"
+  },
+  "listing": {
+    "status": "已确认",
+    "title": "便于倒水与拆洗的浴室硅胶托盘三件套",
+    "bullets": [
+      "一个封底承水托盘30×12.5×1.8cm＋一个可提起开槽湿区垫27.5×10×0.6cm＋一个旁置独立小盘12×9×1.5cm",
+      "结构目标是湿物抬离底部积水、垫底可触达、倒水时不用刷细密一体沟槽；需人工取物倒水",
+      "宽槽、提片、支脚、圆角与托盘边厚用样品确定",
+      "不承诺自排水、无积水、抗菌、防霉、速干或洗碗机适用"
+    ],
+    "priceTarget": {
+      "min": 14.99,
+      "max": 16.99,
+      "currency": "EUR",
+      "note": "待验证目标价，不是已核实售价，也不是采购价。"
+    }
+  },
+  "margin": null,
+  "shelf": {
+    "sku": "B0H7WRMCPF",
+    "title": "2 Stück Silikon Dekotablett, 23 cm, Rund, Beige, für Bad und Tisch",
+    "priceEur": 13.44,
+    "category": "dekotablett"
+  },
+  "store": {
+    "imageNote": "演示图，不是商品照片",
+    "germanTitle": "2 Stück Silikon Dekotablett, 23 cm, Rund, Beige, für Bad und Tisch",
+    "germanNote": "标题用搜索页原文，没有另写卖点",
+    "gtin": "DEMO-B0H7WRMCPF",
+    "gtinNote": "演示编码，不是 GS1 GTIN",
+    "vatNote": "演示店铺，未登记真实德国 VAT",
+    "inboundNote": "演示已建单，件数未填，不会发往亚马逊仓库",
+    "adsNote": "未投放。没有预算，不创建广告"
+  }
+}

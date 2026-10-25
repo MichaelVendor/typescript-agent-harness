@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>店铺后台（模拟）</title>
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --ink: #1c1f26;
+      --muted: #5c6570;
+      --line: #e2e5ea;
+      --card: #fff;
+      --side: #1c1f26;
+      --accent: #0f6e56;
+      --accent-ink: #fff;
+      --warn: #8a5a00;
+      --warn-bg: #fff6e0;
+      --ok: #0f6e56;
+      --ok-bg: #e7f6f1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.5 "Segoe UI", "PingFang SC", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .login {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .login-card {
+      width: min(400px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 28px 28px 22px;
+    }
+    h1 { font-size: 22px; font-weight: 650; margin: 0 0 6px; }
+    .sub { color: var(--muted); margin: 0 0 22px; }
+    label { display: block; margin: 12px 0 6px; font-size: 12px; color: var(--muted); }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 8px 10px;
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    .primary {
+      margin-top: 16px;
+      width: 100%;
+      border: 0;
+      background: var(--accent);
+      color: var(--accent-ink);
+      padding: 10px 12px;
+    }
+    .primary:disabled { opacity: 0.45; cursor: default; }
+    .hint { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+    .error { color: #9b2c2c; font-size: 12px; min-height: 18px; margin: 8px 0 0; }
+    .app { display: none; min-height: 100vh; grid-template-columns: 220px 1fr; }
+    .app.on { display: grid; }
+    .side {
+      background: var(--side);
+      color: #fff;
+      padding: 20px 16px;
+    }
+    .brand { font-weight: 650; margin-bottom: 4px; }
+    .brand small { display: block; font-weight: 400; color: #b7bdc7; margin-top: 4px; }
+    .nav { margin-top: 28px; display: grid; gap: 4px; }
+    .nav button {
+      text-align: left;
+      background: transparent;
+      color: #d5d8de;
+      border: 0;
+      padding: 8px 10px;
+    }
+    .nav button.on { background: #2a2f38; color: #fff; }
+    .main { padding: 22px 28px 48px; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .ghost {
+      background: #fff;
+      border: 1px solid var(--line);
+      padding: 7px 12px;
+    }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 12px; color: var(--muted); font-weight: 600; }
+    .tag {
+      display: inline-block;
+      padding: 1px 8px;
+      font-size: 12px;
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+    .tag.live { background: var(--ok-bg); color: var(--ok); }
+    .tag.ref { background: #eef0f3; color: var(--muted); }
+    .panel { display: none; }
+    .panel.on { display: block; }
+    .form {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      align-items: start;
+    }
+    .card { background: #fff; border: 1px solid var(--line); padding: 16px; }
+    .card h2 { margin: 0 0 12px; font-size: 16px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .preview-title { font-size: 18px; margin: 0 0 8px; }
+    .price { font-size: 20px; margin: 0 0 10px; }
+    .bullets { margin: 0; padding-left: 18px; }
+    .bullets li { margin: 4px 0; }
+    .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .shot {
+      height: 180px;
+      background: #eef1f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--muted);
+    }
+    .shot.scene { background: #e7eef2; }
+    .shot img { max-width: 100%; max-height: 150px; object-fit: contain; }
+      width: 84px;
+      height: 52px;
+      border: 2px solid #9aa3ad;
+      border-radius: 10px;
+      background: #fff;
+    }
+    .shop {
+      display: none;
+      min-height: 100vh;
+      place-items: center;
+      padding: 24px;
+    }
+    .shop.on { display: grid; }
+    .shop-card { width: min(760px, 100%); background: #fff; border: 1px solid var(--line); padding: 24px; }
+    .cart { margin-top: 8px; }
+    @media (max-width: 860px) {
+      .app.on { grid-template-columns: 1fr; }
+      .form { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <section class="login" id="login">
+    <form class="login-card" id="login-form">
+      <h1>店铺后台</h1>
+      <p class="sub">亚马逊德国站的本地模拟。不会连接真实卖家账号。</p>
+      <label for="account">账号</label>
+      <input id="account" name="account" autocomplete="username" value="seller" />
+      <label for="password">密码</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" />
+      <p class="error" id="login-error"></p>
+      <button class="primary" type="submit">登录</button>
+      <p class="hint">演示账号 seller，密码 demo。</p>
+    </form>
+  </section>
+
+  <div class="app" id="app">
+    <aside class="side">
+      <div class="brand">Studio DE<small>模拟店铺 · 德国站</small></div>
+      <nav class="nav">
+        <button type="button" class="on" data-tab="list">商品</button>
+        <button type="button" data-tab="prep">准备</button>
+        <button type="button" data-tab="edit">编辑链接</button>
+        <button type="button" data-tab="inbound">入库</button>
+        <button type="button" data-tab="ads">广告</button>
+        <button type="button" data-tab="preview">买家页面</button>
+      </nav>
+    </aside>
+    <main class="main">
+      <div class="top">
+        <div>
+          <strong id="heading">商品</strong>
+          <div class="sub" id="who" style="margin:0"></div>
+        </div>
+        <button class="ghost" type="button" id="logout">退出</button>
+      </div>
+
+      <section class="panel on" id="panel-list">
+        <table>
+          <thead>
+            <tr><th>SKU / ASIN</th><th>标题</th><th>售价</th><th>状态</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </section>
+
+      <section class="panel" id="panel-prep">
+        <div id="prep"></div>
+      </section>
+
+      <section class="panel" id="panel-edit">
+        <form class="form" id="edit-form">
+          <div class="card">
+            <h2 id="edit-heading">草稿</h2>
+            <label for="title">标题</label>
+            <input id="title" name="title" />
+            <div class="row2">
+              <div>
+                <label for="price">售价（EUR）</label>
+                <input id="price" name="price" type="number" min="0" step="0.01" />
+              </div>
+              <div>
+                <label for="ship">配送</label>
+                <select id="ship" name="ship">
+                  <option>FBA</option>
+                  <option>自发货</option>
+                </select>
+              </div>
+            </div>
+            <label for="category">类目</label>
+            <input id="category" name="category" />
+            <label for="bullets">五点，一行一条</label>
+            <textarea id="bullets" name="bullets"></textarea>
+            <button class="primary" id="publish" type="submit">发布到德国站</button>
+            <p class="hint" id="publish-note"></p>
+          </div>
+          <div class="card" id="pack"></div>
+        </form>
+      </section>
+
+      <section class="panel" id="panel-inbound">
+        <div class="card" id="inbound"></div>
+      </section>
+
+      <section class="panel" id="panel-ads">
+        <div class="card" id="ads"></div>
+      </section>
+
+      <section class="panel" id="panel-preview">
+        <div class="card" id="buyer"></div>
+      </section>
+    </main>
+  </div>
+
+  <section class="shop" id="shop"></section>
+
+  <script>
+    const KEY = "fake-seller-de";
+    const DEMO = { account: "seller", password: "demo" };
+    const REFS = [
+      ["B0HCZ3P6B9", "ZIHUIEU 硅胶托盘两件套", "11.59"],
+      ["B0GST7MBPT", "BLESWIN 硅胶托盘两件套", "19.59"],
+      ["B0FLW7VPTN", "TAIVIN 浴室托盘两件", "7.99"],
+    ];
+    const draft0 = {
+      sku: "DE2610221",
+      title: "便于倒水与拆洗的浴室硅胶托盘三件套",
+      price: "14.99",
+      category: "展示托盘",
+      ship: "FBA",
+      bullets: "封底承水托盘，湿区垫可提起\n独立小盘与承水分开\n不承诺自排水、抗菌或可进洗碗机",
+      status: "草稿",
+    };
+
+    const login = document.querySelector("#login");
+    const app = document.querySelector("#app");
+    const rows = document.querySelector("#rows");
+    const buyer = document.querySelector("#buyer");
+
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+        if (saved && saved.sku) return saved;
+      } catch {}
+      return { ...draft0, account: "" };
+    }
+    function save(state) {
+      localStorage.setItem(KEY, JSON.stringify(state));
+    }
+    let state = load();
+
+    let imageMap = {};
+    function photoFor(sku) {
+      const url = imageMap[sku];
+      return typeof url === "string" && url.startsWith("https://") ? url : "";
+    }
+
+    function show(tab) {
+      document.querySelectorAll(".nav button").forEach((btn) => {
+        btn.classList.toggle("on", btn.dataset.tab === tab);
+      });
+      document.querySelectorAll(".panel").forEach((panel) => {
+        panel.classList.toggle("on", panel.id === "panel-" + tab);
+      });
+      const names = { list: "商品", prep: "准备", edit: "编辑链接", inbound: "入库", ads: "广告", preview: "买家页面" };
+      document.querySelector("#heading").textContent = names[tab];
+    }
+
+    function notesFor(sku, title) {
+      return {
+        imageNote: "演示图，不是商品照片",
+        germanTitle: title,
+        germanNote: "标题用搜索页原文，没有另写卖点",
+        gtin: "DEMO-" + sku,
+        gtinNote: "演示编码，不是 GS1 GTIN",
+        vatNote: "演示店铺，未登记真实德国 VAT",
+        inboundNote: "演示已建单，件数未填，不会发往亚马逊仓库",
+        adsNote: "未投放。没有预算，不创建广告",
+      };
+    }
+
+    function shotHtml(kind, url) {
+      if (kind === "主图" && url) {
+        return `<div class="shot"><img alt="" src="${escapeHtml(url)}" /><span>主图 · 搜索页</span></div>`;
+      }
+      const scene = kind === "场景" ? " scene" : "";
+      return `<div class="shot${scene}"><span class="mark"></span><span>${kind} · 演示图，不是商品照片</span></div>`;
+    }
+
+    function buyerHtml(item, status) {
+      const lines = (item.bullets || []).filter(Boolean);
+      const bulletBlock = lines.length
+        ? `<ul class="bullets">${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
+        : `<p class="sub">卖点没有另写。</p>`;
+      return `
+        <div class="shots">${shotHtml("主图", item.image)}${shotHtml("场景")}</div>
+        <p class="preview-title">${escapeHtml(item.title)}</p>
+        <p class="price">€${Number(item.price).toFixed(2)}</p>
+        <p class="sub">${escapeHtml(item.category)} · ${escapeHtml(item.ship || "FBA")} · ${escapeHtml(status)}</p>
+        ${bulletBlock}
+        <p class="sub">${escapeHtml(item.germanNote)}</p>
+        <p class="sub">${escapeHtml(item.gtin)} · ${escapeHtml(item.gtinNote)}</p>
+        <p class="sub">${escapeHtml(item.vatNote)}</p>
+        <p class="sub">${escapeHtml(item.inboundNote)}</p>
+        <p class="sub">${escapeHtml(item.adsNote)}</p>
+        <button class="primary cart" type="button" id="cart">加入购物车</button>
+        <p class="hint" id="cart-note"></p>`;
+    }
+
+    function render() {
+      const live = state.status === "已上架";
+      const pack = notesFor(state.sku, state.title);
+      rows.innerHTML = [
+        `<tr>
+          <td>${state.sku}</td>
+          <td>${escapeHtml(state.title)}</td>
+          <td>€${Number(state.price).toFixed(2)}</td>
+          <td><span class="tag ${live ? "live" : ""}">${state.status}</span></td>
+        </tr>`,
+        ...REFS.filter(([asin]) => asin !== state.sku).map(([asin, title, price]) => `<tr>
+          <td>${asin}</td>
+          <td>${title}</td>
+          <td>€${price}</td>
+          <td><span class="tag ref">竞品，只读</span></td>
+        </tr>`),
+      ].join("");
+      document.querySelector("#edit-heading").textContent = state.sku + (live ? " 已上架" : " 草稿");
+      const photo = photoFor(state.sku);
+      document.querySelector("#pack").innerHTML = `
+        <h2>随链接带上</h2>
+        <ul class="bullets">
+          <li>${photo ? "主图用搜索页上的那张。场景图没有。" : `${escapeHtml(pack.imageNote)}。主图和场景都是图形，不是照片。`}</li>
+          <li>德语标题：${escapeHtml(pack.germanTitle)}。${escapeHtml(pack.germanNote)}。</li>
+          <li>${escapeHtml(pack.gtin)}。${escapeHtml(pack.gtinNote)}。</li>
+          <li>${escapeHtml(pack.vatNote)}。</li>
+        </ul>`;
+      document.querySelector("#inbound").innerHTML = `<h2>入库</h2><p>${escapeHtml(pack.inboundNote)}。</p>`;
+      document.querySelector("#ads").innerHTML = `<h2>广告</h2><p>${escapeHtml(pack.adsNote)}。</p>`;
+      document.querySelector("#title").value = state.title;
+      document.querySelector("#price").value = state.price;
+      document.querySelector("#category").value = state.category;
+      document.querySelector("#ship").value = state.ship;
+      document.querySelector("#bullets").value = state.bullets;
+      document.querySelector("#publish").disabled = live;
+      document.querySelector("#publish").textContent = live ? "已发布" : "发布到德国站";
+      document.querySelector("#publish-note").textContent = live
+        ? "买家打开本机的 #shop 能看到。这不是真实亚马逊链接。"
+        : "发布后可在「买家页面」查看。";
+      const lines = state.bullets.split("\n").map((line) => line.trim()).filter(Boolean);
+      buyer.innerHTML = buyerHtml({ ...pack, title: state.title, price: state.price, category: state.category, ship: state.ship, bullets: lines, image: photoFor(state.sku) }, state.status)
+        + `<p class="hint"><a href="#shop">给买家看的页面</a></p>`;
+      const cart = buyer.querySelector("#cart");
+      if (cart) cart.addEventListener("click", () => {
+        const cartNote = buyer.querySelector("#cart-note");
+        if (cartNote) cartNote.textContent = "演示店铺，不能下单。";
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      })[ch]);
+    }
+
+    function enter() {
+      login.style.display = "none";
+      app.classList.add("on");
+      document.querySelector("#who").textContent = state.account + " · 德国站";
+      render();
+      show("list");
+    }
+
+    document.querySelector("#login-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const account = document.querySelector("#account").value.trim();
+      const password = document.querySelector("#password").value;
+      const error = document.querySelector("#login-error");
+      if (account !== DEMO.account || password !== DEMO.password) {
+        error.textContent = "账号或密码不对。演示账号是 seller / demo。";
+        return;
+      }
+      error.textContent = "";
+      state.account = account;
+      save(state);
+      enter();
+    });
+
+    document.querySelector("#logout").addEventListener("click", () => {
+      state.account = "";
+      save(state);
+      app.classList.remove("on");
+      login.style.display = "grid";
+    });
+
+    document.querySelectorAll(".nav button").forEach((btn) => {
+      btn.addEventListener("click", () => show(btn.dataset.tab));
+    });
+
+    document.querySelector("#edit-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (state.status === "已上架") return;
+      const note = document.querySelector("#publish-note");
+      const button = document.querySelector("#publish");
+      const bullets = document.querySelector("#bullets").value.split("\n").map((line) => line.trim()).filter(Boolean);
+      button.disabled = true;
+      note.textContent = "正在发布…";
+      try {
+        const res = await fetch("./publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sku: state.sku,
+            title: document.querySelector("#title").value.trim(),
+            priceEur: Number(document.querySelector("#price").value),
+            category: document.querySelector("#category").value.trim(),
+            ship: document.querySelector("#ship").value,
+            bullets,
+          }),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.ok) throw new Error(body.error || "发布没有写成");
+        state = {
+          ...state,
+          sku: body.sku,
+          title: body.title,
+          price: String(body.priceEur),
+          category: body.category,
+          ship: body.ship,
+          bullets: (body.bullets || []).join("\n"),
+          status: "已上架",
+        };
+        save(state);
+        render();
+        show("preview");
+      } catch (error) {
+        button.disabled = false;
+        note.textContent = "没发布成：" + (error instanceof Error ? error.message : String(error));
+      }
+    });
+
+    function renderPrep(prepared) {
+      const box = document.querySelector("#prep");
+      const money = (value) => (value == null ? "空" : String(value));
+      const checks = prepared.sample.checks
+        .map((item) => `<li>${item.id}. ${escapeHtml(item.gate)} — ${item.result ? escapeHtml(item.result) : "未测"}</li>`)
+        .join("");
+      const ask = prepared.quote.ask.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+      const bullets = prepared.listing.bullets.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
+      const target = prepared.listing.priceTarget;
+      box.innerHTML = `
+        <div class="card" style="margin-bottom:14px">
+          <h2>报价 · ${prepared.quote.status}</h2>
+          <p class="sub">采购价 ${money(prepared.quote.purchasePrice)} ${prepared.quote.currency || "CNY"} · 模费 ${money(prepared.quote.moldFee)} · 起订量 ${money(prepared.quote.moq)} · 汇率 ${money(prepared.quote.cnyPerEur)} · 头程 €${money(prepared.quote.freightEur)} · 尾程 €${money(prepared.quote.fbaFeeEur)} · 佣金 ${money(prepared.quote.referralRate)}</p>
+          <p class="sub">${prepared.margin ? `单件利润 €${prepared.margin.netProfitEur.low}–€${prepared.margin.netProfitEur.high}，净利率 ${(prepared.margin.netMargin.low * 100).toFixed(1)}%–${(prepared.margin.netMargin.high * 100).toFixed(1)}%。${escapeHtml(prepared.margin.note)}` : "汇率、头程、尾程或佣金还没齐，不算欧元利润。"}</p>
+          <ul class="bullets">${ask}</ul>
+          <p class="hint">${escapeHtml(prepared.quote.note)}</p>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <h2>试样 · ${prepared.sample.status}</h2>
+          <ul class="bullets">${checks}</ul>
+        </div>
+        <div class="card">
+          <h2>链接 · ${prepared.listing.status}</h2>
+          <p class="preview-title">${escapeHtml(prepared.listing.title)}</p>
+          <p class="sub">${target ? `目标价 €${target.min}–€${target.max}。${escapeHtml(target.note)}` : ""}</p>
+          <ul class="bullets">${bullets}</ul>
+          ${prepared.store ? `<p class="sub">${escapeHtml(prepared.store.imageNote)} · ${escapeHtml(prepared.store.germanNote)}</p><p class="sub">${escapeHtml(prepared.store.gtin)} · ${escapeHtml(prepared.store.gtinNote)}</p><p class="sub">${escapeHtml(prepared.store.vatNote)}</p><p class="sub">${escapeHtml(prepared.store.inboundNote)}</p><p class="sub">${escapeHtml(prepared.store.adsNote)}</p>` : ""}
+        </div>`;
+    }
+
+    function renderShop(live) {
+      const shop = document.querySelector("#shop");
+      shop.classList.add("on");
+      if (!live || live.status !== "已上架") {
+        shop.innerHTML = `<div class="login-card"><h1>还没上架</h1><p class="sub">买家页面在发布之后才看得到。</p></div>`;
+        return;
+      }
+      const item = { ...live, price: live.priceEur, image: live.image || photoFor(live.sku) };
+      shop.innerHTML = `<div class="shop-card">${buyerHtml(item, "已上架")}</div>`;
+      const cart = shop.querySelector("#cart");
+      if (cart) cart.addEventListener("click", () => {
+        const cartNote = shop.querySelector("#cart-note");
+        if (cartNote) cartNote.textContent = "演示店铺，不能下单。";
+      });
+    }
+
+    function showShop() {
+      login.style.display = "none";
+      app.classList.remove("on");
+      fetch("./live.json").then((res) => res.json()).then(renderShop).catch(() => renderShop(null));
+    }
+
+    window.addEventListener("hashchange", () => {
+      if (location.hash === "#shop") showShop();
+      else if (state.account) enter();
+      else {
+        document.querySelector("#shop").classList.remove("on");
+        login.style.display = "grid";
+      }
+    });
+
+    Promise.all([
+      fetch("./case.json").then((res) => res.json()).catch(() => null),
+      fetch("./live.json").then((res) => res.json()).catch(() => null),
+      fetch("./images.json").then((res) => res.json()).catch(() => ({})),
+    ]).then(([prepared, live, images]) => {
+      imageMap = images && typeof images === "object" ? images : {};
+      try {
+      if (prepared) renderPrep(prepared);
+      else document.querySelector("#prep").textContent = "准备结果没加载到。";
+      const published = live && live.status === "已上架" ? live : null;
+      if (prepared && prepared.shelf && prepared.shelf.sku && (!published || published.sku !== prepared.shelf.sku)) {
+        state = {
+          ...state,
+          sku: prepared.shelf.sku,
+          title: prepared.shelf.title,
+          price: String(prepared.shelf.priceEur),
+          category: prepared.shelf.category || state.category,
+          bullets: "",
+          status: "草稿",
+        };
+        save(state);
+      } else if (published) {
+        state = {
+          ...state,
+          sku: published.sku,
+          title: published.title,
+          price: String(published.priceEur),
+          category: published.category,
+          ship: published.ship || state.ship,
+          bullets: (published.bullets || []).join("\n"),
+          status: "已上架",
+        };
+        save(state);
+      } else if (state.status === "已上架") {
+        state = { ...state, status: "草稿" };
+        save(state);
+      }
+      if (state.status === "草稿" && prepared && prepared.listing && !prepared.shelf) {
+        state.title = prepared.listing.title || state.title;
+        state.bullets = (prepared.listing.bullets || []).join("\n");
+      }
+      } catch {
+        // 报价状态写失败也要打开买家页。
+      }
+      if (location.hash === "#shop") showShop();
+      else if (state.account) enter();
+    });
+  </script>
+</body>
+</html>

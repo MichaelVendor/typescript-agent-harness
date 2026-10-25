@@ -1,0 +1,20 @@
+{
+  "name": "@typescript-agent-harness/example-selection-agent",
+  "private": true,
+  "version": "1.6.0",
+  "type": "module",
+  "scripts": {
+    "start": "tah chat",
+    "typecheck": "tsc -p tsconfig.json",
+    "smoke": "node --experimental-strip-types scripts/smoke.ts",
+    "smoke:orchestration": "node --experimental-strip-types scripts/smoke-orchestration.ts",
+    "test": "node --test --experimental-strip-types \"lib/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@typescript-agent-harness/agent": "workspace:*",
+    "@typescript-agent-harness/cli": "workspace:*",
+    "@typescript-agent-harness/core": "workspace:*",
+    "typescript": "^5.9.2"
+  }
+}
