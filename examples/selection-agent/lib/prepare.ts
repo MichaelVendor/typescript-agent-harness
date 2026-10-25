@@ -48,7 +48,16 @@ export type PreparedCase = {
     inboundNote: string;
     adsNote: string;
   } | null;
+  /** 用户确认后发起的询盘清单。没发起是 null。 */
+  inquiry: {
+    status: "未发起" | "已发起";
+    asin: string | null;
+    title: string | null;
+    items: string[];
+  } | null;
 };
+
+export const INQUIRY_ITEMS = ["硅胶净重", "成型与后处理", "检验", "包材", "起订量", "模费与摊销"] as const;
 
 type Plan = {
   differentiation?: string;
@@ -67,7 +76,7 @@ type Raw = {
   };
 };
 
-const ASK = ["硅胶净重", "成型与后处理", "检验", "包材", "起订量", "模费与摊销"];
+const ASK = [...INQUIRY_ITEMS];
 
 function money(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -132,6 +141,7 @@ export function prepareCase(raw: Raw): PreparedCase {
     margin: null,
     shelf: null,
     store: null,
+    inquiry: null,
   };
 }
 

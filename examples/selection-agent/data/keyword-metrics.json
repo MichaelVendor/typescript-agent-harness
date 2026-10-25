@@ -1,0 +1,68 @@
+{
+  "fetchedAt": "2026-10-23T00:57:42.213Z",
+  "source": "SELLERSPRITE_KEYWORD_REVERSE",
+  "seedAsin": "B0HCZ3P6B9",
+  "note": "从 DE2610221 广告备注里的 metrics 抽出。有月搜索量和环比，没有 12 个月序列。不编造序列。",
+  "keywords": {
+    "badezimmer tablett": {
+      "monthlySearchVolume": 2826,
+      "trend3m": 0.0733,
+      "searchGrowthAnnual": 0.2202,
+      "abaWeekRank": 126335
+    },
+    "dekotablett schwarz": {
+      "monthlySearchVolume": 2890,
+      "trend3m": 0.3881,
+      "searchGrowthAnnual": 0.2754,
+      "abaWeekRank": 150949
+    },
+    "dekotablett": {
+      "monthlySearchVolume": 9778,
+      "trend3m": 0.4087,
+      "searchGrowthAnnual": 0.508,
+      "abaWeekRank": 26688
+    },
+    "tablett schwarz": {
+      "monthlySearchVolume": 4160,
+      "trend3m": 0.1216,
+      "searchGrowthAnnual": 0.0816,
+      "abaWeekRank": 77190
+    },
+    "silikon schwarz": {
+      "monthlySearchVolume": 9207,
+      "trend3m": 0.1339,
+      "searchGrowthAnnual": 0.0218,
+      "abaWeekRank": 34829
+    },
+    "tray": {
+      "monthlySearchVolume": 4043,
+      "trend3m": 0.0097,
+      "searchGrowthAnnual": 0.23,
+      "abaWeekRank": 78575
+    },
+    "tabletts": {
+      "monthlySearchVolume": 3575,
+      "trend3m": 0.1949,
+      "searchGrowthAnnual": 1.4486,
+      "abaWeekRank": 79017
+    },
+    "kleines tablett": {
+      "monthlySearchVolume": 3426,
+      "trend3m": 0.0911,
+      "searchGrowthAnnual": 0.3187,
+      "abaWeekRank": 128073
+    },
+    "tablett klein": {
+      "monthlySearchVolume": 2661,
+      "trend3m": 0.0835,
+      "searchGrowthAnnual": -0.1383,
+      "abaWeekRank": 133832
+    },
+    "tablett rechteckig": {
+      "monthlySearchVolume": 1540,
+      "trend3m": 0.5876,
+      "searchGrowthAnnual": 0.7722,
+      "abaWeekRank": 221247
+    }
+  }
+}

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type {
   CompetitorSnapshot,
+  KeywordMetrics,
   KeywordObservation,
   MarketSource,
   Product,
@@ -191,6 +192,63 @@ const dossier = load();
 const catalog = loadCatalog(new Set(dossier.items.map((item) => item.asin)));
 const pool = [...dossier.items, ...catalog.items];
 
+type KeywordRow = {
+  monthlySearchVolume: number;
+  trend3m?: number;
+};
+
+function loadKeywordSnapshot(): Map<string, KeywordRow> {
+  const file = fileURLToPath(new URL("../../data/keyword-metrics.json", import.meta.url));
+  try {
+    const raw = JSON.parse(readFileSync(file, "utf8")) as {
+      keywords?: Record<string, { monthlySearchVolume?: number; trend3m?: number }>;
+    };
+    const map = new Map<string, KeywordRow>();
+    for (const [keyword, row] of Object.entries(raw.keywords ?? {})) {
+      const volume = row.monthlySearchVolume;
+      if (typeof volume !== "number" || !Number.isFinite(volume) || volume < 0) continue;
+      const key = keyword.trim().toLowerCase();
+      if (!key) continue;
+      map.set(key, {
+        monthlySearchVolume: volume,
+        ...(typeof row.trend3m === "number" && Number.isFinite(row.trend3m) ? { trend3m: row.trend3m } : {}),
+      });
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+const keywordSnapshot = loadKeywordSnapshot();
+
+/** 按商品类目词或标题里出现的词，从快照取需求。没有 12 个月序列就不编。 */
+export function resolveKeywordMetrics(asin: string, item: Item): KeywordMetrics | undefined {
+  if (item.query) {
+    const keyword = item.query.trim().toLowerCase();
+    const row = keywordSnapshot.get(keyword);
+    if (row) {
+      return {
+        asin,
+        keyword,
+        monthlySearchVolume: row.monthlySearchVolume,
+        ...(row.trend3m !== undefined ? { trend3m: row.trend3m } : {}),
+      };
+    }
+  }
+  // 档案竞品没有 query：按快照写入顺序（广告流量序）取第一个命中的词，不挑搜索量最大的泛词。
+  for (const [keyword, row] of keywordSnapshot) {
+    if (!item.hay.includes(keyword)) continue;
+    return {
+      asin,
+      keyword,
+      monthlySearchVolume: row.monthlySearchVolume,
+      ...(row.trend3m !== undefined ? { trend3m: row.trend3m } : {}),
+    };
+  }
+  return undefined;
+}
+
 function findDossier(asin: string): Item | undefined {
   return dossier.items.find((item) => item.asin === asin);
 }
@@ -261,8 +319,9 @@ export const dossierMarketSource: MarketSource = {
         ...(item.image ? { image: item.image } : {}),
       }));
   },
-  async keywordMetrics() {
-    return undefined;
+  async keywordMetrics(asin) {
+    const item = find(asin.trim().toUpperCase());
+    return item ? resolveKeywordMetrics(item.asin, item) : undefined;
   },
   async keywordObservations(asin) {
     return findDossier(asin) ? dossier.keywords : undefined;

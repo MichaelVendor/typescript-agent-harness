@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import type { PreparedCase } from "./prepare.ts";
+import { INQUIRY_ITEMS, type PreparedCase } from "./prepare.ts";
 import { PROJECT_ROOT } from "./report.ts";
 
 export type CaseState = {
@@ -16,6 +16,7 @@ export type CaseState = {
   sample?: Record<string, string>;
   listingConfirmed?: boolean;
   shelf?: { sku: string; title: string; priceEur: number; category: string };
+  inquiry?: { asin: string; title: string; items: string[] };
 };
 
 const STATE_FILE = path.join(PROJECT_ROOT, "data", "case-state.json");
@@ -118,7 +119,17 @@ export function applyCaseState(prepared: PreparedCase, state: CaseState): Prepar
     margin,
     shelf: normalizeShelf(state.shelf),
     store: storeDraft(normalizeShelf(state.shelf)),
+    inquiry: normalizeInquiry(state.inquiry),
   };
+}
+
+function normalizeInquiry(inquiry: CaseState["inquiry"]): PreparedCase["inquiry"] {
+  if (!inquiry) return null;
+  const asin = inquiry.asin.trim();
+  const title = inquiry.title.trim();
+  const items = inquiry.items.map((item) => item.trim()).filter(Boolean);
+  if (!asin || !title || items.length === 0) return null;
+  return { status: "已发起", asin, title, items };
 }
 
 /** 模拟店铺的固定说明。不生成税号、条码、件数或广告花费。 */
@@ -230,6 +241,19 @@ export function saveShelf(input: { sku: string; title: string; priceEur: number;
   const shelf = normalizeShelf(input);
   if (!shelf) throw new Error("上架对象需要 asin、标题、类目，以及大于 0 的欧元售价");
   const next = { ...readCaseState(), shelf };
+  writeState(next);
+  return next;
+}
+
+export function saveInquiry(input: { asin: string; title: string; items?: string[] }): CaseState {
+  const asin = input.asin.trim();
+  const title = input.title.trim();
+  const items = (input.items?.length ? input.items : [...INQUIRY_ITEMS])
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!asin || !title) throw new Error("询盘需要 asin 和标题");
+  if (items.length === 0) throw new Error("询盘清单不能为空");
+  const next = { ...readCaseState(), inquiry: { asin, title, items } };
   writeState(next);
   return next;
 }

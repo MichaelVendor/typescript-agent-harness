@@ -26,4 +26,5 @@ test("报价三格是空的，链接只复述档案里的结构", () => {
   assert.ok(prepared.listing.bullets.some((line) => line.includes("不承诺")));
   assert.equal(prepared.listing.priceTarget?.min, 14.99);
   assert.equal(prepared.listing.priceTarget?.max, 16.99);
+  assert.equal(prepared.inquiry, null);
 });

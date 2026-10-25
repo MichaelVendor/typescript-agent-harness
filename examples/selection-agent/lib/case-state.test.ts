@@ -49,3 +49,14 @@ test("试样按编号记录，链接确认不改标题", () => {
   assert.match(picked.store?.adsNote ?? "", /没有预算/);
   assert.equal(applyCaseState(blank, { shelf: { sku: "B0TEST", title: "x", priceEur: 0, category: "dekotablett" } }).shelf, null);
 });
+
+test("询盘记下 asin 和清单，不写成已报价", () => {
+  assert.equal(applyCaseState(blank, {}).inquiry, null);
+  const ready = applyCaseState(blank, {
+    inquiry: { asin: "B0TEST", title: "Deko Tablett", items: ["硅胶净重", "包材"] },
+  });
+  assert.equal(ready.inquiry?.status, "已发起");
+  assert.equal(ready.inquiry?.asin, "B0TEST");
+  assert.deepEqual(ready.inquiry?.items, ["硅胶净重", "包材"]);
+  assert.equal(ready.quote.status, "待报价");
+});

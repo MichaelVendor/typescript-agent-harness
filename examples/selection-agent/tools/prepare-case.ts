@@ -10,7 +10,7 @@ export default defineTool({
     const prepared = loadPreparedCase();
     return {
       ...prepared,
-      next: "没记下的报价和试样保持空，不能据此算利润，也不能把目标价写成已上架售价。不要打开浏览器。先把结论、排行榜、说明、缺口写给用户。写完按 select-to-shelf 用 ask_user 问报价、试样、链接确认，最后一题的选项是排行榜前 4 名的商品标题，放弃的也要列上。",
+      next: "没记下的报价和试样保持空，不能据此算利润，也不能把目标价写成已上架售价。不要打开浏览器。先把结论、排行榜、说明、缺口写给用户。写完按 select-to-shelf 用 ask_user 问报价、试样、链接确认、上架哪一条、要不要询盘。上架题的选项是排行榜前 4 名的商品标题，放弃的也要列上。询盘选了就调用 save_inquiry，不要用散文再问。",
     };
   },
 });

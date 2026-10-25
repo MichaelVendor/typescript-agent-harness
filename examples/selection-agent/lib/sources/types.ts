@@ -24,11 +24,11 @@ export type KeywordMetrics = {
   asin: string;
   keyword: string;
   monthlySearchVolume: number;
-  /** 每月搜索量，最近 12 个月，最后一个是最新的。 */
-  monthlySeries: number[];
-  /** 近 3 个月相对前 3 个月的变化率，-1..1+。 */
-  trend3m: number;
-  peakMonths: number[];
+  /** 每月搜索量，最近 12 个月，最后一个是最新的。没有就不填。 */
+  monthlySeries?: number[];
+  /** 近 3 个月相对前 3 个月的变化率，-1..1+。没有就不填。 */
+  trend3m?: number;
+  peakMonths?: number[];
 };
 
 export type CompetitorSnapshot = {
