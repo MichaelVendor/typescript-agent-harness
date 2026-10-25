@@ -15,7 +15,7 @@ async function defaultConnectKind(
 ): Promise<McpClientLike> {
   const Transport =
     kind === "streamable" ? StreamableHTTPClientTransport : SSEClientTransport;
-  const client = new Client({ name: "typescript-agent-harness", version: "1.5.0" });
+  const client = new Client({ name: "typescript-agent-harness", version: "1.6.0" });
   await client.connect(new Transport(new URL(url), { requestInit: { headers } }));
   return client;
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.0 — 2026-10-25
+
+**Terminal** (`tah chat`): closer to Claude Code's interactive mode — keyboard modes (`normal` / `transcript` / `history`), `@` file complete, `Ctrl+R` history search, `Ctrl+G` external editor, `Ctrl+T` todos, `Ctrl+S` stash, empty `?` help, `Ctrl+L` redraw, and readline-style edits (`Ctrl+K/U/W/Y`, `Alt+B/F`). Markdown reflows to the terminal width with syntax highlight and OSC 8 links when the terminal supports them. `Ctrl+O` expands tool results (higher line cap); edit/write diffs color `-` / `+` lines. Permission modes cycle with `Shift+Tab`: manual, accept-edits (file edits skip the prompt), plan (blocks edits and commands).
+
+**Web** (`tah serve`): session rail shows context usage and this turn's file changes (Diff pane). Composer attachments use `[Image #N]` chips with thumbnails; sent user messages use a Claude-like gray bar. Browser panel can go forward and close a tab. Bottom status bar removed in favor of the rail and composer.
+
 ## 1.5.0 — 2026-10-23
 
 **Images:** `tah chat` pastes an image from the system clipboard (macOS, Linux, Windows) or a pasted image path, and stores it in `<cwd>/.tah/attachments/`. The scrollback draws that message's images, images named in the reply (a Markdown image or a bare path, including a size note glued to the path), and images named by a tool path or by an `execute_command` stdout line. png, jpeg, webp, and gif only, at most 20 images and 20 MiB each. iTerm — the protocol Cursor and VS Code terminals use — receives the original bytes for all four. Kitty and Sixel draw PNG and skip the other kinds. `--plain` and a non-TTY print no image sequences.
