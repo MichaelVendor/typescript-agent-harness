@@ -1,14 +1,14 @@
 import { inflateSync } from "node:zlib";
 import path from "node:path";
 
-export type ImageKind = "png" | "jpeg" | "gif" | "webp";
+export type ImageKind = "png" | "jpeg" | "gif" | "webp" | "svg";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_IMAGE_PATHS = 20;
 /** Kitty's limit on the base64 payload of one escape. */
 const KITTY_CHUNK = 4096;
 
-const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif", "svg"]);
 
 export function imageKind(head: Buffer): ImageKind | undefined {
   if (
@@ -34,6 +34,8 @@ export function imageKind(head: Buffer): ImageKind | undefined {
   ) {
     return "webp";
   }
+  const text = head.subarray(0, Math.min(head.length, 256)).toString("utf8").replace(/^\uFEFF/, "").trimStart();
+  if (text.startsWith("<svg") || (text.startsWith("<?xml") && /<svg[\s>]/i.test(text))) return "svg";
   return undefined;
 }
 
@@ -79,7 +81,7 @@ function extensionOk(raw: string): boolean {
 /** Models write `` `shot.jpg`（1600×1000） ``. Keep the path, drop the wrapping and the trailing note. */
 function normalizeCandidate(word: string): string {
   const stripped = word.replace(/^[`'"“”‘’(<\[]+/, "");
-  const cut = /^(.*?\.(?:png|jpe?g|webp|gif))(?![A-Za-z0-9])/i.exec(stripped);
+  const cut = /^(.*?\.(?:png|jpe?g|webp|gif|svg))(?![A-Za-z0-9])/i.exec(stripped);
   if (cut?.[1]) return cut[1];
   return stripped.replace(/[`'"“”‘’>)\].,;:!?。，、；：！？）】》」』]+$/u, "");
 }
@@ -226,10 +228,15 @@ function encodeKitty(bytes: Buffer, wantCols: number, wantRows: number): string 
   return transmit + lines.join("\n");
 }
 
-function encodeIterm(bytes: Buffer, cols: number, rows: number): string {
-  const name = Buffer.from("image").toString("base64");
+function encodeIterm(bytes: Buffer, cols: number, rows: number, fileName = "image"): string {
+  const name = Buffer.from(fileName).toString("base64");
   const seq = `\x1b]1337;File=name=${name};inline=1;width=${cols};height=${rows};preserveAspectRatio=1:${bytes.toString("base64")}\x07`;
   return seq + "\n".repeat(rows);
+}
+
+/** Like Claude Code: when the terminal cannot draw the picture, show a dim stand-in. */
+export function imageAlt(label: string): string {
+  return `\x1b[2m[image] ${label}\x1b[22m\n`;
 }
 
 type Rgba = { width: number; height: number; data: Buffer };
@@ -360,14 +367,23 @@ export function encodeImage(input: {
   protocol: ImageProtocol;
   bytes: Buffer;
   columns: number;
+  /** Shown when this terminal cannot draw the bytes (Claude-style alt). */
+  label?: string;
 }): string {
   const { protocol, bytes, columns } = input;
-  if (protocol === "none" || bytes.length > MAX_IMAGE_BYTES) return "";
+  const label = input.label ?? "image";
+  if (bytes.length > MAX_IMAGE_BYTES) return imageAlt(label);
   const kind = imageKind(bytes);
-  if (!kind) return "";
+  if (!kind) return imageAlt(label);
+  if (protocol === "none") return imageAlt(label);
   const { cols, rows } = cellSize(kind, bytes, columns);
-  if (protocol === "iterm") return encodeIterm(bytes, cols, rows);
-  if (kind !== "png") return "";
+  // iTerm accepts the original bytes (png/jpeg/gif/webp/svg).
+  if (protocol === "iterm") {
+    const fileName = kind === "svg" ? "image.svg" : kind === "jpeg" ? "image.jpg" : `image.${kind}`;
+    return encodeIterm(bytes, cols, rows, fileName);
+  }
+  // Kitty and Sixel only draw PNG here; other formats fall back to alt text.
+  if (kind !== "png") return imageAlt(label);
   if (protocol === "kitty") return encodeKitty(bytes, cols, rows);
   return encodeSixel(bytes, cols, rows);
 }

@@ -26,7 +26,7 @@ export function buildSystemPrompt(opts: {
     return appendSkillsCatalog(systemPrompt, opts.skillsCatalog);
   }
   const rules =
-    "Prefer list_files, read_file, and grep before answering. Change files only when asked: edit_file for changes to an existing file, write_file for new files or full rewrites. For tasks with 3 or more steps, keep a task list with todo_write and update it as you go.";
+    "Prefer list_files, read_file, and grep before answering. Change files only when asked: edit_file for changes to an existing file, write_file for new files or full rewrites. For tasks with 3 or more steps, keep a task list with todo_write and update it as you go. When the user asks to draw, generate, or show a picture, write an SVG with write_file and put that path in the reply — the chat displays png, jpeg, webp, gif, and svg paths — instead of asking which format. Answer in the user's language.";
   let systemPrompt = role ? `${role}\n\n${rules}` : `${DEFAULT_ROLE} ${rules}`;
   if (opts.exec) {
     systemPrompt +=

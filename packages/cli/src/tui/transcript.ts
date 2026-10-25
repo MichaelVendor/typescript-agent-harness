@@ -1,4 +1,5 @@
 import { closeSync, openSync, readSync, realpathSync, statSync } from "node:fs";
+import path from "node:path";
 import type { Todo } from "@typescript-agent-harness/tools";
 import type { Question } from "../ask-user.js";
 import type { HistoryItem, HostEvent, QueuedMessage } from "../host.js";
@@ -42,7 +43,7 @@ const fileIo = {
 /** Finished output, printed once into the terminal's scrollback. */
 export type Item =
   | { id: number; kind: "user"; text: string; images?: string }
-  | { id: number; kind: "assistant"; text: string; images?: string }
+  | { id: number; kind: "assistant"; text: string; images?: string; model?: string }
   | { id: number; kind: "tool"; tool: string; summary: string; ok: boolean; result: string; images?: string }
   | { id: number; kind: "todos"; todos: Todo[] }
   | { id: number; kind: "notice"; text: string }
@@ -113,7 +114,11 @@ export class Transcript {
 
   private stream(): MarkdownStream {
     return createMarkdownStream((s) => {
-      this.push({ kind: "assistant", text: s.replace(/\n$/, ""), ...this.images(this.textImages(s)) }, false);
+      const model = this.snapshot.model;
+      this.push(
+        { kind: "assistant", text: s.replace(/\n$/, ""), ...(model ? { model } : {}), ...this.images(this.textImages(s)) },
+        false,
+      );
     }, this.render);
   }
 
@@ -146,7 +151,12 @@ export class Transcript {
       try {
         const bytes = painter.readFile(p);
         if (!bytes) continue;
-        const seq = encodeImage({ protocol: painter.protocol, bytes, columns: painter.columns() });
+        const seq = encodeImage({
+          protocol: painter.protocol,
+          bytes,
+          columns: painter.columns(),
+          label: path.basename(p),
+        });
         if (seq) out.push(seq);
       } catch {
         // this one image is skipped
@@ -176,7 +186,8 @@ export class Transcript {
     if (!painter) return [];
     const paths: string[] = [];
     for (const a of attachments ?? []) {
-      if (a.kind !== "image") continue;
+      const svg = a.mime === "image/svg+xml" || /\.svg$/i.test(a.name);
+      if (a.kind !== "image" && !svg) continue;
       try {
         const p = painter.attachmentPath(a.id);
         if (p) paths.push(p);
@@ -185,6 +196,21 @@ export class Transcript {
       }
     }
     return paths;
+  }
+
+  /** Blocks closed before `turn.end` were written without this turn's model. */
+  private tagTurnModel(model: string): void {
+    let from = 0;
+    for (let i = this.snapshot.items.length - 1; i >= 0; i--) {
+      if (this.snapshot.items[i]?.kind === "user") {
+        from = i + 1;
+        break;
+      }
+    }
+    const items = this.snapshot.items.map((item, i) =>
+      i >= from && item.kind === "assistant" && item.model !== model ? { ...item, model } : item,
+    );
+    this.snapshot = { ...this.snapshot, items };
   }
 
   /** Writes out any streamed text, so what follows appears after it. */
@@ -267,7 +293,9 @@ export class Transcript {
         this.push({ kind: event.error ? "error" : "notice", text: event.text });
         return;
       case "turn.end":
+        if (event.model) this.snapshot = { ...this.snapshot, model: event.model };
         this.settle();
+        if (event.model) this.tagTurnModel(event.model);
         this.set({
           busy: false,
           tools: [],

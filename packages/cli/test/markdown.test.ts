@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createMarkdownStream, renderMarkdown, useColor } from "../dist/markdown.js";
+import { createMarkdownStream, renderMarkdown, useColor } from "../src/markdown.ts";
 
 const plain = (s: string) => s.replace(/\x1b\[[\d;]*m/g, "");
 
@@ -50,6 +50,19 @@ test("stream keeps loose lists, indented lines, and fenced blank lines in one bl
   assert.match(out(), /a\n\s*\n\s*b/);
   md.flush();
   assert.match(out(), /after\n$/);
+});
+
+test("renderMarkdown reflows long paragraph to width", () => {
+  const long = "word ".repeat(40).trim();
+  const out = renderMarkdown(long, { width: 40, color: false });
+  const lines = out.split("\n").filter(Boolean);
+  assert.ok(lines.length >= 2);
+  assert.ok(lines.every((l) => l.replace(/\x1b\[[0-9;]*m/g, "").length <= 40));
+});
+
+test("renderMarkdown keeps a fenced code fence marker", () => {
+  const out = renderMarkdown("```js\nconst x = 1;\n```", { color: false });
+  assert.match(out, /const x = 1/);
 });
 
 test("useColor needs a TTY, no NO_COLOR, and TERM other than dumb", () => {

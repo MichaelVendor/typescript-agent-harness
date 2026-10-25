@@ -125,6 +125,71 @@ export function layoutEditor(e: Editor, width: number): { rows: string[]; cursor
   return { rows, cursor };
 }
 
+const wordRe = /[\p{L}\p{N}]/u;
+
+const isWordChar = (ch: string) => wordRe.test(ch);
+
+export function killLineEnd(e: Editor): { editor: Editor; killed: string } {
+  const line = e.lines[e.row] ?? "";
+  const before = chars(line).slice(0, e.col).join("");
+  const after = chars(line).slice(e.col).join("");
+  const lines = [...e.lines];
+  lines[e.row] = before;
+  return { editor: { lines, row: e.row, col: e.col }, killed: after };
+}
+
+export function killLineStart(e: Editor): { editor: Editor; killed: string } {
+  const line = e.lines[e.row] ?? "";
+  const before = chars(line).slice(0, e.col).join("");
+  const after = chars(line).slice(e.col).join("");
+  const lines = [...e.lines];
+  lines[e.row] = after;
+  return { editor: { lines, row: e.row, col: 0 }, killed: before };
+}
+
+export function killWordBack(e: Editor): { editor: Editor; killed: string } {
+  const line = e.lines[e.row] ?? "";
+  const cps = chars(line);
+  let start = e.col;
+  while (start > 0 && !/\s/u.test(cps[start - 1] ?? "")) start--;
+  if (start > 0) {
+    while (start > 0 && /\s/u.test(cps[start - 1] ?? "")) start--;
+  }
+  const before = cps.slice(0, start).join("");
+  const killed = cps.slice(start, e.col).join("");
+  const lines = [...e.lines];
+  lines[e.row] = before + cps.slice(e.col).join("");
+  return { editor: { lines, row: e.row, col: start }, killed };
+}
+
+export function yank(e: Editor, text: string): Editor {
+  return insert(e, text);
+}
+
+export function moveWord(e: Editor, dir: "left" | "right"): Editor {
+  const line = e.lines[e.row] ?? "";
+  const cps = chars(line);
+  const len = cps.length;
+  if (dir === "right") {
+    let col = e.col;
+    if (col < len && isWordChar(cps[col] ?? "")) {
+      while (col < len && isWordChar(cps[col] ?? "")) col++;
+    } else {
+      while (col < len && !isWordChar(cps[col] ?? "")) col++;
+      while (col < len && isWordChar(cps[col] ?? "")) col++;
+    }
+    return { ...e, col };
+  }
+  let col = e.col;
+  if (col > 0 && isWordChar(cps[col - 1] ?? "")) {
+    while (col > 0 && isWordChar(cps[col - 1] ?? "")) col--;
+  } else {
+    while (col > 0 && !isWordChar(cps[col - 1] ?? "")) col--;
+    while (col > 0 && isWordChar(cps[col - 1] ?? "")) col--;
+  }
+  return { ...e, col };
+}
+
 /** Text typed so far when the input is a single `/command` with no arguments yet. */
 export function slashQuery(e: Editor): string | undefined {
   if (e.lines.length !== 1) return undefined;

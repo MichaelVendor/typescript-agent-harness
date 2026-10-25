@@ -11,11 +11,47 @@ export function useColor(stream: { isTTY?: boolean } = process.stdout): boolean 
   return Boolean(stream.isTTY) && process.env.NO_COLOR === undefined && process.env.TERM !== "dumb";
 }
 
-const marked = new Marked(markedTerminal());
+export type MarkdownOptions = { width?: number; color?: boolean };
+
+const identity = (s: string) => s;
+const ANSI_SGR = /\x1b\[[\d;]*m/g;
+
+const noColorStyles = {
+  code: identity,
+  blockquote: identity,
+  html: identity,
+  heading: identity,
+  firstHeading: identity,
+  hr: identity,
+  listitem: identity,
+  table: identity,
+  paragraph: identity,
+  strong: identity,
+  em: identity,
+  codespan: identity,
+  del: identity,
+  link: identity,
+  href: identity,
+} as const;
+
+function terminalOptions(opts?: MarkdownOptions): Record<string, unknown> {
+  const width = opts?.width !== undefined ? Math.max(40, opts.width) : 80;
+  const reflowText = Boolean(opts?.width);
+  const color = opts?.color !== false && useColor();
+  return color ? { reflowText, width } : { reflowText, width, ...noColorStyles };
+}
+
+function parseMarkdown(text: string, opts?: MarkdownOptions): string {
+  const marked = new Marked(markedTerminal(terminalOptions(opts)));
+  const color = opts?.color !== false && useColor();
+  let out = (marked.parse(text, { async: false }) as string).replace(/^\n+|\n+$/g, "");
+  if (!color) out = out.replace(ANSI_SGR, "");
+  return out;
+}
 
 /** Renders Markdown with marked-terminal; surrounding blank lines are trimmed. */
-export function renderMarkdown(text: string): string {
-  return (marked.parse(text, { async: false }) as string).replace(/^\n+|\n+$/g, "");
+export function renderMarkdown(text: string, opts?: MarkdownOptions): string {
+  return parseMarkdown(text, opts);
 }
 
 /** `pending()`: raw text received but not yet written as a rendered block. */

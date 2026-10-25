@@ -18,6 +18,7 @@ export type {
   FileKind,
   FileStat,
   RecentFolder,
+  PermissionMode,
   ServeError,
   ServeInfo,
   ServeRequest,

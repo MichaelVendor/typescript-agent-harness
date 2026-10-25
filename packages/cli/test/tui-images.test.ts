@@ -35,7 +35,7 @@ const png1 = Buffer.from(
   "base64",
 );
 
-test("imageKind recognizes the four formats", () => {
+test("imageKind recognizes bitmap formats and svg", () => {
   assert.equal(imageKind(png), "png");
   assert.equal(imageKind(Buffer.from([0xff, 0xd8, 0xff, 0])), "jpeg");
   assert.equal(imageKind(Buffer.from("GIF89a")), "gif");
@@ -43,6 +43,8 @@ test("imageKind recognizes the four formats", () => {
   webp.write("RIFF", 0);
   webp.write("WEBP", 8);
   assert.equal(imageKind(webp), "webp");
+  assert.equal(imageKind(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>')), "svg");
+  assert.equal(imageKind(Buffer.from('<?xml version="1.0"?><svg width="1"/>')), "svg");
   assert.equal(imageKind(Buffer.from("nope")), undefined);
 });
 
@@ -53,9 +55,11 @@ test("fitCells keeps aspect and caps at 20 rows", () => {
 });
 
 test("imagePaths keeps workspace images and drops the rest", () => {
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>');
   const files: Record<string, Buffer> = {
     "/proj/shot.png": png,
     "/proj/.tah/browser/page.png": png,
+    "/proj/icon.svg": svg,
     "/elsewhere/x.png": png,
   };
   const io = {
@@ -70,10 +74,10 @@ test("imagePaths keeps workspace images and drops the rest", () => {
   const text = [
     "see ![a](shot.png) and .tah/browser/page.png",
     "![b](https://x.dev/a.png) ![c](data:image/png;base64,AA)",
-    "shot.png link.png",
+    "shot.png link.png icon.svg",
     "missing.png /elsewhere/x.png",
   ].join("\n");
-  assert.deepEqual(imagePaths(text, cwd, io), ["/proj/shot.png", "/proj/.tah/browser/page.png"]);
+  assert.deepEqual(imagePaths(text, cwd, io), ["/proj/shot.png", "/proj/.tah/browser/page.png", "/proj/icon.svg"]);
 });
 
 test("imagePaths accepts a path glued to a following note", () => {
@@ -138,8 +142,14 @@ test("encodeImage writes the protocol or nothing", () => {
   const sixel = encodeImage({ protocol: "sixel", bytes: png1, columns: 80 });
   assert.match(sixel, /^\x1bPq/);
   assert.match(sixel, /#\d+;2;\d+;\d+;\d+#\d+@/);
-  assert.equal(encodeImage({ protocol: "none", bytes: png1, columns: 80 }), "");
-  assert.equal(encodeImage({ protocol: "kitty", bytes: Buffer.from([0xff, 0xd8, 0xff]), columns: 80 }), "");
+  assert.match(encodeImage({ protocol: "none", bytes: png1, columns: 80, label: "a.png" }), /\[image\] a\.png/);
+  assert.match(
+    encodeImage({ protocol: "kitty", bytes: Buffer.from([0xff, 0xd8, 0xff]), columns: 80, label: "a.jpg" }),
+    /\[image\] a\.jpg/,
+  );
+  const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>');
+  assert.match(encodeImage({ protocol: "iterm", bytes: svg, columns: 80, label: "a.svg" }), /1337;File=/);
+  assert.match(encodeImage({ protocol: "kitty", bytes: svg, columns: 80, label: "a.svg" }), /\[image\] a\.svg/);
   assert.equal(renderMarkdown("![a](shot.png)").includes("\x1b]1337"), false);
   assert.equal(renderMarkdown("![a](shot.png)").includes("\x1b_G"), false);
 });
@@ -340,7 +350,7 @@ test("a static item writes its iTerm image to stdout", async () => {
   assert.ok(writes.includes(images.slice(0, images.indexOf("\x07") + 1)));
 });
 
-test("a static item writes its kitty transmit to stdout once", async () => {
+test("a static item writes its kitty transmit to stdout once, including after Ctrl+L", async () => {
   const images = encodeImage({ protocol: "kitty", bytes: png1, columns: 80 });
   const transcript = new Transcript((s) => s);
   const writes: string[] = [];
@@ -361,6 +371,8 @@ test("a static item writes its kitty transmit to stdout once", async () => {
     transcript.apply({ type: "notice", text: "tick" });
     await new Promise((r) => setTimeout(r, 100));
     transcript.apply({ type: "notice", text: "tick2" });
+    await new Promise((r) => setTimeout(r, 100));
+    app.stdin.write("\x0c");
     await new Promise((r) => setTimeout(r, 100));
     app.unmount();
   } finally {

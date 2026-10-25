@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { PassThrough, Writable } from "node:stream";
 import { test } from "node:test";
 import { render as renderInk } from "ink";
@@ -184,8 +187,8 @@ test("the terminal cursor sits in the input box after a reply and follows typing
     patchConsole: false,
   });
   const settle = () => new Promise((r) => setTimeout(r, 200));
-  // The frame ends one line below the status bar; the input row is three lines up.
-  const cursorAt = (column: number) => new RegExp(`\\x1b\\[3A\\x1b\\[${column}G\\x1b\\[\\?25h(\\x1b\\[\\?2026l)?$`);
+  // The frame ends on the status line; the input row is two lines up.
+  const cursorAt = (column: number) => new RegExp(`\\x1b\\[2A\\x1b\\[${column}G\\x1b\\[\\?25h(\\x1b\\[\\?2026l)?$`);
   try {
     transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
     transcript.apply({ type: "user", text: "你好" });
@@ -397,5 +400,249 @@ test("a throwing clipboard save shows on the gray line and does not crash", asyn
   } finally {
     process.off("unhandledRejection", onError);
     process.off("uncaughtException", onError);
+  }
+});
+
+test("Ctrl+O opens the transcript and Esc or q returns without clearing the draft", async () => {
+  const transcript = new Transcript((s) => s);
+  const app = render(createElement(App, { host, transcript, maxSteps: Infinity, color: false } as never));
+  const settle = () => new Promise((r) => setTimeout(r, 50));
+  try {
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    transcript.apply({
+      type: "tool.end",
+      callId: "c1",
+      tool: "read_file",
+      summary: "a.ts",
+      ok: true,
+      result: "SECRET_TOOL_BODY",
+    });
+    await settle();
+    assert.doesNotMatch(app.lastFrame() ?? "", /SECRET_TOOL_BODY/);
+    app.stdin.write("keepme");
+    await settle();
+    app.stdin.write("\x0f");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /SECRET_TOOL_BODY/);
+    assert.match(app.lastFrame() ?? "", /transcript · Esc\/q back/);
+    app.stdin.write("\x1b");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> keepme/);
+    assert.doesNotMatch(app.lastFrame() ?? "", /SECRET_TOOL_BODY/);
+    assert.match(app.lastFrame() ?? "", /Enter send/);
+    app.stdin.write("\x0f");
+    await settle();
+    app.stdin.write("q");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> keepme/);
+    assert.doesNotMatch(app.lastFrame() ?? "", /transcript · Esc/);
+  } finally {
+    app.unmount();
+  }
+});
+
+test("Ctrl+R filters prompt history and Enter fills the editor", async () => {
+  const sent: string[] = [];
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, {
+      host: { ...host, send: async (text: string) => void sent.push(text) },
+      transcript,
+      maxSteps: Infinity,
+      color: false,
+    } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 50));
+  try {
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    await settle();
+    app.stdin.write("alpha beta");
+    await settle();
+    app.stdin.write("\r");
+    await settle();
+    app.stdin.write("other thing");
+    await settle();
+    app.stdin.write("\r");
+    await settle();
+    assert.deepEqual(sent, ["alpha beta", "other thing"]);
+    app.stdin.write("zzz");
+    await settle();
+    app.stdin.write("\x12");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /bck-i-search:/);
+    assert.match(app.lastFrame() ?? "", /other thing/);
+    app.stdin.write("alp");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /bck-i-search: alp/);
+    assert.match(app.lastFrame() ?? "", /alpha beta/);
+    assert.doesNotMatch(app.lastFrame() ?? "", /other thing/);
+    app.stdin.write("\r");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> alpha beta/);
+    assert.equal(sent.length, 2);
+
+    app.stdin.write("\x12");
+    await settle();
+    app.stdin.write("nope");
+    await settle();
+    app.stdin.write("\x1b");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> alpha beta/);
+    assert.doesNotMatch(app.lastFrame() ?? "", /bck-i-search/);
+
+    app.stdin.write("\x15");
+    await settle();
+    transcript.apply({ type: "session", id: "s2", resumed: true, history: [], hiddenTurns: 0 });
+    await settle();
+    app.stdin.write("\x12");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /bck-i-search:/);
+    assert.doesNotMatch(app.lastFrame() ?? "", /alpha beta/);
+  } finally {
+    app.unmount();
+  }
+});
+
+test("Ctrl+G, Ctrl+S, Ctrl+T, ?, @file, and kill/yank keys", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-at-"));
+  writeFileSync(path.join(dir, "note.txt"), "x");
+  const opened: string[] = [];
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, {
+      host,
+      transcript,
+      maxSteps: Infinity,
+      color: false,
+      cwd: dir,
+      openEditor: async (text: string) => {
+        opened.push(text);
+        return text === "bad" ? { error: "editor unavailable" } : { text: `edited:${text}` };
+      },
+    } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 50));
+  try {
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    transcript.apply({ type: "todos", todos: [{ content: "write tests", status: "pending" }] });
+    await settle();
+    assert.doesNotMatch(app.lastFrame() ?? "", /Todos/);
+    app.stdin.write("\x14");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /Todos[\s\S]*write tests/);
+
+    app.stdin.write("?");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /Ctrl\+G editor/);
+    app.stdin.write("?");
+    await settle();
+    assert.doesNotMatch(app.lastFrame() ?? "", /Ctrl\+G editor/);
+
+    app.stdin.write("stash me");
+    await settle();
+    app.stdin.write("\x13");
+    await settle();
+    assert.doesNotMatch(app.lastFrame() ?? "", /> stash me/);
+    app.stdin.write("\x13");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> stash me/);
+
+    app.stdin.write("\x07");
+    await settle();
+    assert.deepEqual(opened, ["stash me"]);
+    assert.match(app.lastFrame() ?? "", /> edited:stash me/);
+
+    app.stdin.write("\x15");
+    await settle();
+    app.stdin.write("bad");
+    await settle();
+    app.stdin.write("\x07");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /editor unavailable/);
+    assert.match(app.lastFrame() ?? "", /> bad/);
+
+    app.stdin.write("\x15");
+    await settle();
+    app.stdin.write("ab cd");
+    await settle();
+    app.stdin.write("\x17");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> ab/);
+    assert.doesNotMatch(app.lastFrame() ?? "", /cd/);
+    app.stdin.write("\x19");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> ab cd/);
+    app.stdin.write("\x1bb");
+    await settle();
+    app.stdin.write("\x0b");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> ab /);
+    assert.doesNotMatch(app.lastFrame() ?? "", /cd/);
+
+    app.stdin.write("\x15");
+    await settle();
+    app.stdin.write("@note");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /note\.txt/);
+    app.stdin.write("\t");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> note\.txt /);
+    assert.doesNotMatch(app.lastFrame() ?? "", /@note/);
+
+    app.stdin.write("\x15");
+    await settle();
+    app.stdin.write("stay");
+    await settle();
+    app.stdin.write("\x0c");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> stay/);
+  } finally {
+    app.unmount();
+  }
+});
+
+test("while a turn is running, @ Enter inserts a path and the next Enter queues it; slash menu stays closed", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "tah-at-busy-"));
+  writeFileSync(path.join(dir, "note.txt"), "x");
+  const sent: string[] = [];
+  const transcript = new Transcript((s) => s);
+  const app = render(
+    createElement(App, {
+      host: { ...host, send: async (text: string) => void sent.push(text) },
+      transcript,
+      maxSteps: Infinity,
+      color: false,
+      cwd: dir,
+    } as never),
+  );
+  const settle = () => new Promise((r) => setTimeout(r, 50));
+  try {
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    transcript.apply({ type: "user", text: "running" });
+    await settle();
+    app.stdin.write("/");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /> \//);
+    assert.doesNotMatch(app.lastFrame() ?? "", /start a new session/);
+    transcript.apply({ type: "turn.end", state: "completed", finishReason: "stop", rounds: 1 });
+    await settle();
+    assert.match(app.lastFrame() ?? "", /start a new session/);
+    app.stdin.write("\x1b");
+    await settle();
+    transcript.apply({ type: "user", text: "running again" });
+    await settle();
+    app.stdin.write("@note");
+    await settle();
+    assert.match(app.lastFrame() ?? "", /note\.txt/);
+    app.stdin.write("\r");
+    await settle();
+    assert.deepEqual(sent, []);
+    assert.match(app.lastFrame() ?? "", /> note\.txt /);
+    assert.doesNotMatch(app.lastFrame() ?? "", /@note/);
+    app.stdin.write("\r");
+    await settle();
+    assert.deepEqual(sent, ["note.txt "]);
+  } finally {
+    app.unmount();
   }
 });

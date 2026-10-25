@@ -21,6 +21,7 @@ import {
 } from "./attachments/store.js";
 import type { Browser } from "./browser.js";
 import { applySlashPrompts, type SlashPrompt } from "./mcp-slash.js";
+import { decide, type PermissionMode } from "./permission-mode.js";
 import { loadProject, type Project } from "./project.js";
 import {
   addUsage,
@@ -61,7 +62,7 @@ export type HostEvent =
   | SessionEvent
   | { type: "user"; text: string; attachments?: AttachmentMeta[] }
   | { type: "text"; delta: string }
-  | { type: "tool.start"; callId: string; tool: string; summary: string; path?: string }
+  | { type: "tool.start"; callId: string; tool: string; summary: string; path?: string; input?: unknown }
   | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string; imageText?: string }
   | { type: "todos"; todos: Todo[] }
   | { type: "approval"; id: string; tool: string; input: unknown }
@@ -92,6 +93,9 @@ export type QueuedMessage = { id: string; text: string; attachments?: Attachment
 export type ChatHost = {
   readonly sessionId: string;
   readonly approve: boolean;
+  /** Manual asks, accept-edits allows file edits, plan blocks edits and commands. */
+  readonly permissionMode: PermissionMode;
+  setPermissionMode(mode: PermissionMode): void;
   /** The open folder's built-in browser (undefined when it is off); a reload replaces it. */
   readonly browser: Browser | undefined;
   on(listener: (event: HostEvent) => void): () => void;
@@ -426,10 +430,18 @@ export async function createChatHost(
     const file = toolPath(tool, input);
     return { summary: toolSummary(tool, input), ...(file ? { path: file } : {}) };
   };
-  const ask = rememberAlways((call, signal) => {
+  let mode: PermissionMode = "manual";
+  const remembered = rememberAlways((call, signal) => {
     calls.set(call.id, describe(call.name, call.arguments));
     return approvals.ask(call, signal);
   });
+  /** Plan wins over a remembered "always"; accept-edits skips the prompt for file edits only. */
+  const ask: ApprovalPluginOptions["ask"] = (call, signal) => {
+    const decision = decide(mode, call.name);
+    if (decision === "yes") return Promise.resolve("yes");
+    if (decision === "no") return Promise.resolve("no");
+    return remembered(call, signal);
+  };
   const toolEnd = (callId: string, tool: string, ok: boolean, output: unknown) => {
     const call = calls.get(callId) ?? { summary: "" };
     calls.delete(callId);
@@ -471,7 +483,14 @@ export async function createChatHost(
       const call = describe(p.tool, p.input);
       calls.set(p.callId, call);
       if (p.tool === "ask_user") asking.set(p.callId, p.input);
-      emit({ type: "tool.start", callId: p.callId, tool: p.tool, ...call });
+      const keepInput = p.tool === "write_file" || p.tool === "edit_file";
+      emit({
+        type: "tool.start",
+        callId: p.callId,
+        tool: p.tool,
+        ...call,
+        ...(keepInput ? { input: p.input } : {}),
+      });
     });
     runtime.on("tool.finished", (e) => {
       const p = e as { callId: string; tool: string; output: unknown };
@@ -773,6 +792,12 @@ export async function createChatHost(
       return session.id;
     },
     approve: !flags.yes,
+    get permissionMode() {
+      return mode;
+    },
+    setPermissionMode(next) {
+      mode = next;
+    },
     get browser() {
       return browser;
     },

@@ -11,7 +11,14 @@ import { readClipboard, type RunCommand } from "./clipboard.js";
 import { imageKind, imageProtocol } from "./images.js";
 import { Transcript } from "./transcript.js";
 
-const MIME = { png: "image/png", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" } as const;
+const MIME = {
+  png: "image/png",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  /** Stored as a file attachment; the TUI still draws it when the terminal can. */
+  svg: "image/svg+xml",
+} as const;
 
 const runCommand: RunCommand = (file, args) =>
   new Promise((resolve) => {
@@ -28,19 +35,25 @@ export async function runTui(flags: CliFlags): Promise<void> {
   const host = await createChatHost(flags);
   const color = useColor();
   const attachments = createAttachmentStore(flags.cwd);
-  const transcript = new Transcript(color ? renderMarkdown : (s) => s.replace(/^\n+|\n+$/g, ""), {
-    cwd: flags.cwd,
-    columns: () => process.stdout.columns || 80,
-    protocol: imageProtocol(process.env),
-    readFile: (p) => {
-      try {
-        return readFileSync(p);
-      } catch {
-        return undefined;
-      }
+  const columns = () => process.stdout.columns || 80;
+  const transcript = new Transcript(
+    color
+      ? (s) => renderMarkdown(s, { width: Math.max(40, columns()), color: true })
+      : (s) => s.replace(/^\n+|\n+$/g, ""),
+    {
+      cwd: flags.cwd,
+      columns,
+      protocol: imageProtocol(process.env),
+      readFile: (p) => {
+        try {
+          return readFileSync(p);
+        } catch {
+          return undefined;
+        }
+      },
+      attachmentPath: (id) => attachments.get(id)?.path,
     },
-    attachmentPath: (id) => attachments.get(id)?.path,
-  });
+  );
   host.on((event) => transcript.apply(event));
   const save = (bytes: Buffer, name: string): { id: string; name: string } | { error: string } => {
     const kind = imageKind(bytes);
@@ -66,8 +79,8 @@ export async function runTui(flags: CliFlags): Promise<void> {
       try {
         const fd = openSync(file, "r");
         try {
-          const head = Buffer.alloc(12);
-          return imageKind(head.subarray(0, readSync(fd, head, 0, 12, 0))) !== undefined;
+          const head = Buffer.alloc(256);
+          return imageKind(head.subarray(0, readSync(fd, head, 0, 256, 0))) !== undefined;
         } finally {
           closeSync(fd);
         }
@@ -76,7 +89,7 @@ export async function runTui(flags: CliFlags): Promise<void> {
       }
     },
   };
-  const app = render(<App host={host} transcript={transcript} maxSteps={flags.maxSteps} color={color} images={images} />, {
+  const app = render(<App host={host} transcript={transcript} maxSteps={flags.maxSteps} color={color} cwd={flags.cwd} images={images} />, {
     exitOnCtrlC: false,
     // A TTY was checked by the caller; CI=true would otherwise switch Ink to final-frame-only output.
     interactive: true,
