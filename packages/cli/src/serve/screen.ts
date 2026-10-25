@@ -193,8 +193,10 @@ export type Screen = {
   sync(): Promise<void>;
   /** Starts the browser if needed; opens `url` (already checked with `browserURL`) in the shown tab. */
   open(url?: string): Promise<void>;
-  nav(action: "back" | "reload"): Promise<void>;
+  nav(action: "back" | "forward" | "reload"): Promise<void>;
   tab(id: string): Promise<void>;
+  /** Closes one tab; the last remaining tab is shown, or the panel goes empty. */
+  closeTab(id: string): Promise<void>;
   input(input: BrowserInput): Promise<void>;
   /** Answers the shown tab's JavaScript dialog. */
   dialog(accept: boolean, text?: string): Promise<void>;
@@ -454,12 +456,17 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
         return;
       }
       const history = (await c.send("Page.getNavigationHistory", {}, s)) as { currentIndex: number; entries: { id: number }[] };
-      const entry = history.entries[history.currentIndex - 1];
+      const entry = history.entries[history.currentIndex + (action === "forward" ? 1 : -1)];
       if (entry) await c.send("Page.navigateToHistoryEntry", { entryId: entry.id }, s);
     },
     async tab(id) {
       if (!tabs.has(id)) throw new Error(`no tab "${id}"`);
       await show(id);
+    },
+    async closeTab(id) {
+      if (!tabs.has(id)) throw new Error(`no tab "${id}"`);
+      const { c } = await ready();
+      await c.send("Target.closeTarget", { targetId: id });
     },
     async input(input) {
       const { c, s } = await ready();

@@ -70,6 +70,9 @@ export const api = {
   compact: () => post("/api/compact"),
   cancel: () => post("/api/cancel"),
   answer: (body: ServeRequest["answer"]) => post("/api/answer", body),
+  mode: (body: ServeRequest["mode"]) => post("/api/mode", body),
+  names: async (q: string) =>
+    (await (await call("GET", `/api/files/names?q=${encodeURIComponent(q)}`)).json()) as { files: string[] },
   question: (body: ServeRequest["question"]) => post("/api/question", body),
   queue: (body: ServeRequest["queue"]) => post("/api/queue", body),
   reset: (body: ServeRequest["reset"] = {}) => post("/api/reset", body),

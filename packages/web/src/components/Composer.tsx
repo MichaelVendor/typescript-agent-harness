@@ -1,28 +1,86 @@
 import type { AttachmentMeta } from "@typescript-agent-harness/cli";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../api";
+import { imageChip, imageIndex, insertImageChip, removeImageChip } from "../image-chip";
 
 type Draft = AttachmentMeta & { status: "uploading" | "ready" | "error"; error?: string; preview?: string };
 
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes}B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-}
+type Mention = { start: number; query: string; files: string[]; index: number };
+
+export type SlashCommand = { name: string; description: string; run: "compact" | "reset" | "fork" };
+
+const SLASH: SlashCommand[] = [
+  { name: "/compact", description: "压缩上下文", run: "compact" },
+  { name: "/fork", description: "分叉当前会话", run: "fork" },
+  { name: "/reset", description: "新会话", run: "reset" },
+];
 
 export function Composer(props: {
   cwd?: string;
+  /** Permission chip. `onCycle` switches 手动 / 接受编辑 / 计划. */
+  mode?: { label: string; title?: string; onCycle?: () => void };
+  /** Gray text in an empty composer. Tab or → accepts it; typing dismisses it; Enter does not send it. */
+  suggestion?: string;
   busy: boolean;
   disabled: boolean;
   onSend(text: string, attachmentIds: string[]): void;
   onStop(): void;
+  onCommand?(run: SlashCommand["run"]): void;
   /** Shown left of the send button (the model picker). */
   children?: ReactNode;
 }) {
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [mention, setMention] = useState<Mention | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [hideSuggestion, setHideSuggestion] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const ghost = !text && props.suggestion && !hideSuggestion ? props.suggestion : undefined;
+  const slashMatches =
+    props.onCommand && !props.busy && /^\/\S*$/.test(text.trim())
+      ? SLASH.filter((c) => c.name.startsWith(text.trim()))
+      : [];
+  useEffect(() => setSlashIndex(0), [text]);
+
+  useEffect(() => {
+    setHideSuggestion(false);
+  }, [props.suggestion]);
+
+  useEffect(() => {
+    const caret = ref.current?.selectionStart ?? text.length;
+    const before = text.slice(0, caret);
+    const match = /(?:^|\s)@([^\s@]*)$/.exec(before);
+    if (!match) {
+      setMention(null);
+      return;
+    }
+    const query = match[1] ?? "";
+    const start = match.index + match[0].length - query.length - 1;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      void api.names(query).then(
+        (res) => {
+          if (!cancelled) setMention({ start, query, files: res.files, index: 0 });
+        },
+        () => {
+          if (!cancelled) setMention(null);
+        },
+      );
+    }, 80);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [text]);
+
+  const insertMention = (file: string) => {
+    if (!mention) return;
+    const caret = ref.current?.selectionStart ?? text.length;
+    setText(`${text.slice(0, mention.start)}${file} ${text.slice(caret)}`);
+    setMention(null);
+    setHideSuggestion(true);
+  };
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -49,20 +107,39 @@ export function Composer(props: {
   const uploadFiles = async (files: FileList | File[]) => {
     for (const file of [...files]) {
       const localId = `local_${Math.random().toString(36).slice(2)}`;
-      const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
-      setDrafts((d) => [
-        ...d,
-        {
-          id: localId,
-          kind: file.type.startsWith("image/") ? "image" : "file",
-          name: file.name,
-          mime: file.type || "application/octet-stream",
-          bytes: file.size,
-          sha256: "",
-          status: "uploading",
-          ...(preview ? { preview } : {}),
-        },
-      ]);
+      const isImage = file.type.startsWith("image/");
+      const preview = isImage ? URL.createObjectURL(file) : undefined;
+      setDrafts((d) => {
+        const next: Draft[] = [
+          ...d,
+          {
+            id: localId,
+            kind: isImage ? "image" : "file",
+            name: file.name,
+            mime: file.type || "application/octet-stream",
+            bytes: file.size,
+            sha256: "",
+            status: "uploading",
+            ...(preview ? { preview } : {}),
+          },
+        ];
+        if (isImage) {
+          const n = imageIndex(next, localId)!;
+          setText((t) => {
+            const caret = ref.current?.selectionStart ?? t.length;
+            const placed = insertImageChip(t, caret, n);
+            setHideSuggestion(true);
+            requestAnimationFrame(() => {
+              const el = ref.current;
+              if (!el) return;
+              el.focus();
+              el.setSelectionRange(placed.caret, placed.caret);
+            });
+            return placed.text;
+          });
+        }
+        return next;
+      });
       try {
         const meta = await api.upload(file);
         setDrafts((d) =>
@@ -84,7 +161,19 @@ export function Composer(props: {
     }
   };
 
+  const runSlash = (cmd: SlashCommand) => {
+    setText("");
+    setHideSuggestion(true);
+    props.onCommand?.(cmd.run);
+  };
+
   const send = () => {
+    const line = text.trim();
+    const cmd = slashMatches.find((c) => c.name === line);
+    if (cmd) {
+      runSlash(cmd);
+      return;
+    }
     if (!canSend) return;
     props.onSend(text, readyIds);
     setText("");
@@ -95,7 +184,9 @@ export function Composer(props: {
   const remove = (id: string) => {
     setDrafts((d) => {
       const hit = d.find((x) => x.id === id);
+      const n = hit ? imageIndex(d, id) : undefined;
       if (hit?.preview) URL.revokeObjectURL(hit.preview);
+      if (n !== undefined) setText((t) => removeImageChip(t, n));
       return d.filter((x) => x.id !== id);
     });
   };
@@ -113,23 +204,46 @@ export function Composer(props: {
         if (e.dataTransfer.files.length) void uploadFiles(e.dataTransfer.files);
       }}
     >
-      {drafts.length ? (
-        <div className="attach-rail" aria-label="Attachments">
-          {drafts.map((d) => (
-            <div key={d.id} className={`attach-card ${d.kind} ${d.status}`} title={d.error ?? d.name}>
-              {d.preview ? <img src={d.preview} alt="" /> : <span className="attach-ext">{d.name.split(".").pop()?.toUpperCase() ?? "FILE"}</span>}
-              <div className="attach-meta">
-                <div className="attach-name">{d.name}</div>
-                <div className="attach-sub">
-                  {d.status === "uploading" ? "uploading…" : d.status === "error" ? d.error : formatSize(d.bytes)}
-                </div>
-              </div>
-              <button type="button" className="attach-remove" onClick={() => remove(d.id)} aria-label={`Remove ${d.name}`}>
-                ×
+      {mention && mention.files.length > 0 ? (
+        <ul className="context-menu mention-menu" role="listbox" aria-label="Files">
+          {mention.files.map((file, i) => (
+            <li key={file}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={i === mention.index}
+                className={i === mention.index ? "on" : undefined}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  insertMention(file);
+                }}
+              >
+                {file}
               </button>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
+      ) : null}
+      {slashMatches.length > 0 ? (
+        <ul className="context-menu mention-menu" role="listbox" aria-label="Commands">
+          {slashMatches.map((cmd, i) => (
+            <li key={cmd.name}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={i === slashIndex}
+                className={i === slashIndex ? "on" : undefined}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  runSlash(cmd);
+                }}
+              >
+                {cmd.name}
+                <span className="menu-label"> {cmd.description}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       ) : null}
       <div className="composer">
         <input
@@ -142,29 +256,120 @@ export function Composer(props: {
             e.target.value = "";
           }}
         />
-        <textarea
-          ref={ref}
-          rows={1}
-          value={text}
-          placeholder={
-            props.busy
-              ? "Queue a message — it is sent when this turn ends"
-              : "Message the agent — Enter to send, Shift+Enter for a new line; drop or paste files"
-          }
-          disabled={props.disabled}
-          onChange={(e) => setText(e.target.value)}
-          onPaste={(e) => {
-            const files = [...e.clipboardData.files];
-            if (files.length === 0 || props.disabled) return;
-            e.preventDefault();
-            void uploadFiles(files);
-          }}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
-            e.preventDefault();
-            send();
-          }}
-        />
+        {drafts.length ? (
+          <div className="attach-rail" aria-label="Attachments">
+            {drafts.map((d) => {
+              const n = imageIndex(drafts, d.id);
+              const label = n !== undefined ? imageChip(n) : d.name;
+              return (
+                <div
+                  key={d.id}
+                  className={`image-chip ${d.kind} ${d.status}`}
+                  title={d.error ?? d.name}
+                >
+                  {d.preview ? <img src={d.preview} alt="" /> : null}
+                  <span className="image-chip-label">
+                    {d.status === "uploading" ? `${label}…` : d.status === "error" ? d.error ?? label : label}
+                  </span>
+                  <button type="button" className="image-chip-remove" onClick={() => remove(d.id)} aria-label={`Remove ${label}`}>
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+        <div className="composer-field">
+          {ghost ? <div className="composer-ghost">{ghost}</div> : null}
+          <textarea
+            ref={ref}
+            rows={1}
+            value={text}
+            placeholder={ghost ? "" : props.busy ? "这一轮结束后再发出" : "给一个任务，@ 提文件"}
+            disabled={props.disabled}
+            onChange={(e) => {
+              setText(e.target.value);
+              if (e.target.value) setHideSuggestion(true);
+            }}
+            onPaste={(e) => {
+              const files = [...e.clipboardData.files];
+              if (files.length === 0 || props.disabled) return;
+              e.preventDefault();
+              void uploadFiles(files);
+            }}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Escape") {
+                e.preventDefault();
+                if (mention) {
+                  setMention(null);
+                  return;
+                }
+                if (slashMatches.length) {
+                  setText("");
+                  return;
+                }
+                if (text || drafts.length) {
+                  setText("");
+                  for (const d of drafts) if (d.preview) URL.revokeObjectURL(d.preview);
+                  setDrafts([]);
+                  setHideSuggestion(true);
+                  return;
+                }
+                if (props.busy) props.onStop();
+                return;
+              }
+              if (e.key === "Backspace" && drafts.length && text === "") {
+                e.preventDefault();
+                remove(drafts[drafts.length - 1]!.id);
+                return;
+              }
+              if (slashMatches.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setSlashIndex((i) => (i + 1) % slashMatches.length);
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSlashIndex((i) => (i - 1 + slashMatches.length) % slashMatches.length);
+                  return;
+                }
+                if ((e.key === "Enter" || e.key === "Tab") && slashMatches[slashIndex]) {
+                  e.preventDefault();
+                  runSlash(slashMatches[slashIndex]!);
+                  return;
+                }
+              }
+              if (mention && mention.files.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setMention({ ...mention, index: (mention.index + 1) % mention.files.length });
+                  return;
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setMention({ ...mention, index: (mention.index - 1 + mention.files.length) % mention.files.length });
+                  return;
+                }
+                if ((e.key === "Enter" || e.key === "Tab") && mention.files[mention.index]) {
+                  e.preventDefault();
+                  insertMention(mention.files[mention.index]!);
+                  return;
+                }
+              }
+              if (ghost && (e.key === "Tab" || (e.key === "ArrowRight" && (ref.current?.selectionStart ?? 0) === 0))) {
+                e.preventDefault();
+                setText(ghost);
+                setHideSuggestion(true);
+                return;
+              }
+              if (e.key !== "Enter" || e.shiftKey) return;
+              e.preventDefault();
+              send();
+            }}
+          />
+        </div>
         <div className="composer-bar">
           <button
             type="button"
@@ -175,6 +380,16 @@ export function Composer(props: {
           >
             +
           </button>
+          {props.cwd ? <span className="composer-chip">{props.cwd.split(/[/\\]/).filter(Boolean).at(-1)}</span> : null}
+          {props.mode ? (
+            props.mode.onCycle ? (
+              <button type="button" className="composer-chip" title={props.mode.title} onClick={props.mode.onCycle}>
+                {props.mode.label}
+              </button>
+            ) : (
+              <span className="composer-chip">{props.mode.label}</span>
+            )
+          ) : null}
           <span className="spacer" />
           {props.children}
           {props.busy ? (

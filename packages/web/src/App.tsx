@@ -6,6 +6,7 @@ import { ApprovalCard } from "./components/ApprovalCard";
 import { QuestionCard } from "./components/QuestionCard";
 import { BrowserPane } from "./components/BrowserPane";
 import { Composer } from "./components/Composer";
+import { DiffPane } from "./components/DiffPane";
 import { QueueList } from "./components/QueueList";
 import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
@@ -16,9 +17,93 @@ import { OpenProject } from "./components/OpenProject";
 import { Settings } from "./components/Settings";
 import { SidePanel } from "./components/SidePanel";
 import { Sidebar } from "./components/Sidebar";
-import { StatusBar } from "./components/StatusBar";
+import { contextPercent } from "./context-usage";
+import { fileChanges } from "./diff-view";
 import { fileQuery, touchesFiles, type FileTarget } from "./preview-view";
-import { applyEvent, initialState, type Action } from "./state";
+import { applyEvent, initialState, type Action, type Entry } from "./state";
+
+function sessionTitle(entries: Entry[]): string {
+  for (const e of entries) if (e.kind === "user" && e.text) return e.text;
+  return "新会话";
+}
+
+const MODES = ["manual", "accept-edits", "plan"] as const;
+type Mode = (typeof MODES)[number];
+const MODE_LABEL: Record<Mode, string> = { manual: "手动", "accept-edits": "接受编辑", plan: "计划" };
+const MODE_TITLE: Record<Mode, string> = {
+  manual: "改文件和跑命令前先问",
+  "accept-edits": "改文件直接执行，命令仍要问",
+  plan: "不改文件，不跑命令",
+};
+
+function followUp(entries: Entry[], busy: boolean): string | undefined {
+  if (busy) return undefined;
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    if (e?.kind === "user") break;
+    if (e?.kind === "tool" && e.path && e.status === "ok") return "看一下刚才的改动";
+  }
+  return undefined;
+}
+
+function SessionRail(props: {
+  tokens: { promptTokens: number; completionTokens: number } | undefined;
+  percent: number | undefined;
+  paths: string[];
+  running: string[];
+  thinking: boolean;
+  onOpenDiff(path?: string): void;
+  onCompact: (() => void) | undefined;
+}) {
+  const tokens = props.tokens;
+  const used = tokens ? tokens.promptTokens + tokens.completionTokens : 0;
+  return (
+    <aside className="session-rail">
+      <div className="rail-card">
+        <h2>上下文</h2>
+        {props.percent !== undefined ? (
+          <>
+            <div className="rail-meter" aria-label={`已用约 ${props.percent}%`}>
+              <span style={{ width: `${props.percent}%` }} />
+            </div>
+            <div className="rail-usage">
+              约 {props.percent}%
+              {tokens && used > 0
+                ? ` · in ${tokens.promptTokens.toLocaleString("en-US")} · out ${tokens.completionTokens.toLocaleString("en-US")}`
+                : ""}
+            </div>
+          </>
+        ) : (
+          "这一轮还没有用量"
+        )}
+        {props.onCompact ? (
+          <button type="button" className="link" onClick={props.onCompact}>
+            压缩上下文
+          </button>
+        ) : null}
+      </div>
+      <div className="rail-card">
+        <h2>改动</h2>
+        {props.paths.length
+          ? props.paths.slice(-6).map((path) => (
+              <button type="button" className="link" key={path} title={path} onClick={() => props.onOpenDiff(path)}>
+                {path.split(/[/\\]/).at(-1)}
+              </button>
+            ))
+          : "还没有改文件"}
+        {props.paths.length ? (
+          <button type="button" className="link" onClick={() => props.onOpenDiff()}>
+            查看全部
+          </button>
+        ) : null}
+      </div>
+      <div className="rail-card">
+        <h2>正在跑</h2>
+        {props.running.length ? props.running.join(" · ") : props.thinking ? "思考中" : "空闲"}
+      </div>
+    </aside>
+  );
+}
 
 export function App() {
   const [state, dispatch] = useReducer(applyEvent, initialState);
@@ -33,8 +118,13 @@ export function App() {
   const closePreview = useCallback(() => setPreview(undefined), []);
   const [browserShown, setBrowserShown] = useState(false);
   const [browserAvailable, setBrowserAvailable] = useState(false);
-  const [view, setView] = useState<"file" | "browser">("file");
+  const [view, setView] = useState<"file" | "browser" | "diff">("file");
+  const [mode, setMode] = useState<Mode>("manual");
+  const [expandTools, setExpandTools] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
+  const [diffFocus, setDiffFocus] = useState<string>();
   const openFile = useCallback((target: FileTarget) => {
+    setDiffOpen(false);
     setPreview(target);
     setView("file");
   }, []);
@@ -101,7 +191,32 @@ export function App() {
     void refresh();
   }, [connection, state.busy, state.sessionId, state.turnsEnded, refresh]);
 
-  useEffect(() => setPreview(undefined), [state.sessionId]);
+  useEffect(() => {
+    setPreview(undefined);
+    setDiffOpen(false);
+    setDiffFocus(undefined);
+    setExpandTools(false);
+  }, [state.sessionId]);
+
+  const openDiff = useCallback((path?: string) => {
+    setDiffFocus(path);
+    setDiffOpen(true);
+    setView("diff");
+  }, []);
+
+  const activeModelName = useMemo(() => {
+    if (!settings) return undefined;
+    const id = settings.activeModel;
+    if (id) return settings.models.find((m) => m.id === id)?.model;
+    return settings.env?.model;
+  }, [settings]);
+
+  const activePath = workspaces?.find((w) => w.active)?.path;
+  useEffect(() => {
+    setMode("manual");
+    if (!activePath) return;
+    void api.mode({ mode: "manual" }).catch(() => {});
+  }, [activePath]);
 
   useEffect(() => {
     if (connection !== "open") return;
@@ -127,6 +242,27 @@ export function App() {
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "o" && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        setExpandTools((v) => !v);
+        return;
+      }
+      if (e.key !== "Escape" || dialog) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "TEXTAREA" || tag === "INPUT") return;
+      if (state.busy) {
+        e.preventDefault();
+        void api.cancel().catch((err: unknown) =>
+          enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }),
+        );
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dialog, state.busy, enqueue]);
+
   const browse = useMemo(
     () =>
       browserAvailable
@@ -150,9 +286,20 @@ export function App() {
   const last = state.entries.at(-1);
   const toolRunning = state.entries.some((e) => e.kind === "tool" && e.status === "running");
   const thinking = state.busy && !state.approval && !state.question && !toolRunning && last?.kind !== "assistant";
+  const changes = fileChanges(state.entries);
   const fileOpen = preview !== undefined;
   const browserOpen = browserShown && browserAvailable;
-  const side = fileOpen && browserOpen ? view : fileOpen ? "file" : browserOpen ? "browser" : undefined;
+  const side = diffOpen
+    ? "diff"
+    : fileOpen && browserOpen
+      ? view === "diff"
+        ? "file"
+        : view
+      : fileOpen
+        ? "file"
+        : browserOpen
+          ? "browser"
+          : undefined;
 
   return (
     <div className="app">
@@ -184,8 +331,43 @@ export function App() {
         <NewFolder busy={state.busy} desktop={info.desktop} onClose={closeDialog} onOpen={openFolder} />
       ) : null}
       <main>
+        <div className="session-head">
+          <span className="session-name">
+            {sessionTitle(state.entries)}
+          </span>
+          <div className="panes">
+            <button
+              type="button"
+              className={!side ? "on" : ""}
+              onClick={() => {
+                closePreview();
+                setBrowserShown(false);
+                setDiffOpen(false);
+              }}
+            >
+              聊天
+            </button>
+            <button type="button" className={side === "diff" ? "on" : ""} onClick={() => openDiff()}>
+              改动
+            </button>
+            <button
+              type="button"
+              className={side === "file" ? "on" : ""}
+              onClick={() => {
+                if (!fileOpen) return;
+                setDiffOpen(false);
+                setView("file");
+              }}
+            >
+              预览
+            </button>
+            <button type="button" className={side === "browser" ? "on" : ""} onClick={showBrowser} disabled={!browserAvailable}>
+              浏览器
+            </button>
+          </div>
+        </div>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
-        <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse}>
+        <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse} expandTools={expandTools}>
           {state.retry ? (
             <div className="thinking retry">
               <span className="spinner" /> {state.retry}
@@ -237,11 +419,34 @@ export function App() {
           onRemove={(id) => run(api.queue({ id, remove: true }))}
         />
         <Composer
-          cwd={workspaces?.find((w) => w.active)?.path}
+          cwd={activePath}
+          mode={
+            info
+              ? info.approve
+                ? {
+                    label: MODE_LABEL[mode],
+                    title: MODE_TITLE[mode],
+                    onCycle: () => {
+                      const next = MODES[(MODES.indexOf(mode) + 1) % MODES.length] ?? "manual";
+                      setMode(next);
+                      run(api.mode({ mode: next }));
+                    },
+                  }
+                : { label: "直接执行", title: "启动时带了 --yes，不再询问" }
+              : undefined
+          }
+          suggestion={followUp(state.entries, state.busy)}
           busy={state.busy}
           disabled={connection !== "open" || state.stepLimit}
           onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}
           onStop={() => run(api.cancel())}
+          onCommand={(cmd) => {
+            if (cmd === "compact") {
+              enqueue({ type: "local.continue" });
+              run(api.compact());
+            } else if (cmd === "reset") run(api.reset({}));
+            else if (cmd === "fork") run(api.fork({}));
+          }}
         >
           <ModelPicker
             view={settings}
@@ -250,12 +455,17 @@ export function App() {
             onManage={() => setDialog("settings")}
           />
         </Composer>
-        <StatusBar
-          cwd={workspaces?.find((w) => w.active)?.path}
-          sessionId={state.sessionId}
-          rounds={state.rounds}
+      </main>
+      {side ? null : (
+        <SessionRail
           tokens={state.tokens}
-          approve={info?.approve ?? true}
+          percent={contextPercent(state.tokens, activeModelName)}
+          paths={[...new Set(state.entries.flatMap((e) => (e.kind === "tool" && e.path ? [e.path] : [])))]}
+          running={
+            state.entries.flatMap((e) => (e.kind === "tool" && e.status === "running" ? [e.summary || e.tool] : []))
+          }
+          thinking={thinking}
+          onOpenDiff={openDiff}
           onCompact={
             connection === "open" && !state.busy && !state.stepLimit
               ? () => {
@@ -264,12 +474,33 @@ export function App() {
                 }
               : undefined
           }
-          onBrowser={browserAvailable ? showBrowser : undefined}
         />
-      </main>
+      )}
       {side ? (
-        <SidePanel view={side} both={fileOpen && browserOpen} onView={setView}>
-          {side === "file" && preview ? (
+        <SidePanel
+          view={side === "diff" ? "file" : side}
+          both={fileOpen && browserOpen && side !== "diff"}
+          onView={(v) => {
+            setDiffOpen(false);
+            setDiffFocus(undefined);
+            setView(v);
+          }}
+        >
+          {side === "diff" ? (
+            <DiffPane
+              changes={changes}
+              focusPath={diffFocus}
+              onOpen={(target) => {
+                setDiffOpen(false);
+                setDiffFocus(undefined);
+                openFile(target);
+              }}
+              onClose={() => {
+                setDiffOpen(false);
+                setDiffFocus(undefined);
+              }}
+            />
+          ) : side === "file" && preview ? (
             <FilePreview
               key={fileQuery(preview)}
               target={preview}

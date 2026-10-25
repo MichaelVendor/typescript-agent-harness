@@ -5,7 +5,18 @@ type TokenUsage = NonNullable<Extract<HostEvent, { type: "turn.end" }>["sessionU
 export type Entry =
   | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
   | { id: number; kind: "assistant"; text: string }
-  | { id: number; kind: "tool"; callId: string; tool: string; summary: string; status: "running" | "ok" | "failed"; result: string; path?: string }
+  | {
+      id: number;
+      kind: "tool";
+      callId: string;
+      tool: string;
+      summary: string;
+      status: "running" | "ok" | "failed";
+      result: string;
+      path?: string;
+      /** Present for write_file / edit_file so the 改动 panel can show a diff. */
+      input?: unknown;
+    }
   | { id: number; kind: "notice"; text: string; error: boolean };
 
 export type Approval = { id: string; tool: string; input: unknown };
@@ -140,6 +151,7 @@ export function applyEvent(state: State, action: Action): State {
         status: "running",
         result: "",
         ...(action.path ? { path: action.path } : {}),
+        ...("input" in action && action.input !== undefined ? { input: action.input } : {}),
       });
     case "tool.end": {
       const status = action.ok ? "ok" : "failed";

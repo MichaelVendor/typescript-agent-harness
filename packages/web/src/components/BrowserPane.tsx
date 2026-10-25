@@ -5,6 +5,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import { api, browserStream } from "../api";
@@ -15,6 +16,59 @@ const THROTTLE_MS = 30;
 
 type Frame = { src: string; width: number; height: number };
 
+function IconBtn(props: {
+  label: string;
+  title?: string;
+  disabled?: boolean;
+  onClick(): void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className="browser-icon"
+      disabled={props.disabled}
+      onClick={props.onClick}
+      aria-label={props.label}
+      title={props.title ?? props.label}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+const BackIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <path d="M10 3 5 8l5 5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const ForwardIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <path d="M6 3l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const ReloadIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <path d="M13 8a5 5 0 1 1-1.4-3.4" strokeLinecap="round" />
+    <path d="M13 3v3.5H9.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const ExternalIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <path d="M6.5 3.5H3.5v9h9V9.5M9 3.5h3.5V7M7.5 8.5 12.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+const PowerIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <path d="M8 2.5v5.5M4.2 4.4a5 5 0 1 0 7.6 0" strokeLinecap="round" />
+  </svg>
+);
+const CloseIcon = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+    <path d="M4 4l8 8M12 4 4 12" strokeLinecap="round" />
+  </svg>
+);
+
 /** The built-in browser's live page: watch the agent, or click and type in it yourself. */
 export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const [state, setState] = useState<BrowserState>();
@@ -22,6 +76,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const [address, setAddress] = useState<string>();
   const [failed, setFailed] = useState<string>();
   const [closing, setClosing] = useState(false);
+  const [loading, setLoading] = useState(false);
   const image = useRef<HTMLImageElement>(null);
   const keys = useRef<HTMLTextAreaElement>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -36,20 +91,29 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
       browserStream((event) => {
         if (event.type === "frame") {
           setFrame({ src: `data:image/jpeg;base64,${event.data}`, width: event.width, height: event.height });
+          setLoading(false);
           return;
         }
         setState(event.state);
         if (event.state.running) return;
         setFrame(undefined);
+        setLoading(false);
         setClosing(false);
       }),
     [],
   );
 
-  const fail = (err: unknown) => setFailed(err instanceof Error ? err.message : String(err));
+  const fail = (err: unknown) => {
+    setLoading(false);
+    setFailed(err instanceof Error ? err.message : String(err));
+  };
   const run = (pending: Promise<unknown>) => {
     setFailed(undefined);
     pending.catch(fail);
+  };
+  const navigate = (pending: Promise<unknown>) => {
+    setLoading(true);
+    run(pending);
   };
   /** One at a time, so a click's press and release reach the page in order. */
   const send = (input: BrowserInput) => {
@@ -69,6 +133,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const tab = state?.tabs.find((t) => t.id === state.active);
   const dialog = state?.dialog;
   const shown = address ?? tab?.url ?? "";
+  const secure = /^https:\/\//i.test(shown);
 
   const point = (e: { clientX: number; clientY: number }) => {
     const rect = image.current?.getBoundingClientRect();
@@ -145,13 +210,47 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
 
   return (
     <>
+      {state && state.tabs.length > 0 ? (
+        <div className="browser-tabs" role="tablist" aria-label="标签">
+          {state.tabs.map((t) => (
+            <div key={t.id} className={`browser-tab${t.id === state.active ? " on" : ""}`}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={t.id === state.active}
+                title={t.url}
+                onClick={() => run(api.browserTab({ id: t.id }))}
+              >
+                {t.title || t.url || "新标签"}
+              </button>
+              <button
+                type="button"
+                className="browser-tab-close"
+                aria-label={`关闭 ${t.title || t.url || "标签"}`}
+                title="关闭标签"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  run(api.browserTab({ id: t.id, close: true }));
+                }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <div className="preview-head browser-head">
-        <button type="button" disabled={!state?.running} onClick={() => run(api.browserNav({ action: "back" }))} aria-label="Back" title="Back">
-          ←
-        </button>
-        <button type="button" disabled={!state?.running} onClick={() => run(api.browserNav({ action: "reload" }))} aria-label="Reload" title="Reload">
-          ↻
-        </button>
+        <div className="browser-nav">
+          <IconBtn label="后退" disabled={!state?.running || loading} onClick={() => navigate(api.browserNav({ action: "back" }))}>
+            <BackIcon />
+          </IconBtn>
+          <IconBtn label="前进" disabled={!state?.running || loading} onClick={() => navigate(api.browserNav({ action: "forward" }))}>
+            <ForwardIcon />
+          </IconBtn>
+          <IconBtn label="刷新" disabled={!state?.running || loading} onClick={() => navigate(api.browserNav({ action: "reload" }))}>
+            <ReloadIcon />
+          </IconBtn>
+        </div>
         <form
           className="browser-address"
           onSubmit={(e) => {
@@ -159,54 +258,58 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
             const url = addressURL(shown);
             if (!url) return;
             setAddress(undefined);
-            run(api.browserOpen({ url }));
+            navigate(api.browserOpen({ url }));
           }}
         >
+          {shown ? (
+            <span className={`browser-lock${secure ? " on" : ""}`} aria-hidden>
+              {secure ? (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="3.5" y="7" width="9" height="6.5" rx="1.2" />
+                  <path d="M5.5 7V5.2a2.5 2.5 0 0 1 5 0V7" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="5.5" />
+                  <path d="M8 2.5v11M2.5 8h11" strokeLinecap="round" />
+                </svg>
+              )}
+            </span>
+          ) : null}
           <input
             value={shown}
-            placeholder="Enter a URL"
+            placeholder="输入网址"
             spellCheck={false}
-            aria-label="Address"
+            aria-label="地址"
             onChange={(e) => setAddress(e.target.value)}
             onBlur={() => setAddress(undefined)}
           />
         </form>
-        {state && state.tabs.length > 1 ? (
-          <select value={state.active ?? ""} aria-label="Tabs" onChange={(e) => run(api.browserTab({ id: e.target.value }))}>
-            {state.tabs.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title || t.url}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        <button
-          type="button"
-          disabled={!tab || !/^https?:/.test(tab.url)}
-          onClick={() => tab && window.open(tab.url, "_blank", "noreferrer")}
-          aria-label="Open in system browser"
-          title="Open in system browser"
-        >
-          ↗
-        </button>
-        <button
-          type="button"
-          disabled={!state?.running}
-          onClick={() => (state?.agent ? setClosing(true) : run(api.browserClose()))}
-          aria-label="Close browser"
-          title="Close browser"
-        >
-          ⏻
-        </button>
-        <button type="button" onClick={props.onClose} aria-label="Hide" title="Hide">
-          ✕
-        </button>
+        <div className="browser-actions">
+          <IconBtn
+            label="在系统浏览器打开"
+            disabled={!tab || !/^https?:/.test(tab.url)}
+            onClick={() => tab && window.open(tab.url, "_blank", "noreferrer")}
+          >
+            <ExternalIcon />
+          </IconBtn>
+          <IconBtn
+            label="关闭浏览器"
+            disabled={!state?.running}
+            onClick={() => (state?.agent ? setClosing(true) : run(api.browserClose()))}
+          >
+            <PowerIcon />
+          </IconBtn>
+          <IconBtn label="收起" onClick={props.onClose}>
+            <CloseIcon />
+          </IconBtn>
+        </div>
       </div>
-      {props.agentBusy ? <div className="browser-agent">Agent is using the browser</div> : null}
+      {props.agentBusy ? <div className="browser-agent">代理正在使用浏览器</div> : null}
       {failed || state?.error ? <div className="preview-note browser-error">{failed ?? state?.error}</div> : null}
       {closing ? (
         <div className="browser-dialog">
-          <span>The agent is using this browser. Close it anyway?</span>
+          <span>代理正在使用这个浏览器。仍然关闭？</span>
           <button
             type="button"
             onClick={() => {
@@ -214,10 +317,10 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
               run(api.browserClose());
             }}
           >
-            Close
+            关闭
           </button>
           <button type="button" onClick={() => setClosing(false)}>
-            Cancel
+            取消
           </button>
         </div>
       ) : null}
@@ -231,12 +334,12 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
             run(api.browserDialog({ accept: true, ...(typeof text === "string" ? { text } : {}) }));
           }}
         >
-          <span>{dialog.message || (dialog.type === "beforeunload" ? "Leave this page?" : "The page is asking")}</span>
-          {dialog.type === "prompt" ? <input name="text" aria-label="Answer" autoFocus /> : null}
-          <button type="submit">OK</button>
+          <span>{dialog.message || (dialog.type === "beforeunload" ? "离开这个页面？" : "页面在询问")}</span>
+          {dialog.type === "prompt" ? <input name="text" aria-label="回答" autoFocus /> : null}
+          <button type="submit">确定</button>
           {dialog.type === "alert" ? null : (
             <button type="button" onClick={() => run(api.browserDialog({ accept: false }))}>
-              Cancel
+              取消
             </button>
           )}
         </form>
@@ -244,11 +347,11 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
       <div className="browser-screen">
         {live && frame ? (
           <div className="browser-frame">
-            <img ref={image} src={frame.src} alt={tab?.title || "Page"} draggable={false} />
+            <img ref={image} src={frame.src} alt={tab?.title || "页面"} draggable={false} />
             <textarea
               ref={keys}
               className="browser-keys"
-              aria-label="Type into the page"
+              aria-label="在页面里输入"
               spellCheck={false}
               onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
               onMouseDown={(e) => press(e, "down")}
@@ -277,7 +380,15 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
           </div>
         ) : (
           <div className="preview-empty">
-            {state && !state.running ? "Enter a URL above to open the browser" : <span className="spinner" />}
+            {loading || (state?.running && !frame) ? (
+              <>
+                <span className="spinner" /> 加载中…
+              </>
+            ) : state && !state.running ? (
+              "在上面输入网址打开页面"
+            ) : (
+              <span className="spinner" />
+            )}
           </div>
         )}
       </div>

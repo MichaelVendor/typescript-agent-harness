@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { codeBlock, codePath, fileQuery, linkPath, relativeTo, replyImages, touchesFiles } from "../src/preview-view.ts";
+import {
+  codeBlock,
+  codePath,
+  fileQuery,
+  linkPath,
+  markdownImagePath,
+  relativeTo,
+  replyImages,
+  touchesFiles,
+} from "../src/preview-view.ts";
 
 test("inline code that looks like a file path", () => {
   for (const [code, file] of [
@@ -20,6 +29,14 @@ test("inline code that looks like a file path", () => {
   }
 });
 
+test("markdownImagePath keeps workspace images and drops web addresses", () => {
+  assert.equal(markdownImagePath("mouse.svg"), "mouse.svg");
+  assert.equal(markdownImagePath("tmp/other.png"), "tmp/other.png");
+  assert.equal(markdownImagePath("https://x.dev/a.png"), null);
+  assert.equal(markdownImagePath("data:image/png;base64,AA"), null);
+  assert.equal(markdownImagePath("readme.md"), null);
+});
+
 test("a reply's image paths are kept and web addresses are not", () => {
   const text = [
     "文件位置： `tmp/starry_night.jpg`（1600×1000）",
@@ -27,11 +44,13 @@ test("a reply's image paths are kept and web addresses are not", () => {
     "saved: tmp/starry_night.jpg",
     "https://x.dev/a.png",
     "![sky](tmp/other.png)",
+    "also tmp/panda.svg",
   ].join("\n");
+  // Markdown `![…](…)` images render inline; gallery only lists bare paths.
   assert.deepEqual(replyImages(text), [
     "tmp/starry_night.jpg",
     "/Users/me/proj/tmp/starry_night.jpg",
-    "tmp/other.png",
+    "tmp/panda.svg",
   ]);
 });
 

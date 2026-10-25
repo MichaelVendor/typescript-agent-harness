@@ -1,4 +1,4 @@
-import { constants, createReadStream } from "node:fs";
+import { constants, createReadStream, readdirSync } from "node:fs";
 import { access, open, realpath, stat } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
@@ -151,4 +151,37 @@ export function sendFile(
     return;
   }
   pipeline(createReadStream(abs, range ?? { start: 0, end: size - 1 }), res, () => {});
+}
+
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", ".tah", "coverage"]);
+
+/** File paths under `root` whose name or path contains `query` (case-insensitive). Empty query returns the first matches. */
+export function matchFiles(root: string, query: string, limit = 20): string[] {
+  const q = query.trim().toLowerCase();
+  const out: string[] = [];
+  let seen = 0;
+  const walk = (dir: string, depth: number) => {
+    if (out.length >= limit || depth > 5 || seen > 4000) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (out.length >= limit || seen > 4000) return;
+      if (SKIP_DIRS.has(entry.name)) continue;
+      seen += 1;
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs, depth + 1);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      const rel = path.relative(root, abs).split(path.sep).join("/");
+      if (!q || entry.name.toLowerCase().includes(q) || rel.toLowerCase().includes(q)) out.push(rel);
+    }
+  };
+  walk(root, 0);
+  return out;
 }

@@ -16,9 +16,21 @@ const EXT =
 /** `src/a.ts:12` / `src/a.ts:12:5` → `src/a.ts`. */
 const withoutLine = (p: string) => p.replace(/(:\d+){1,2}$/, "");
 
-const IMAGE_FILE = /^(.*?\.(?:png|jpe?g|webp|gif))(?![A-Za-z0-9])/i;
+const IMAGE_FILE = /^(.*?\.(?:png|jpe?g|webp|gif|svg))(?![A-Za-z0-9])/i;
 
-/** Image paths named in a reply, in order, without duplicates. Web and `data:` addresses are skipped. */
+/** Workspace-relative image path from a Markdown `![alt](src)`, or null for web/`data:`. */
+export function markdownImagePath(src: string | undefined): string | null {
+  if (!src) return null;
+  const file = linkPath(src);
+  if (!file || !/\.(?:png|jpe?g|webp|gif|svg)$/i.test(file)) return null;
+  return file;
+}
+
+/**
+ * Bare image paths named in a reply (for the gallery under the Markdown).
+ * Paths already written as `![…](path)` are omitted — those render inline via `img`.
+ * Web and `data:` addresses are skipped.
+ */
 export function replyImages(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -27,13 +39,14 @@ export function replyImages(text: string): string[] {
     const stripped = word.replace(/^[`'"“”‘’(<\[]+/, "");
     const cut = IMAGE_FILE.exec(stripped);
     const file = cut?.[1] ?? stripped.replace(/[`'"“”‘’>)\].,;:!?。，、；：！？）】》」』]+$/u, "");
-    if (!/\.(?:png|jpe?g|webp|gif)$/i.test(file)) return;
+    if (!/\.(?:png|jpe?g|webp|gif|svg)$/i.test(file)) return;
     if (/^(https?:|data:|\/\/)/i.test(file)) return;
     if (seen.has(file)) return;
     seen.add(file);
     out.push(file);
   };
-  const plain = text.replace(/!\[[^\]]*\]\(([^)\s]+)\)/g, " $1 ");
+  // Drop Markdown image targets so they are not also drawn in the gallery.
+  const plain = text.replace(/!\[[^\]]*\]\(([^)\s]+)\)/g, " ");
   for (const word of plain.split(/\s+/)) if (word) add(word);
   return out;
 }

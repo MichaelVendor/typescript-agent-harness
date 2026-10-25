@@ -7,7 +7,8 @@ import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import { AttachmentError, createAttachmentStore, MAX_FILE_BYTES } from "../attachments/store.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
-import { contentType, fileKind, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
+import { contentType, fileKind, matchFiles, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
+import { isPermissionMode } from "../permission-mode.js";
 import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
 import {
@@ -364,6 +365,12 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "POST /api/cancel":
         host().cancel();
         return json(res, 204);
+      case "POST /api/mode": {
+        const mode = (await readBody(req)).mode;
+        if (!isPermissionMode(mode)) throw new HttpError(400, '"mode" must be manual, accept-edits or plan');
+        host().setPermissionMode(mode);
+        return json(res, 204);
+      }
       case "POST /api/answer": {
         const body = await readBody(req);
         const answer = body.answer as ApprovalAnswer;
@@ -474,13 +481,19 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       }
       case "POST /api/browser/nav": {
         const action = (await readBody(req)).action;
-        if (action !== "back" && action !== "reload") throw new HttpError(400, '"action" must be "back" or "reload"');
+        if (action !== "back" && action !== "forward" && action !== "reload") {
+          throw new HttpError(400, '"action" must be "back", "forward" or "reload"');
+        }
         await screen.nav(action);
         return json(res, 204);
       }
-      case "POST /api/browser/tab":
-        await screen.tab(str(await readBody(req), "id"));
+      case "POST /api/browser/tab": {
+        const body = await readBody(req);
+        const id = str(body, "id");
+        if (body.close === true) await screen.closeTab(id);
+        else await screen.tab(id);
         return json(res, 204);
+      }
       case "POST /api/browser/input":
         await screen.input(parseInput(await readBody(req)));
         return json(res, 204);
@@ -494,6 +507,10 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "POST /api/browser/close":
         await screen.close();
         return json(res, 204);
+      case "GET /api/files/names": {
+        const q = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("q") ?? "";
+        return json(res, 200, { files: matchFiles(workspaces.cwd, q) });
+      }
       case "GET /api/fs": {
         const dir = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("path") ?? undefined;
         return json(res, 200, listDirs(dir, opts.home));

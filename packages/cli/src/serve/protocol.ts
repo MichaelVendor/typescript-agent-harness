@@ -1,6 +1,9 @@
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import type { AttachmentMeta } from "../attachments/store.js";
+import type { PermissionMode } from "../permission-mode.js";
 import type { SessionRow } from "../sessions.js";
+
+export type { PermissionMode };
 
 /** `GET /api/info`; `maxSteps` is null when unlimited; `desktop` is where "New folder" starts (home when there is no Desktop). */
 export type ServeInfo = { approve: boolean; maxSteps: number | null; version: string; vision: boolean; desktop: string };
@@ -10,6 +13,8 @@ export type ServeRequest = {
   auth: { token: string };
   send: { text?: string; attachmentIds?: string[] };
   answer: { id: string; answer: ApprovalAnswer };
+  /** Session permission mode: ask, auto-allow file edits, or block edits and commands. */
+  mode: { mode: PermissionMode };
   /** Answers a `question` event (one list per question, in order), or skips it: the questions become text and the turn ends. */
   question: { id: string; answers: string[][] } | { id: string; skip: true };
   /** Sends a held queued message now (between turns), or removes one. */
@@ -39,8 +44,9 @@ export type ServeRequest = {
   choose: { start?: string };
   /** `url`: http(s) (not tah itself), `about:blank`, or a `/preview/…` address; omitted = just start the browser. */
   browserOpen: { url?: string };
-  browserNav: { action: "back" | "reload" };
-  browserTab: { id: string };
+  browserNav: { action: "back" | "forward" | "reload" };
+  /** `close: true` closes that tab; otherwise it becomes the shown tab. */
+  browserTab: { id: string; close?: boolean };
   /** `text` answers a `prompt` dialog. */
   browserDialog: { accept: boolean; text?: string };
 };

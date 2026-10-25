@@ -53,11 +53,11 @@ export function ApprovalCard({ approval, onAnswer }: { approval: Approval; onAns
       </div>
       <div className="card-actions">
         <button className="primary" onClick={() => onAnswer("yes")}>
-          Allow once
+          允许一次
         </button>
-        <button onClick={() => onAnswer("always")}>Always allow {approval.tool}</button>
+        <button onClick={() => onAnswer("always")}>本会话允许</button>
         <button className="danger" onClick={() => onAnswer("no")}>
-          Reject
+          拒绝
         </button>
       </div>
     </div>
