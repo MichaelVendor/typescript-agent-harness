@@ -1,6 +1,6 @@
 # 设计说明：Skills（Agent Skills）
 
-状态：✅ 已实现（v0.29；远程安装 **v1.6.1**）
+状态：✅ 已实现（v0.29；远程安装 **v1.6.1**；`/` 菜单 **v1.6.2**）
 
 对齐 [Agent Skills](https://agentskills.io/specification) / Claude Code / [DeepSeek Harness skills](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/subsystems/skills.md)：渐进披露的 Markdown 指令包，不是可执行插件。
 

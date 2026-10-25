@@ -31,7 +31,7 @@ export function stdioMcpBackend(options: StdioMcpOptions): McpBackend {
 
   function ensure(): Promise<Client> {
     started ??= (async () => {
-      const c = new Client({ name: "typescript-agent-harness", version: "1.6.1" });
+      const c = new Client({ name: "typescript-agent-harness", version: "1.6.2" });
       client = c;
       const transport = new StdioClientTransport({
         command: options.command,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2 — 2026-10-25
+
+**Slash menu:** Typing `/` in `tah chat` and `tah serve` lists built-in commands, user-invocable skills, and expandable MCP prompts. Picking an entry inserts `/name` into the input (Claude-style); press Enter again to send or run a built-in. `GET /api/skills` includes `userInvocable` and `prompts`.
+
 ## 1.6.1 — 2026-10-25
 
 **Skills:** `tah skill add <source>` installs Agent Skills from GitHub (`owner/repo`), a git URL, or a local path into `~/.tah/skills` (or `<cwd>/skills` with `--project`). Also `tah skill list` / `remove`. The web Settings → Skills page has **Install from Git…**. Same-name skills are skipped, never overwritten. Needs `git` on PATH. Not a full Claude Code `/plugin` marketplace.
