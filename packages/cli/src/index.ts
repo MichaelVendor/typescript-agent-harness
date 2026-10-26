@@ -46,3 +46,14 @@ export function defineTool<TInput, TOutput>(
 export function definePlugin(plugin: ProjectPlugin): ProjectPlugin {
   return plugin;
 }
+
+export { Box, Text } from "ink";
+export {
+  defineTuiModule,
+  useTuiInput,
+  type TuiCtx,
+  type TuiModule,
+  type TuiSlot,
+  type TuiTodo,
+  type TuiUsage,
+} from "./tui/modules.js";
