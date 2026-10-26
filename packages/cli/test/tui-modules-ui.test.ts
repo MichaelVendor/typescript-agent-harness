@@ -129,3 +129,52 @@ test("an untitled module that renders null shows nothing", async () => {
     bare.unmount();
   }
 });
+
+test("a focused module gives up the keyboard while an approval card is open", async () => {
+  const sent: string[] = [];
+  const answers: string[] = [];
+  const transcript = new Transcript(renderMarkdown);
+  const modules = [
+    defineTuiModule({
+      id: "ask",
+      slot: "above-input",
+      interactive: true,
+      Component({ ctx }: { ctx: TuiCtx }) {
+        useTuiInput(ctx, (input) => {
+          if (input === "y") void ctx.send("from-module").then(() => undefined, () => undefined);
+        });
+        return createElement(Text, null, ctx.focused ? "focused" : "idle");
+      },
+    }),
+  ];
+  const app = render(
+    createElement(App, {
+      host: {
+        ...host,
+        send: async (text: string) => { sent.push(text); },
+        answer: (id: string, a: string) => { answers.push(`${id}:${a}`); },
+      },
+      transcript,
+      maxSteps: Infinity,
+      color: false,
+      cwd: "/tmp",
+      modules,
+    } as never),
+  );
+  try {
+    transcript.apply({ type: "session", id: "s1", resumed: false, history: [], hiddenTurns: 0 });
+    await new Promise((r) => setTimeout(r, 30));
+    app.stdin.write("\x10"); // Ctrl+P
+    await new Promise((r) => setTimeout(r, 30));
+    assert.match(app.lastFrame() ?? "", /focused/);
+    transcript.apply({ type: "approval", id: "a1", tool: "bash", input: { command: "ls" } } as never);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.match(app.lastFrame() ?? "", /idle/);
+    app.stdin.write("y");
+    await new Promise((r) => setTimeout(r, 30));
+    assert.deepEqual(sent, []);
+    assert.deepEqual(answers, ["a1:yes"]);
+  } finally {
+    app.unmount();
+  }
+});

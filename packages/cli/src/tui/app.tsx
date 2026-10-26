@@ -955,7 +955,8 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
             </Text>
           ))}
           {panels.map((m) => {
-            const focused = focusedId === m.id;
+            // Cards and the session picker own the keyboard, so a module loses focus while they are open.
+            const focused = focusedId === m.id && accepting(snap);
             const ctx: TuiCtx = {
               cwd: root,
               sessionId: host.sessionId,
