@@ -37,6 +37,8 @@ import {
   type AppMode,
   type Stash,
 } from "./shortcuts.js";
+import { panelSend, type TuiCtx, type TuiModule } from "./modules.js";
+import { PANEL_ROWS, TuiPanel } from "./panel.js";
 import { formatToolResult } from "./tool-result.js";
 import type { Item, RunningTool, Snapshot, Transcript } from "./transcript.js";
 
@@ -390,9 +392,11 @@ export type AppProps = {
     copyFile(path: string): { id: string; name: string } | { error: string };
     isImageFile(path: string): boolean;
   };
+  /** Modules mounted around the composer; only the `above-input` slot is rendered. */
+  modules?: (TuiModule & { id: string })[];
 };
 
-export function App({ host, transcript, maxSteps, color, cwd, openEditor = editInEditor, images }: AppProps) {
+export function App({ host, transcript, maxSteps, color, cwd, openEditor = editInEditor, images, modules }: AppProps) {
   const snap = useSyncExternalStore(transcript.subscribe, () => transcript.snapshot);
   const { exit, suspendTerminal } = useApp();
   const { columns, rows } = useWindowSize();
@@ -414,9 +418,13 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
   const [showTodos, setShowTodos] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [scroll, setScroll] = useState(0);
+  const [focusedId, setFocusedId] = useState<string | undefined>();
+  const [shownPanels, setShownPanels] = useState<Record<string, boolean>>({});
   const [permission, setPermission] = useState<PermissionMode>(
     "permissionMode" in host && host.permissionMode ? host.permissionMode : "manual",
   );
+  const panels = (modules ?? []).filter((m) => m.slot === "above-input");
+  const interactive = panels.filter((m) => m.interactive);
   const promptHistory = useRef(createPromptHistory());
   const sessionSeen = useRef(snap.sessionId);
   const stashRef = useRef<Stash<PendingImage> | undefined>(undefined);
@@ -694,6 +702,18 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
       return;
     }
 
+    // A focused panel owns every other key (its own useTuiInput reads them); Esc hands the keyboard back.
+    if (accepting(s) && interactive.length > 0) {
+      if (key.ctrl && input === "p") {
+        const at = interactive.findIndex((m) => m.id === focusedId);
+        return setFocusedId(interactive[at + 1]?.id);
+      }
+      if (focusedId !== undefined) {
+        if (key.escape) setFocusedId(undefined);
+        return;
+      }
+    }
+
     if (mode === "history") {
       const action = historyKeyAction(input, key, historyQuery, historyPick, historyMatches);
       if (action.type === "cancel") {
@@ -900,7 +920,8 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
     (mode === "history" ? 1 + Math.min(historyMatches.length, MENU_ROWS) : 0) +
     (showHelp && mode === "normal" ? 2 : 0) +
     (showTodos && todos ? todos.length + 1 : 0) +
-    (files.length > 0 ? Math.min(files.length, MENU_ROWS) : 0);
+    (files.length > 0 ? Math.min(files.length, MENU_ROWS) : 0) +
+    panels.filter((m) => m.title || shownPanels[m.id]).length * PANEL_ROWS;
   const room = Math.max(4, rows - chrome);
   const visible = windowItems(snap.items, Math.max(1, room - liveLines(snap)), scroll, expanded);
 
@@ -933,6 +954,27 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
               {[q.text, ...(q.attachments ?? []).map((a) => a.name)].filter(Boolean).join(" ")}
             </Text>
           ))}
+          {panels.map((m) => {
+            const focused = focusedId === m.id;
+            const ctx: TuiCtx = {
+              cwd: root,
+              sessionId: host.sessionId,
+              busy: snap.busy,
+              focused,
+              ...(snap.model ? { model: snap.model } : {}),
+              ...(snap.tokens ? { usage: snap.tokens } : {}),
+              todos: (todos ?? []).map(({ content, status }) => ({ content, status })),
+              send: panelSend(m.id, focused, (text) => host.send(text)),
+            };
+            return (
+              <TuiPanel
+                key={m.id}
+                module={m}
+                ctx={ctx}
+                onShown={(shown) => setShownPanels((prev) => (prev[m.id] === shown ? prev : { ...prev, [m.id]: shown }))}
+              />
+            );
+          })}
           {imageError ? <Text dimColor wrap="truncate">{imageError}</Text> : null}
           {editorError ? <Text dimColor wrap="truncate">{editorError}</Text> : null}
           {pending.length ? <Text dimColor wrap="truncate">{pending.map((i) => i.name).join(" ")}</Text> : null}
