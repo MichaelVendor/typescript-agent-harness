@@ -69,10 +69,10 @@ export default defineTuiModule({
   slot: "above-input",
   title: "用量",
   Component({ ctx }) {
-    const n = ctx.usage?.totalTokens ?? 0;
+    const n = ctx.sessionUsage?.totalTokens ?? 0;
     return (
       <Box>
-        <Text>本轮 {n} tokens · {ctx.model ?? "无模型"}</Text>
+        <Text>会话 {n} tokens · {ctx.model ?? "无模型"}</Text>
       </Box>
     );
   },
@@ -101,7 +101,9 @@ type TuiCtx = {
   busy: boolean;
   focused: boolean;
   model?: string;
+  /** 本轮用量。当前 Transcript 快照只存会话累计，所以这一版不填。 */
   usage?: { promptTokens: number; completionTokens: number; totalTokens: number };
+  /** 会话累计用量。 */
   sessionUsage?: { promptTokens: number; completionTokens: number; totalTokens: number };
   todos: { content: string; status: string }[];
   /**
@@ -115,7 +117,7 @@ type TuiCtx = {
 
 `defineTuiModule` 是带类型的恒等函数，和 `defineTool` 一样。
 
-交互模块用 Ink 的 `useInput` 读键。宿主在该模块聚焦时把 `useInput` 的 `isActive` 设为真（通过 `ctx.focused`，模块自己写 `useInput(handler, { isActive: ctx.focused })`）。`Esc` 由宿主处理，不交给模块：只把焦点还给输入框，不清空草稿，也不取消正在跑的一轮。`Ctrl+P` 在已聚焦时切到下一个交互模块，最后一个之后回到输入框。没有 `interactive: true` 的模块时，`Ctrl+P` 保持今天的行为（不占用）。
+交互模块用 `useTuiInput(ctx, handler)` 读键。它包着 Ink 的 `useInput`，只在 `ctx.focused` 为真时激活，并且不把 `Esc`、`Ctrl+P` 交给 handler。聚焦期间粘贴也不进输入框。`Esc` 由宿主处理，不交给模块：只把焦点还给输入框，不清空草稿，也不取消正在跑的一轮。`Ctrl+P` 在已聚焦时切到下一个交互模块，最后一个之后回到输入框。没有 `interactive: true` 的模块时，`Ctrl+P` 保持今天的行为（不占用）。
 
 `ctx` 每帧由 TUI 从现有 `Transcript` 快照和 `ChatHost` 填好。模块不要把 `ctx` 存进自己的长期状态；下一帧会换新对象。
 

@@ -132,7 +132,7 @@ npx tah chat
 
 ### `tui/`（TUI 界面模块）
 
-仅 **`tah chat` 且走 TUI**（终端、非 `--plain`）时扫描 `<cwd>/tui/`。扫描规则与上表相同（第一层、扩展名、跳过 `_` / 测试文件）。`tah run`、`--plain`、管道模式不加载；`loadProject` 也不读这个目录。
+仅 **`tah chat` 且走 TUI**（终端、非 `--plain`）时扫描 `<cwd>/tui/`。扫描规则与上表相同（第一层、跳过 `_` / 测试文件），扩展名除 `.ts`、`.mts`、`.js`、`.mjs` 外还接受 `.tsx`、`.jsx`；`.tsx` 用的 `react` 取自 CLI 自带的那份，项目不必自己装。`tah run`、`--plain`、管道模式不加载；`loadProject` 也不读这个目录。
 
 每个文件默认导出 `defineTuiModule({ slot, Component })` 的返回值。插槽 **`above-input`** 会挂在输入框上方；**`footer`**、**`transcript`** 名字保留，这一版只打一行 notice、不挂载。
 
@@ -146,10 +146,10 @@ export default defineTuiModule({
   slot: "above-input",
   title: "用量",
   Component({ ctx }) {
-    const n = ctx.usage?.totalTokens ?? 0;
+    const n = ctx.sessionUsage?.totalTokens ?? 0;
     return (
       <Box>
-        <Text>本轮 {n} tokens · {ctx.model ?? "无模型"}</Text>
+        <Text>会话 {n} tokens · {ctx.model ?? "无模型"}</Text>
       </Box>
     );
   },

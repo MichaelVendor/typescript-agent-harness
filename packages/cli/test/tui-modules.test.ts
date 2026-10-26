@@ -73,6 +73,39 @@ test("loadTuiModules rejects a bad export, a bad id, and a duplicate id", async 
   );
 });
 
+test("loadTuiModules rejects a duplicate id even on an unmounted slot", async () => {
+  await assert.rejects(
+    loadTuiModules(project({
+      "tui/one.mjs": mod("footer", "same"),
+      "tui/two.mjs": mod("above-input", "same"),
+    })),
+    /duplicate/,
+  );
+  await assert.rejects(
+    loadTuiModules(project({
+      "tui/one.mjs": mod("footer", "same"),
+      "tui/two.mjs": mod("transcript", "same"),
+    })),
+    /duplicate/,
+  );
+});
+
+test("loadTuiModules loads a .tsx module without a project-local react", async () => {
+  const cwd = project({
+    "tui/cost.tsx": [
+      'import { Box, Text, defineTuiModule } from "@typescript-agent-harness/cli";',
+      'export default defineTuiModule({',
+      '  slot: "above-input",',
+      "  Component() { return <Box><Text>hi</Text></Box>; },",
+      "});",
+      "",
+    ].join("\n"),
+  });
+  const loaded = await loadTuiModules(cwd);
+  assert.deepEqual(loaded.modules.map((m) => m.id), ["cost"]);
+  assert.ok(loaded.modules[0]?.Component({ ctx: {} as never }));
+});
+
 test("loadTuiModules returns nothing outside a project", async () => {
   const cwd = project({ "tui/cost.mjs": mod("above-input") }, false);
   assert.deepEqual(await loadTuiModules(cwd), { modules: [], notices: [] });

@@ -601,7 +601,7 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
     }
     if (pasteImages(text)) return;
     update((e) => insert(e, text));
-  }, { isActive: !snap.approval && !picker && !exiting });
+  }, { isActive: !snap.approval && !picker && !exiting && focusedId === undefined });
 
   useInput((input, key) => {
     const s = transcript.snapshot;
@@ -963,7 +963,7 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
               busy: snap.busy,
               focused,
               ...(snap.model ? { model: snap.model } : {}),
-              ...(snap.tokens ? { usage: snap.tokens } : {}),
+              ...(snap.tokens ? { sessionUsage: snap.tokens } : {}),
               todos: (todos ?? []).map(({ content, status }) => ({ content, status })),
               send: panelSend(m.id, focused, (text) => host.send(text)),
             };

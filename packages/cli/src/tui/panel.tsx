@@ -31,7 +31,7 @@ function PanelBody({ module, ctx, onShown }: PanelProps) {
   }, [shown]);
   if (!shown) return null;
   return (
-    <Box flexDirection="column" height={PANEL_ROWS} overflow="hidden" paddingX={1}>
+    <Box flexDirection="column" maxHeight={PANEL_ROWS} overflow="hidden" paddingX={1}>
       {module.title ? <Text dimColor>{module.title}</Text> : null}
       {body}
     </Box>
