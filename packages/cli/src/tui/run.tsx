@@ -6,7 +6,9 @@ import type { CliFlags } from "../args.js";
 import { createAttachmentStore } from "../attachments/store.js";
 import { createChatHost } from "../host.js";
 import { renderMarkdown, useColor } from "../markdown.js";
+import { ProjectError } from "../project.js";
 import { App, type AppProps } from "./app.js";
+import { loadTuiModules } from "./load-modules.js";
 import { readClipboard, type RunCommand } from "./clipboard.js";
 import { imageKind, imageProtocol } from "./images.js";
 import { Transcript } from "./transcript.js";
@@ -89,12 +91,27 @@ export async function runTui(flags: CliFlags): Promise<void> {
       }
     },
   };
-  const app = render(<App host={host} transcript={transcript} maxSteps={flags.maxSteps} color={color} cwd={flags.cwd} images={images} />, {
-    exitOnCtrlC: false,
-    // A TTY was checked by the caller; CI=true would otherwise switch Ink to final-frame-only output.
-    interactive: true,
-    kittyKeyboard: { mode: "auto" },
-  });
+  let loaded;
+  try {
+    loaded = await loadTuiModules(flags.cwd);
+  } catch (err) {
+    if (err instanceof ProjectError) {
+      console.error(err.message);
+      process.exitCode = 1;
+      return;
+    }
+    throw err;
+  }
+  for (const notice of loaded.notices) transcript.note(`[tah] ${notice}`);
+  const app = render(
+    <App host={host} transcript={transcript} maxSteps={flags.maxSteps} color={color} cwd={flags.cwd} images={images} modules={loaded.modules} />,
+    {
+      exitOnCtrlC: false,
+      // A TTY was checked by the caller; CI=true would otherwise switch Ink to final-frame-only output.
+      interactive: true,
+      kittyKeyboard: { mode: "auto" },
+    },
+  );
   try {
     await host.open();
     await app.waitUntilExit();

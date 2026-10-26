@@ -34,6 +34,8 @@ tah 采用同样的分层：先定义一个与界面无关的**会话接口**，
 
 启动前的错误（没有 API key、项目文件出错）在挂载 TUI 之前抛出，打印方式和现在一样。
 
+项目模式下的 **`tui/` 界面模块**（插槽、加载、`defineTuiModule`、`TuiCtx`）见 **[TUI 模块扩展](../superpowers/specs/2026-10-25-tui-modules-design.md)**。模块通过宿主注入的 `ctx` 读会话快照并发消息，**不在 `ChatHost` 上增加新方法**。
+
 ## 会话接口 `ChatHost`
 
 ```ts

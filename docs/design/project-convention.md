@@ -23,6 +23,8 @@ my-agent/
 │   └── refund.ts          # → 工具 refund
 ├── plugins/               # 一个文件 = 一个插件，自动加载（可选）
 │   └── audit-log.ts       # → 插件 project:audit-log
+├── tui/                   # 一个文件 = 一个 TUI 模块，仅 tah chat 加载（见下）
+│   └── cost.tsx           # → 插槽 above-input 等
 ├── skills/                # Agent Skills（Markdown 指令包，v0.29）
 │   └── hello/SKILL.md     # → 按需加载；见 [Skills](./skills.md)
 ├── lib/                   # 共用代码，不自动加载
@@ -127,6 +129,34 @@ npx tah chat
 | 跳过 | `_` 开头的文件、`.d.ts`、`*.test.*`、`*.spec.*` |
 | 加载顺序 | 按文件名字典序；插件间有依赖时用 `01-`、`02-` 前缀控制 |
 | 哪些命令加载 | `tah run`、`tah chat`；`tah sessions` / `help` / `version` 不加载 |
+
+### `tui/`（TUI 界面模块）
+
+仅 **`tah chat` 且走 TUI**（终端、非 `--plain`）时扫描 `<cwd>/tui/`。扫描规则与上表相同（第一层、扩展名、跳过 `_` / 测试文件）。`tah run`、`--plain`、管道模式不加载；`loadProject` 也不读这个目录。
+
+每个文件默认导出 `defineTuiModule({ slot, Component })` 的返回值。插槽 **`above-input`** 会挂在输入框上方；**`footer`**、**`transcript`** 名字保留，这一版只打一行 notice、不挂载。
+
+示例（用量条）：
+
+```tsx
+// tui/cost.tsx
+import { Box, Text, defineTuiModule } from "@typescript-agent-harness/cli";
+
+export default defineTuiModule({
+  slot: "above-input",
+  title: "用量",
+  Component({ ctx }) {
+    const n = ctx.usage?.totalTokens ?? 0;
+    return (
+      <Box>
+        <Text>本轮 {n} tokens · {ctx.model ?? "无模型"}</Text>
+      </Box>
+    );
+  },
+});
+```
+
+需要键盘操作的模块设 **`interactive: true`**：`Ctrl+P` 轮流聚焦，`useTuiInput` 读键，`ctx.send(text)` 与输入框同路径发消息（未聚焦时 `send` 抛错）。细节见 [TUI 模块扩展](../superpowers/specs/2026-10-25-tui-modules-design.md)。
 
 ### 名字推导
 
