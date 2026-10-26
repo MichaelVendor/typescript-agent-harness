@@ -98,6 +98,8 @@ export async function runTui(flags: CliFlags): Promise<void> {
     if (err instanceof ProjectError) {
       console.error(err.message);
       process.exitCode = 1;
+      host.cancel();
+      await host.close();
       return;
     }
     throw err;
