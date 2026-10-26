@@ -475,10 +475,10 @@ export function App({ host, transcript, maxSteps, color, cwd, openEditor = editI
   const matches =
     query && !snap.busy
       ? matchCommands(query, [
-          ...host.skills
+          ...(host.skills ?? [])
             .filter((s) => s.userInvocable)
             .map((s) => ({ name: s.name, description: s.description })),
-          ...host.slashPrompts,
+          ...(host.slashPrompts ?? []),
         ])
       : [];
   const files = mention !== undefined ? matchFiles(root, mention) : [];

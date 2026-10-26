@@ -14,6 +14,8 @@ import { Transcript } from "../dist/tui/transcript.js";
 const host = {
   sessionId: "s1",
   approve: true,
+  skills: [] as { name: string; description: string; userInvocable: boolean }[],
+  slashPrompts: [] as { name: string; description: string }[],
   on: () => () => {},
   send: async () => {},
   continueTurn: async () => {},
