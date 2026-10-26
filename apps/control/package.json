@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/control",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "private": true,
   "description": "Intranet control plane for tah agent-host",
   "type": "module",

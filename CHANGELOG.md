@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.3 — 2026-10-26
+
+**TUI modules:** A convention project can put TSX modules in `tui/`. `tah chat` mounts `above-input` panels above the input. `ctx.send` uses the same path as the composer and only works while that module is focused (`Ctrl+P` to focus, `Esc` back to the input). Slots `footer` and `transcript` are recognized and skipped. `tah serve`, `tah run`, `--plain`, and a non-TTY do not load `tui/`.
+
 ## 1.6.2 — 2026-10-25
 
 **Slash menu:** Typing `/` in `tah chat` and `tah serve` lists built-in commands, user-invocable skills, and expandable MCP prompts. Picking an entry inserts `/name` into the input (Claude-style); press Enter again to send or run a built-in. `GET /api/skills` includes `userInvocable` and `prompts`.

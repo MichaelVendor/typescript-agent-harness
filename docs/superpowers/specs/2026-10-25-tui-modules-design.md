@@ -1,6 +1,6 @@
 # TUI 模块扩展设计
 
-状态：📐 实现计划：docs/superpowers/plans/2026-10-25-tui-modules.md
+状态：✅ 已实现（v1.6.3）。实现计划：docs/superpowers/plans/2026-10-25-tui-modules.md
 
 ## 背景
 
