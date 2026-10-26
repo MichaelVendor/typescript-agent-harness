@@ -36,6 +36,8 @@ const MODE_TITLE: Record<Mode, string> = {
   plan: "不改文件，不跑命令",
 };
 
+type Suggestion = { label: string; send: string; detail?: string };
+
 function followUp(entries: Entry[], busy: boolean): string | undefined {
   if (busy) return undefined;
   for (let i = entries.length - 1; i >= 0; i--) {
@@ -109,6 +111,7 @@ export function App() {
   const [state, dispatch] = useReducer(applyEvent, initialState);
   const [info, setInfo] = useState<ServeInfo>();
   const [connection, setConnection] = useState<Connection>("connecting");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceView[]>();
   const [sessionsError, setSessionsError] = useState<string>();
   const [dialog, setDialog] = useState<"open" | "new" | "settings">();
@@ -217,6 +220,27 @@ export function App() {
     if (!activePath) return;
     void api.mode({ mode: "manual" }).catch(() => {});
   }, [activePath]);
+
+  useEffect(() => {
+    if (connection !== "open") return;
+    let stop = false;
+    const load = () => {
+      void api.suggestions().then(
+        (rows) => {
+          if (!stop) setSuggestions(rows);
+        },
+        () => {
+          if (!stop) setSuggestions([]);
+        },
+      );
+    };
+    load();
+    const timer = setInterval(load, 15_000);
+    return () => {
+      stop = true;
+      clearInterval(timer);
+    };
+  }, [connection, activePath]);
 
   useEffect(() => {
     if (connection !== "open") return;
@@ -436,6 +460,7 @@ export function App() {
               : undefined
           }
           suggestion={followUp(state.entries, state.busy)}
+          suggestions={suggestions}
           busy={state.busy}
           disabled={connection !== "open" || state.stepLimit}
           onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}

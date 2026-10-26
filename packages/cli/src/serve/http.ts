@@ -28,6 +28,7 @@ import { importSkills, removeSkill } from "../skills/install.js";
 import { addRemoteSkills } from "../skills/remote.js";
 import type { FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
 import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
+import { loadSuggestions } from "./suggestions.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
 
 const COOKIE = "tah_token";
@@ -562,6 +563,8 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         await host().reload();
         return json(res, 200, settingsView());
       }
+      case "GET /api/suggestions":
+        return json(res, 200, { suggestions: await loadSuggestions(workspaces.cwd) });
       case "GET /api/skills":
         return json(res, 200, skillsView());
       case "POST /api/skills/import": {

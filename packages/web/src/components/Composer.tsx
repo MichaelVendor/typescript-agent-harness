@@ -33,6 +33,8 @@ export function Composer(props: {
   onCommand?(run: NonNullable<SlashCommand["run"]>): void;
   /** Shown left of the send button (the model picker). */
   children?: ReactNode;
+  /** Short chips above the box. Clicking one sends `send`. */
+  suggestions?: { label: string; send: string; detail?: string }[];
 }) {
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -300,6 +302,25 @@ export function Composer(props: {
             </li>
           ))}
         </ul>
+      ) : null}
+      {props.suggestions && props.suggestions.length > 0 ? (
+        <div className="suggest" aria-label="可搜">
+          {props.suggestions.every((item) => item.detail && item.detail === props.suggestions?.[0]?.detail) ? (
+            <span className="suggest-note">{props.suggestions[0]?.detail}</span>
+          ) : null}
+          {props.suggestions.map((item, i) => (
+            <button
+              key={`${item.send}-${i}`}
+              type="button"
+              className="composer-chip suggest-chip"
+              disabled={props.disabled}
+              title={item.detail ? `${item.detail}：${item.label}` : item.label}
+              onClick={() => props.onSend(item.send, [])}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       ) : null}
       <div className="composer">
         <input

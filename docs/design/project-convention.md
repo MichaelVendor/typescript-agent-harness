@@ -25,6 +25,7 @@ my-agent/
 │   └── audit-log.ts       # → 插件 project:audit-log
 ├── tui/                   # 一个文件 = 一个 TUI 模块，仅 tah chat 加载（见下）
 │   └── cost.tsx           # → 插槽 above-input 等
+├── suggestions.ts         # 网页输入框上方的建议，仅 tah serve 读取（见下）
 ├── skills/                # Agent Skills（Markdown 指令包，v0.29）
 │   └── hello/SKILL.md     # → 按需加载；见 [Skills](./skills.md)
 ├── lib/                   # 共用代码，不自动加载
@@ -157,6 +158,19 @@ export default defineTuiModule({
 ```
 
 需要键盘操作的模块设 **`interactive: true`**：`Ctrl+P` 轮流聚焦，`useTuiInput` 读键，`ctx.send(text)` 与输入框同路径发消息（未聚焦时 `send` 抛错）。细节见 [TUI 模块扩展](../superpowers/specs/2026-10-25-tui-modules-design.md)。
+
+### `suggestions.ts`（网页建议）
+
+仅 **`tah serve`** 读取项目根目录的 `suggestions.ts`（也接受 `.mts`、`.js`、`.mjs`）。默认导出 `function suggestions(cwd): { label, send, detail? }[]`。网页在输入框上方最多显示 4 条，点击后把 `send` 发出去。文件不存在、不是项目模式、或导出形状不对时不显示，加载失败只在服务端打一行日志。`loadProject` 不读这个文件。
+
+```ts
+// suggestions.ts
+export default function suggestions(_cwd: string) {
+  return [{ label: "查库存", send: "查一下今天的库存", detail: "常用" }];
+}
+```
+
+`GET /api/suggestions` 返回 `{ suggestions }`。标签最长 42 字，`send` 最长 200 字。
 
 ### 名字推导
 

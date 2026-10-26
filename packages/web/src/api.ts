@@ -109,6 +109,9 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, `${res.status} ${res.statusText}`);
     return res.text();
   },
+  suggestions: async () =>
+    ((await (await call("GET", "/api/suggestions")).json()) as { suggestions: { label: string; send: string; detail?: string }[] })
+      .suggestions,
   skills: async () => (await (await call("GET", "/api/skills")).json()) as SkillsView,
   importSkills: async (body: ServeRequest["importSkills"]) =>
     (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,
