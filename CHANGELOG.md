@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.4 — 2026-10-26
+
+**Suggestions:** A convention project can export `suggestions(cwd)` from `suggestions.ts` at the project root. `tah serve` shows up to four chips above the composer; clicking one sends that text. `GET /api/suggestions` returns `{ suggestions }`. A missing file, a non-project folder, or a bad export shows nothing.
+
 ## 1.6.3 — 2026-10-26
 
 **TUI modules:** A convention project can put TSX modules in `tui/`. `tah chat` mounts `above-input` panels above the input. `ctx.send` uses the same path as the composer and only works while that module is focused (`Ctrl+P` to focus, `Esc` back to the input). Slots `footer` and `transcript` are recognized and skipped. `tah serve`, `tah run`, `--plain`, and a non-TTY do not load `tui/`.
