@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.5 — 2026-10-27
+
+**Web:** The workbench uses Cursor's system UI font stack and monospace stack. The page defaults to Cursor `window.zoomLevel: 2` scale (`zoom: 1.44`).
+
 ## 1.6.4 — 2026-10-26
 
 **Suggestions:** A convention project can export `suggestions(cwd)` from `suggestions.ts` at the project root. `tah serve` shows up to four chips above the composer; clicking one sends that text. `GET /api/suggestions` returns `{ suggestions }`. A missing file, a non-project folder, or a bad export shows nothing.
