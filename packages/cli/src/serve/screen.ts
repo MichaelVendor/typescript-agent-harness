@@ -200,9 +200,20 @@ export type Screen = {
   input(input: BrowserInput): Promise<void>;
   /** Answers the shown tab's JavaScript dialog. */
   dialog(accept: boolean, text?: string): Promise<void>;
+  /** Matches the remote page to the panel so the screencast fills it. */
+  viewport(width: number, height: number): Promise<void>;
   close(): Promise<void>;
   dispose(): void;
 };
+
+/** Panel size → CDP viewport; keeps width/height in a range Chrome accepts. */
+export function clampViewport(width: number, height: number): { width: number; height: number } | undefined {
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return undefined;
+  const w = Math.round(width);
+  const h = Math.round(height);
+  if (w < 200 || h < 200 || w > 3840 || h > 2160) return undefined;
+  return { width: w, height: h };
+}
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -225,6 +236,18 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
   let dialog: BrowserDialog | undefined;
   let retitling: NodeJS.Timeout | undefined;
   let disposed = false;
+  let viewSize: { width: number; height: number } | undefined;
+
+  const applyViewport = async (c: Cdp, s: string) => {
+    if (!viewSize) return;
+    await c
+      .send(
+        "Emulation.setDeviceMetricsOverride",
+        { width: viewSize.width, height: viewSize.height, deviceScaleFactor: 1, mobile: false },
+        s,
+      )
+      .catch(() => {});
+  };
 
   const state = (): BrowserState => {
     const b = opts.browser();
@@ -307,6 +330,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       }
       await c.send("Target.activateTarget", { targetId: id }).catch(() => {});
       await c.send("Page.enable", {}, sessionId).catch(() => {});
+      await applyViewport(c, sessionId);
       if (listeners.size > 0) await cast(true);
     })().catch((err: unknown) => {
       if (active !== id || cdp !== c) return;
@@ -476,6 +500,14 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
     async dialog(accept, text) {
       const { c, s } = await ready();
       await c.send("Page.handleJavaScriptDialog", { accept, ...(text === undefined ? {} : { promptText: text }) }, s);
+    },
+    async viewport(width, height) {
+      const next = clampViewport(width, height);
+      if (!next) return;
+      if (viewSize && viewSize.width === next.width && viewSize.height === next.height) return;
+      viewSize = next;
+      if (!cdp || !session) return;
+      await applyViewport(cdp, session);
     },
     async close() {
       const b = opts.browser();

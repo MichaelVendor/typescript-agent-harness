@@ -79,6 +79,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
   const [loading, setLoading] = useState(false);
   const image = useRef<HTMLImageElement>(null);
   const keys = useRef<HTMLTextAreaElement>(null);
+  const screenEl = useRef<HTMLDivElement>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const moving = useRef<BrowserInput | undefined>(undefined);
   const wheel = useRef<{ x: number; y: number; dx: number; dy: number; modifiers: number } | undefined>(undefined);
@@ -129,6 +130,33 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
     el.addEventListener("wheel", stop, { passive: false });
     return () => el.removeEventListener("wheel", stop);
   }, [live]);
+
+  // Keep the remote page the same size as this panel so the screencast fills it.
+  useEffect(() => {
+    const el = screenEl.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let last = "";
+    const publish = (width: number, height: number) => {
+      const w = Math.round(width);
+      const h = Math.round(height);
+      const key = `${w}x${h}`;
+      if (key === last || w < 200 || h < 200) return;
+      last = key;
+      void api.browserViewport({ width: w, height: h }).catch(() => {});
+    };
+    const ro = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      if (!box) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => publish(box.width, box.height), 100);
+    });
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
 
   const tab = state?.tabs.find((t) => t.id === state.active);
   const dialog = state?.dialog;
@@ -344,7 +372,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
           )}
         </form>
       ) : null}
-      <div className="browser-screen">
+      <div ref={screenEl} className="browser-screen">
         {live && frame ? (
           <div className="browser-frame">
             <img ref={image} src={frame.src} alt={tab?.title || "页面"} draggable={false} />

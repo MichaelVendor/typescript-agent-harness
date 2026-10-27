@@ -3,8 +3,16 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { test } from "node:test";
-import { browserURL, cdpInput, connectCdp, createScreen, parseInput } from "../dist/serve/screen.js";
+import { browserURL, cdpInput, clampViewport, connectCdp, createScreen, parseInput } from "../dist/serve/screen.js";
 import { fakeBrowser, fakeCdp, tick, within } from "./fixtures/fake-cdp.ts";
+
+test("clampViewport keeps panel sizes Chrome can use", () => {
+  assert.deepEqual(clampViewport(640.4, 480.6), { width: 640, height: 481 });
+  assert.equal(clampViewport(100, 800), undefined);
+  assert.equal(clampViewport(800, 100), undefined);
+  assert.equal(clampViewport(5000, 800), undefined);
+  assert.equal(clampViewport(NaN, 800), undefined);
+});
 
 test("browserURL: web pages, a blank page and file previews; never tah itself", () => {
   assert.equal(browserURL("https://example.com/a", 7000), "https://example.com/a");
@@ -116,6 +124,34 @@ test("open launches the browser, attaches to its newest tab and navigates it", a
   });
   await screen.open();
   assert.deepEqual(ports, [9222]);
+  screen.dispose();
+});
+
+test("viewport resizes the shown tab and is reapplied when a tab is shown", async () => {
+  const fb = fakeBrowser();
+  const fc = fakeCdp();
+  const screen = createScreen({ browser: () => fb.browser, connect: async () => fc.cdp });
+  await screen.open();
+  await screen.viewport(900, 1200);
+  assert.deepEqual(fc.sent.at(-1), {
+    method: "Emulation.setDeviceMetricsOverride",
+    params: { width: 900, height: 1200, deviceScaleFactor: 1, mobile: false },
+    sessionId: "S-T1",
+  });
+  const before = fc.sent.length;
+  await screen.viewport(900, 1200);
+  assert.equal(fc.sent.length, before);
+  fc.event("Target.targetCreated", { targetInfo: { targetId: "T2", type: "page", title: "Next", url: "https://example.com/2" } });
+  await tick();
+  assert.ok(
+    fc.sent.some(
+      (m) =>
+        m.method === "Emulation.setDeviceMetricsOverride" &&
+        m.sessionId === "S-T2" &&
+        m.params.width === 900 &&
+        m.params.height === 1200,
+    ),
+  );
   screen.dispose();
 });
 

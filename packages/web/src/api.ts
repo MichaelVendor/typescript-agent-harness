@@ -123,6 +123,7 @@ export const api = {
   browserOpen: async (body: ServeRequest["browserOpen"] = {}) =>
     (await (await call("POST", "/api/browser/open", body)).json()) as BrowserState,
   browserNav: (body: ServeRequest["browserNav"]) => post("/api/browser/nav", body),
+  browserViewport: (body: ServeRequest["browserViewport"]) => post("/api/browser/viewport", body),
   browserTab: (body: ServeRequest["browserTab"]) => post("/api/browser/tab", body),
   browserInput: (input: BrowserInput) => post("/api/browser/input", input),
   browserDialog: (body: ServeRequest["browserDialog"]) => post("/api/browser/dialog", body),

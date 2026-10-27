@@ -494,6 +494,14 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         await screen.nav(action);
         return json(res, 204);
       }
+      case "POST /api/browser/viewport": {
+        const body = await readBody(req);
+        if (typeof body.width !== "number" || typeof body.height !== "number") {
+          throw new HttpError(400, '"width" and "height" must be numbers');
+        }
+        await screen.viewport(body.width, body.height);
+        return json(res, 204);
+      }
       case "POST /api/browser/tab": {
         const body = await readBody(req);
         const id = str(body, "id");
