@@ -1,7 +1,7 @@
 {
   "name": "@typescript-agent-harness/desktop",
   "productName": "tah",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "private": true,
   "description": "macOS app for tah serve",
   "type": "module",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.7 — 2026-10-27
+
+**Browser panel:** Screencast captures at `devicePixelRatio` (`deviceScaleFactor` + `maxWidth`/`maxHeight`) so Retina text stays sharper. The remote CSS viewport matches the panel's visual box (`getBoundingClientRect`) so page zoom does not magnify the page; mouse input stays in CSS pixels. `POST /api/browser/viewport` accepts optional `scale`.
+
 ## 1.6.6 — 2026-10-27
 
 **Browser panel:** The built-in browser viewport follows the side panel size so the screencast fills the panel instead of leaving empty space under a fixed 1280×720 page. `POST /api/browser/viewport` sets the size.

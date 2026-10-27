@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/cli",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "typescript-agent-harness CLI (tah)",
   "type": "module",
   "bin": {
