@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.6 — 2026-10-27
+
+**Browser panel:** The built-in browser viewport follows the side panel size so the screencast fills the panel instead of leaving empty space under a fixed 1280×720 page. `POST /api/browser/viewport` sets the size.
+
 ## 1.6.5 — 2026-10-27
 
 **Web:** The workbench uses Cursor's system UI font stack and monospace stack. The page defaults to Cursor `window.zoomLevel: 2` scale (`zoom: 1.44`).
