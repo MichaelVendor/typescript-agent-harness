@@ -38,6 +38,7 @@ export function fakeCdp(opts: { failAttach?: string } = {}) {
       if (method === "Target.getTargets") return { targetInfos: targets.map((t) => ({ ...t })) };
       if (method === "Target.attachToTarget" && params.targetId === opts.failAttach) throw new Error("No target with given id found");
       if (method === "Target.attachToTarget") return { sessionId: `S-${String(params.targetId)}` };
+      if (method === "Browser.getWindowForTarget") return { windowId: 1, bounds: { windowState: "normal", left: 0, top: 0, width: 1280, height: 720 } };
       if (method === "Page.getNavigationHistory") return { currentIndex: 1, entries: [{ id: 10 }, { id: 11 }] };
       return {};
     },

@@ -499,7 +499,10 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         if (typeof body.width !== "number" || typeof body.height !== "number") {
           throw new HttpError(400, '"width" and "height" must be numbers');
         }
-        await screen.viewport(body.width, body.height);
+        if (body.scale !== undefined && typeof body.scale !== "number") {
+          throw new HttpError(400, '"scale" must be a number');
+        }
+        await screen.viewport(body.width, body.height, body.scale);
         return json(res, 204);
       }
       case "POST /api/browser/tab": {

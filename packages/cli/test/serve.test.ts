@@ -1095,13 +1095,14 @@ test("browser panel over HTTP: open, stream frames, type; a browser tool event r
     assert.equal((await api.post("/api/browser/input", { type: "text", text: "hi" })).status, 204);
     assert.deepEqual(conns[0]!.sent.at(-1), { method: "Input.insertText", params: { text: "hi" }, sessionId: "S-T1" });
     assert.equal((await api.post("/api/browser/nav", { action: "reload" })).status, 204);
-    assert.equal((await api.post("/api/browser/viewport", { width: 640, height: 900 })).status, 204);
+    assert.equal((await api.post("/api/browser/viewport", { width: 640, height: 900, scale: 2 })).status, 204);
     assert.deepEqual(conns[0]!.sent.at(-1), {
       method: "Emulation.setDeviceMetricsOverride",
-      params: { width: 640, height: 900, deviceScaleFactor: 1, mobile: false },
+      params: { width: 640, height: 900, deviceScaleFactor: 2, mobile: false },
       sessionId: "S-T1",
     });
     assert.equal((await api.post("/api/browser/viewport", { width: "x" })).status, 400);
+    assert.equal((await api.post("/api/browser/viewport", { width: 640, height: 900, scale: "x" })).status, 400);
     assert.equal((await api.post("/api/browser/dialog", { accept: false })).status, 204);
     assert.deepEqual(conns[0]!.sent.at(-1), { method: "Page.handleJavaScriptDialog", params: { accept: false }, sessionId: "S-T1" });
 

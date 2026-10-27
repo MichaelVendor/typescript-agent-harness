@@ -131,30 +131,39 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
     return () => el.removeEventListener("wheel", stop);
   }, [live]);
 
-  // Keep the remote page the same size as this panel so the screencast fills it.
+  // Remote CSS size must match the panel's *visual* box (getBoundingClientRect), not
+  // clientWidth — html zoom shrinks clientWidth, which made the page look magnified.
+  // scale is only devicePixelRatio so screencast pixels match the screen.
   useEffect(() => {
     const el = screenEl.current;
     if (!el) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let last = "";
-    const publish = (width: number, height: number) => {
-      const w = Math.round(width);
-      const h = Math.round(height);
-      const key = `${w}x${h}`;
-      if (key === last || w < 200 || h < 200) return;
+    const publish = () => {
+      const rect = el.getBoundingClientRect();
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
+      if (w < 200 || h < 200) return;
+      const scale = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+      const key = `${w}x${h}@${scale}`;
+      if (key === last) return;
       last = key;
-      void api.browserViewport({ width: w, height: h }).catch(() => {});
+      void api.browserViewport({ width: w, height: h, scale }).catch(() => {});
     };
-    const ro = new ResizeObserver((entries) => {
-      const box = entries[0]?.contentRect;
-      if (!box) return;
+    const ro = new ResizeObserver(() => {
       clearTimeout(timer);
-      timer = setTimeout(() => publish(box.width, box.height), 100);
+      timer = setTimeout(publish, 100);
     });
     ro.observe(el);
+    const onZoom = () => {
+      clearTimeout(timer);
+      timer = setTimeout(publish, 100);
+    };
+    window.addEventListener("resize", onZoom);
     return () => {
       ro.disconnect();
       clearTimeout(timer);
+      window.removeEventListener("resize", onZoom);
     };
   }, []);
 
@@ -374,8 +383,10 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
       ) : null}
       <div ref={screenEl} className="browser-screen">
         {live && frame ? (
-          <div className="browser-frame">
-            <img ref={image} src={frame.src} alt={tab?.title || "页面"} draggable={false} />
+          <>
+            <div className="browser-frame">
+              <img ref={image} src={frame.src} alt={tab?.title || "页面"} draggable={false} />
+            </div>
             <textarea
               ref={keys}
               className="browser-keys"
@@ -405,7 +416,7 @@ export function BrowserPane(props: { agentBusy: boolean; onClose(): void }) {
                 if (text) send({ type: "text", text });
               }}
             />
-          </div>
+          </>
         ) : (
           <div className="preview-empty">
             {loading || (state?.running && !frame) ? (

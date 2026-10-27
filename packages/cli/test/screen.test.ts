@@ -3,15 +3,22 @@ import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { test } from "node:test";
-import { browserURL, cdpInput, clampViewport, connectCdp, createScreen, parseInput } from "../dist/serve/screen.js";
+import { browserURL, cdpInput, clampViewport, connectCdp, createScreen, parseInput, physicalSize } from "../dist/serve/screen.js";
 import { fakeBrowser, fakeCdp, tick, within } from "./fixtures/fake-cdp.ts";
 
 test("clampViewport keeps panel sizes Chrome can use", () => {
-  assert.deepEqual(clampViewport(640.4, 480.6), { width: 640, height: 481 });
+  assert.deepEqual(clampViewport(640.4, 480.6), { width: 640, height: 481, scale: 1 });
+  assert.deepEqual(clampViewport(640, 480, 2.88), { width: 640, height: 480, scale: 2.88 });
+  assert.equal(clampViewport(640, 480, 4)?.scale, 3);
   assert.equal(clampViewport(100, 800), undefined);
   assert.equal(clampViewport(800, 100), undefined);
   assert.equal(clampViewport(5000, 800), undefined);
   assert.equal(clampViewport(NaN, 800), undefined);
+});
+
+test("physicalSize is CSS × scale, capped for Chrome", () => {
+  assert.deepEqual(physicalSize({ width: 900, height: 1200, scale: 2 }), { width: 1800, height: 2400 });
+  assert.deepEqual(physicalSize({ width: 2000, height: 2000, scale: 3 }), { width: 4096, height: 4096 });
 });
 
 test("browserURL: web pages, a blank page and file previews; never tah itself", () => {
@@ -132,14 +139,26 @@ test("viewport resizes the shown tab and is reapplied when a tab is shown", asyn
   const fc = fakeCdp();
   const screen = createScreen({ browser: () => fb.browser, connect: async () => fc.cdp });
   await screen.open();
-  await screen.viewport(900, 1200);
-  assert.deepEqual(fc.sent.at(-1), {
-    method: "Emulation.setDeviceMetricsOverride",
-    params: { width: 900, height: 1200, deviceScaleFactor: 1, mobile: false },
-    sessionId: "S-T1",
-  });
+  await screen.viewport(900, 1200, 2);
+  assert.ok(fc.sent.some((m) => m.method === "Browser.getWindowForTarget" && m.params.targetId === "T1"));
+  assert.ok(
+    fc.sent.some(
+      (m) => m.method === "Browser.setContentsSize" && m.params.windowId === 1 && m.params.width === 900 && m.params.height === 1200,
+    ),
+  );
+  assert.ok(
+    fc.sent.some(
+      (m) =>
+        m.method === "Emulation.setDeviceMetricsOverride" &&
+        m.sessionId === "S-T1" &&
+        m.params.width === 900 &&
+        m.params.height === 1200 &&
+        m.params.deviceScaleFactor === 2,
+    ),
+  );
+  assert.equal(fc.sent.some((m) => m.method === "Emulation.setVisibleSize"), false);
   const before = fc.sent.length;
-  await screen.viewport(900, 1200);
+  await screen.viewport(900, 1200, 2);
   assert.equal(fc.sent.length, before);
   fc.event("Target.targetCreated", { targetInfo: { targetId: "T2", type: "page", title: "Next", url: "https://example.com/2" } });
   await tick();
@@ -149,7 +168,8 @@ test("viewport resizes the shown tab and is reapplied when a tab is shown", asyn
         m.method === "Emulation.setDeviceMetricsOverride" &&
         m.sessionId === "S-T2" &&
         m.params.width === 900 &&
-        m.params.height === 1200,
+        m.params.height === 1200 &&
+        m.params.deviceScaleFactor === 2,
     ),
   );
   screen.dispose();
@@ -161,20 +181,37 @@ test("frames: screencast only while someone watches; a late watcher gets the las
   const screen = createScreen({ browser: () => fb.browser, connect: async () => fc.cdp });
   await screen.open();
   assert.equal(fc.sent.some((m) => m.method === "Page.startScreencast"), false);
-  const a: Array<{ type: string; data?: string }> = [];
+  const a: Array<{ type: string; data?: string; width?: number; height?: number }> = [];
   const offA = screen.subscribe((e) => a.push(e));
   await tick();
   assert.equal(a[0]?.type, "state");
-  assert.deepEqual(fc.sent.at(-1), { method: "Page.startScreencast", params: { format: "jpeg", quality: 70 }, sessionId: "S-T1" });
+  assert.deepEqual(fc.sent.at(-1), {
+    method: "Page.startScreencast",
+    params: { format: "jpeg", quality: 95, everyNthFrame: 1 },
+    sessionId: "S-T1",
+  });
   fc.event("Page.screencastFrame", { data: "AAAA", sessionId: 7, metadata: { deviceWidth: 1280, deviceHeight: 720 } }, "S-T1");
   fc.event("Page.screencastFrame", { data: "ZZZZ", sessionId: 8, metadata: { deviceWidth: 1280, deviceHeight: 720 } }, "S-OTHER");
   await tick();
   assert.deepEqual(a.at(-1), { type: "frame", data: "AAAA", width: 1280, height: 720 });
   assert.ok(fc.sent.some((m) => m.method === "Page.screencastFrameAck" && m.params.sessionId === 7 && m.sessionId === "S-T1"));
+  await screen.viewport(640, 900, 2);
+  assert.ok(
+    fc.sent.some(
+      (m) =>
+        m.method === "Page.startScreencast" &&
+        m.params.maxWidth === 1280 &&
+        m.params.maxHeight === 1800 &&
+        m.sessionId === "S-T1",
+    ),
+  );
+  fc.event("Page.screencastFrame", { data: "BBBB", sessionId: 9, metadata: { deviceWidth: 1280, deviceHeight: 1800 } }, "S-T1");
+  await tick();
+  assert.deepEqual(a.at(-1), { type: "frame", data: "BBBB", width: 640, height: 900 });
   const b: Array<{ type: string; data?: string }> = [];
   const offB = screen.subscribe((e) => b.push(e));
   assert.deepEqual(b.map((e) => e.type), ["state", "frame"]);
-  assert.equal(b[1]?.data, "AAAA");
+  assert.equal(b[1]?.data, "BBBB");
   offA();
   offB();
   await tick();

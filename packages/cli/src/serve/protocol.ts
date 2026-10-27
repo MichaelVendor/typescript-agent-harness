@@ -50,8 +50,8 @@ export type ServeRequest = {
   /** `url`: http(s) (not tah itself), `about:blank`, or a `/preview/…` address; omitted = just start the browser. */
   browserOpen: { url?: string };
   browserNav: { action: "back" | "forward" | "reload" };
-  /** CSS pixel size of the panel's screen area; the remote page is resized to match. */
-  browserViewport: { width: number; height: number };
+  /** CSS pixel size of the panel's screen area; `scale` is device pixels per CSS pixel (Retina / page zoom). */
+  browserViewport: { width: number; height: number; scale?: number };
   /** `close: true` closes that tab; otherwise it becomes the shown tab. */
   browserTab: { id: string; close?: boolean };
   /** `text` answers a `prompt` dialog. */

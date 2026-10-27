@@ -200,19 +200,37 @@ export type Screen = {
   input(input: BrowserInput): Promise<void>;
   /** Answers the shown tab's JavaScript dialog. */
   dialog(accept: boolean, text?: string): Promise<void>;
-  /** Matches the remote page to the panel so the screencast fills it. */
-  viewport(width: number, height: number): Promise<void>;
+  /** Matches the remote page to the panel so the screencast fills it. `scale` is device pixels per CSS pixel. */
+  viewport(width: number, height: number, scale?: number): Promise<void>;
   close(): Promise<void>;
   dispose(): void;
 };
 
-/** Panel size → CDP viewport; keeps width/height in a range Chrome accepts. */
-export function clampViewport(width: number, height: number): { width: number; height: number } | undefined {
-  if (!Number.isFinite(width) || !Number.isFinite(height)) return undefined;
+/** Panel size → CDP viewport; keeps width/height/scale in a range Chrome accepts. */
+export function clampViewport(
+  width: number,
+  height: number,
+  scale = 1,
+): { width: number; height: number; scale: number } | undefined {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(scale)) return undefined;
   const w = Math.round(width);
   const h = Math.round(height);
   if (w < 200 || h < 200 || w > 3840 || h > 2160) return undefined;
-  return { width: w, height: h };
+  const s = Math.min(3, Math.max(1, Math.round(scale * 100) / 100));
+  return { width: w, height: h, scale: s };
+}
+
+/** Screencast / window backing size in device pixels. Caps so Chrome stays happy on large Retina panels. */
+export function physicalSize(view: { width: number; height: number; scale: number }): { width: number; height: number } {
+  const max = 4096;
+  let w = Math.round(view.width * view.scale);
+  let h = Math.round(view.height * view.scale);
+  if (w > max || h > max) {
+    const f = Math.max(w / max, h / max);
+    w = Math.round(w / f);
+    h = Math.round(h / f);
+  }
+  return { width: Math.max(1, w), height: Math.max(1, h) };
 }
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -236,14 +254,36 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
   let dialog: BrowserDialog | undefined;
   let retitling: NodeJS.Timeout | undefined;
   let disposed = false;
-  let viewSize: { width: number; height: number } | undefined;
+  let viewSize: { width: number; height: number; scale: number } | undefined;
 
   const applyViewport = async (c: Cdp, s: string) => {
     if (!viewSize) return;
+    // Keep window + CSS viewport at panel size so CDP mouse coords stay 1:1 with the
+    // frame. Retina sharpness comes from deviceScaleFactor + screencast maxWidth/Height
+    // (physical pixels) — not from stretching the content area (that desyncs clicks).
+    if (active) {
+      const win = (await c.send("Browser.getWindowForTarget", { targetId: active }).catch(() => undefined)) as
+        | { windowId?: number }
+        | undefined;
+      if (win?.windowId !== undefined) {
+        await c
+          .send("Browser.setContentsSize", {
+            windowId: win.windowId,
+            width: viewSize.width,
+            height: viewSize.height,
+          })
+          .catch(() => {});
+      }
+    }
     await c
       .send(
         "Emulation.setDeviceMetricsOverride",
-        { width: viewSize.width, height: viewSize.height, deviceScaleFactor: 1, mobile: false },
+        {
+          width: viewSize.width,
+          height: viewSize.height,
+          deviceScaleFactor: viewSize.scale,
+          mobile: false,
+        },
         s,
       )
       .catch(() => {});
@@ -287,7 +327,21 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
     const s = session;
     if (!c || !s || casting === on) return;
     casting = on;
-    await c.send(on ? "Page.startScreencast" : "Page.stopScreencast", on ? { format: "jpeg", quality: 70 } : {}, s).catch(() => {});
+    const px = viewSize ? physicalSize(viewSize) : undefined;
+    await c
+      .send(
+        on ? "Page.startScreencast" : "Page.stopScreencast",
+        on
+          ? {
+              format: "jpeg",
+              quality: 95,
+              everyNthFrame: 1,
+              ...(px ? { maxWidth: px.width, maxHeight: px.height } : {}),
+            }
+          : {},
+        s,
+      )
+      .catch(() => {});
   }
 
   async function retitle() {
@@ -346,7 +400,13 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       if (sessionId === undefined || sessionId !== session) return;
       void c.send("Page.screencastFrameAck", { sessionId: params.sessionId }, sessionId).catch(() => {});
       const meta = params.metadata as { deviceWidth: number; deviceHeight: number };
-      lastFrame = { type: "frame", data: params.data as string, width: meta.deviceWidth, height: meta.deviceHeight };
+      // Click mapping needs CSS pixels; CDP may report the physical capture size.
+      lastFrame = {
+        type: "frame",
+        data: params.data as string,
+        width: viewSize?.width ?? meta.deviceWidth,
+        height: viewSize?.height ?? meta.deviceHeight,
+      };
       emit(lastFrame);
       return;
     }
@@ -501,13 +561,23 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
       const { c, s } = await ready();
       await c.send("Page.handleJavaScriptDialog", { accept, ...(text === undefined ? {} : { promptText: text }) }, s);
     },
-    async viewport(width, height) {
-      const next = clampViewport(width, height);
+    async viewport(width, height, scale) {
+      const next = clampViewport(width, height, scale);
       if (!next) return;
-      if (viewSize && viewSize.width === next.width && viewSize.height === next.height) return;
+      if (
+        viewSize &&
+        viewSize.width === next.width &&
+        viewSize.height === next.height &&
+        viewSize.scale === next.scale
+      ) {
+        return;
+      }
       viewSize = next;
       if (!cdp || !session) return;
+      // Restart screencast so maxWidth/maxHeight pick up the new backing size.
+      if (casting) await cast(false);
       await applyViewport(cdp, session);
+      if (listeners.size > 0) await cast(true);
     },
     async close() {
       const b = opts.browser();

@@ -19,6 +19,7 @@
   --hl-number: #0550ae;
   --hl-title: #8250df;
   --hl-attr: #953800;
+  --ui-zoom: 1.44;
   color-scheme: light dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 14px;
@@ -58,7 +59,7 @@
 
 html {
   /* Cursor window.zoomLevel: 2 → Math.pow(1.2, 2). */
-  zoom: 1.44;
+  zoom: var(--ui-zoom);
 }
 
 html,
@@ -2025,18 +2026,16 @@ button.file-link {
   padding: 3px 8px;
 }
 .browser-screen {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: var(--panel);
-}
-.browser-frame {
   position: relative;
   flex: 1;
   min-height: 0;
-  width: 100%;
+  overflow: hidden;
+  background: var(--panel);
+}
+.browser-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 .browser-frame img {
   display: block;
@@ -2049,6 +2048,7 @@ button.file-link {
 .browser-keys {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
   padding: 0;
