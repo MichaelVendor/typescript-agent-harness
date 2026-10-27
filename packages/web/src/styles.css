@@ -20,7 +20,7 @@
   --hl-title: #8250df;
   --hl-attr: #953800;
   color-scheme: light dark;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);
@@ -56,6 +56,11 @@
   box-sizing: border-box;
 }
 
+html {
+  /* Cursor window.zoomLevel: 2 → Math.pow(1.2, 2). */
+  zoom: 1.44;
+}
+
 html,
 body,
 #root {
@@ -87,7 +92,7 @@ button.danger {
 
 code,
 pre {
-  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.5;
 }
