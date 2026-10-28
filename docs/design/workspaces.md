@@ -17,7 +17,7 @@
 
 ## 非目标
 
-- 多个文件夹并行跑：同一时间仍只有一个当前 session（和现在一样）；跑着的时候不能切。
+- 多个文件夹并行跑：当前实现仍只有一个当前 session，跑着的时候不能切。真并行（多 worker + worktree）见 [并行 Session 规格](../superpowers/specs/2026-10-28-parallel-sessions-design.md)（📐 已设计、未实现）。
 - 每个文件夹各自的 `.env`：API key 仍来自启动 `serve` 时加载的 `.env`（或 Settings 里选中的模型），所有文件夹共用。
 - `tah chat` / TUI / `tah sessions` 的多文件夹支持：它们照旧单 `cwd`。
 - 文件夹重排序、重命名分组显示名、远程目录。

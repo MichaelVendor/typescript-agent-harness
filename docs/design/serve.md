@@ -22,7 +22,7 @@ v0.24 定义了会话接口 `ChatHost`，TUI 在进程内调用它（见 [TUI �
 ## 非目标
 
 - 不对外公开：只监听 `127.0.0.1`，没有账号体系、限流、HTTPS。远程使用走 SSH 端口转发。
-- 不做多会话并行；同一时间只有一个当前会话，和 TUI 一样。多个文件夹见 [工作文件夹](./workspaces.md)（v0.30），仍然只有一个当前会话。
+- 多会话并行（Claude 风格：子进程 worker + git worktree）见 [并行 Session 规格](../superpowers/specs/2026-10-28-parallel-sessions-design.md)（📐 已设计、未实现）。**当前实现**仍是同一时间只有一个当前会话，和 TUI 一样；多个文件夹见 [工作文件夹](./workspaces.md)（v0.30），仍然只有一个当前会话。
 - 不做文件树、diff 查看、设置面板、主题切换、网页里切换审批模式（仍用 `--yes`）。
 - 附件（选择 / 拖拽 / 粘贴文件与图片）见 [附件](./attachments.md)，不在本文件展开。
 - 不引入服务端框架和 WebSocket：`node:http` + SSE。
