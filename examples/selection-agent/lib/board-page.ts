@@ -233,7 +233,7 @@ export function boardPage(input: {
 </html>
 `;
   const rowsHeight = input.rows.reduce(
-    (sum, row) => sum + 72 + Math.ceil(row.title.length / 48) * 16,
+    (sum, row) => sum + 72 + Math.ceil(row.title.length / 26) * 16,
     0,
   );
   const height =

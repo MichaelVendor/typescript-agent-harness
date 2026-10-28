@@ -34,10 +34,10 @@ test("选品页是对比表：结论、站点、四维列、转义标题", () =>
   assert.match(page.html, /托盘 &lt;新品&gt;/);
   assert.match(page.html, /B0TEST/);
   assert.match(page.html, /0\.912/);
-  assert.match(page.html, />需求</);
-  assert.match(page.html, />趋势</);
-  assert.match(page.html, />竞争</);
-  assert.match(page.html, />利润</);
+  assert.match(page.html, /<th[^>]*>需求</);
+  assert.match(page.html, /<th[^>]*>趋势</);
+  assert.match(page.html, /<th[^>]*>竞争</);
+  assert.match(page.html, /<th[^>]*>利润</);
   assert.match(page.html, /class="[^"]*shelf[^"]*"|tr class="shelf"/);
   assert.match(page.html, /src="https:\/\/m\.media-amazon\.com\/images\/I\/abc\.jpg"/);
   assert.match(page.html, /没有 12 个月搜索序列/);
@@ -58,4 +58,31 @@ test("无 siteLabel 时不渲染站点顶栏", () => {
     rows: [{ id: "B0X", title: "x", total: 0.1, action: "放弃" }],
   });
   assert.doesNotMatch(page.html, /class="meta"/);
+});
+
+test("长标题多行时高度估算不低于实际渲染需求", () => {
+  const longTitle = "A".repeat(180);
+  const rows = Array.from({ length: 15 }, (_, i) => ({
+    id: `B0LONG${i}`,
+    title: longTitle,
+    total: 0.5,
+    action: "观察" as const,
+    breakdown: { demand: 0.1, trend: 0.1, competition: 0.1, margin: 0.1 },
+  }));
+  const page = boardPage({
+    conclusion: "长标题回归。",
+    notes: "说明一：要验证的是 A。\n说明二：要验证的是 B。",
+    gaps: "- 缺口项一\n- 缺口项二",
+    siteLabel: "Amazon.de",
+    rows,
+  });
+  assert.ok(page.height > 2504);
+  assert.ok(page.height >= 2800);
+});
+
+test("未知动作渲染 neutral pill", () => {
+  const page = boardPage({
+    rows: [{ id: "B0PEND", title: "待定款", total: 0.4, action: "待定" }],
+  });
+  assert.match(page.html, /pill neutral/);
 });
