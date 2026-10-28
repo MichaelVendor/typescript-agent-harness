@@ -80,16 +80,14 @@ export function boardPage(input: {
   for (const row of input.rows) {
     if (row.action === "上架" || row.action === "观察" || row.action === "放弃") counts[row.action] += 1;
   }
-  const statClass = (action: string) =>
-    action === "上架" ? "ok" : action === "观察" ? "warn" : action === "放弃" ? "drop" : "";
+  const actionTone = (action: string) =>
+    action === "上架" ? "ok" : action === "观察" ? "warn" : action === "放弃" ? "drop" : "neutral";
   const stats = (["上架", "观察", "放弃"] as const)
     .map(
       (action) =>
-        `<div class="stat ${statClass(action)}"><b>${counts[action]}</b><span>${action}</span></div>`,
+        `<div class="stat ${actionTone(action)}"><b>${counts[action]}</b><span>${action}</span></div>`,
     )
     .join("");
-  const actionClass = (action: string) =>
-    action === "上架" ? "ok" : action === "观察" ? "warn" : action === "放弃" ? "drop" : "";
 
   const rowsHtml = input.rows
     .map((row, index) => {
@@ -109,11 +107,11 @@ export function boardPage(input: {
         ? `<span class="risk">${escapeHtml(row.riskFlags.join("、"))}</span>`
         : "";
       const shelf = row.action === "上架" ? " shelf" : "";
-      return `<tr class="${escapeHtml(actionClass(row.action))}${shelf}">
+      return `<tr class="${escapeHtml(actionTone(row.action))}${shelf}">
         <td class="col-rank">${index + 1}</td>
         <td class="col-img">${photo}</td>
         <td class="col-title"><p class="title">${escapeHtml(row.title)}</p><p class="asin">${escapeHtml(row.id)}</p>${risk}</td>
-        <td class="col-action"><span class="pill ${actionClass(row.action)}">${escapeHtml(row.action)}</span></td>
+        <td class="col-action"><span class="pill ${actionTone(row.action)}">${escapeHtml(row.action)}</span></td>
         <td class="col-score"><span class="score">${row.total.toFixed(3)}</span></td>
         ${dims}
       </tr>`;
@@ -208,6 +206,7 @@ export function boardPage(input: {
   .pill.ok { background: #e5f5ec; color: #0f6b3c; }
   .pill.warn { background: #f8f0d8; color: #8a5b00; }
   .pill.drop { background: #eef1f4; color: #6b7280; }
+  .pill.neutral { background: #eef2f6; color: #5c6b7a; }
   .score { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
   .dim { display: grid; gap: 3px; }
   .dim span { font-size: 10px; color: #5c6b7a; display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
