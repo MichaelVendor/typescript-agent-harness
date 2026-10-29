@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/scheduler",
-  "version": "1.6.7",
+  "version": "1.6.8",
   "description": "Delayed and repeating jobs that live as a Runtime plugin",
   "type": "module",
   "main": "./dist/index.js",
