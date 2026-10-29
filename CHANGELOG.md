@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.8 — 2026-10-29
+
+**Web:** Page zoom applies to `#root` only, not `html`. Context menus portaled to `document.body` keep correct `position: fixed` coordinates under Cursor `zoomLevel: 2`.
+
 ## 1.6.7 — 2026-10-27
 
 **Browser panel:** Screencast captures at `devicePixelRatio` (`deviceScaleFactor` + `maxWidth`/`maxHeight`) so Retina text stays sharper. The remote CSS viewport matches the panel's visual box (`getBoundingClientRect`) so page zoom does not magnify the page; mouse input stays in CSS pixels. `POST /api/browser/viewport` accepts optional `scale`.
