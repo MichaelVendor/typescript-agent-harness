@@ -57,16 +57,20 @@
   box-sizing: border-box;
 }
 
-html {
-  /* Cursor window.zoomLevel: 2 → Math.pow(1.2, 2). */
-  zoom: var(--ui-zoom);
-}
-
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+/*
+ * Zoom the app shell only — not `html`. Context menus portal to `document.body`;
+ * if `html` is zoomed, fixed left/top from getBoundingClientRect drift (~zoom×).
+ */
+#root {
+  /* Cursor window.zoomLevel: 2 → Math.pow(1.2, 2). */
+  zoom: var(--ui-zoom);
 }
 
 button {
