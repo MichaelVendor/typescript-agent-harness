@@ -1,0 +1,6 @@
+{
+  "id": "gate-no-market",
+  "kind": "gate-search",
+  "title": "未选站就 search：必须失败，不能静默用默认站",
+  "query": "dekotablett"
+}

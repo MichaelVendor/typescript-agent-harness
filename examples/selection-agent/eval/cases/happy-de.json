@@ -1,0 +1,9 @@
+{
+  "id": "happy-de",
+  "kind": "pipeline",
+  "title": "德国站黄金路径：先选站再搜再取证再打分",
+  "marketplace": "DE",
+  "query": "dekotablett",
+  "expectOrder": ["set_marketplace", "search_products", "research_candidates", "score_and_save"],
+  "expectCurrency": "EUR"
+}

@@ -8,7 +8,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "smoke": "node --experimental-strip-types scripts/smoke.ts",
     "smoke:orchestration": "node --experimental-strip-types scripts/smoke-orchestration.ts",
-    "test": "node --test --experimental-strip-types \"lib/**/*.test.ts\""
+    "eval": "node --experimental-strip-types eval/run-eval.ts",
+    "test": "node --test --experimental-strip-types \"lib/**/*.test.ts\" \"eval/**/*.test.ts\""
   },
   "devDependencies": {
     "@types/node": "^22.18.0",

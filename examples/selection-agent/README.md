@@ -6,6 +6,8 @@
 
 **它出排行榜和证据，不做决策。**
 
+面试向设计说明与评测入口见 [INTERVIEW.md](./INTERVIEW.md)。无模型回归：`pnpm eval`。
+
 ## 跑起来
 
 在仓库根目录：
@@ -27,7 +29,8 @@ PATH 正常时 `pnpm start` 等价。API key 来自 `.env` / `~/.tah/settings.js
 ```bash
 node --experimental-strip-types examples/selection-agent/scripts/smoke.ts
 node --experimental-strip-types examples/selection-agent/scripts/smoke-orchestration.ts
-node --test --experimental-strip-types examples/selection-agent/lib/*.test.ts
+node --experimental-strip-types examples/selection-agent/eval/run-eval.ts
+node --test --experimental-strip-types examples/selection-agent/lib/*.test.ts examples/selection-agent/eval/*.test.ts
 ```
 
 冒烟会打印 12 个 mock 候选的排行榜，并把完整报告写到 `out/reports/<时间戳>.json`。
