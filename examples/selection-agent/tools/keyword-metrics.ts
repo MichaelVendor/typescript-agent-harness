@@ -2,9 +2,18 @@ import { defineTool } from "@typescript-agent-harness/cli";
 import { activeMarketSource } from "../lib/sources/index.ts";
 import { DEMAND_POINTS, piecewise, seasonalityRatio, trendScore } from "../lib/normalize.ts";
 
+/** 德国站卖家精灵快照的月搜索量在 1.5k–10k。1k≈0.2，4k≈0.5，12k≈0.8，20k+≈0.95。 */
+export const DEMAND_POINTS_DE: [number, number][] = [
+  [0, 0],
+  [1_000, 0.2],
+  [4_000, 0.5],
+  [12_000, 0.8],
+  [20_000, 0.95],
+];
+
 /**
  * 需求与趋势：回答"有人搜吗、在涨还是在跌、是不是只有旺季能卖"。
- * 归一化在这里算好返回，模型不用自己插值——AGENTS.md 的换算表以 lib/normalize.ts 为准。
+ * 德国站档案的 demand 在这个工具里按 DEMAND_POINTS_DE 算好。子 Agent 只抄 scores，不要再换算。
  * 快照有月搜索量就可以算 demand；没有 12 个月序列时 trend 仍为 null。
  */
 export default defineTool({
@@ -49,6 +58,12 @@ export default defineTool({
     const missing: string[] = [];
     if (!hasSeries) missing.push("monthlySeries");
     if (!hasTrend) missing.push("trend3m");
+    // 德国档案用德站曲线；美国档案 dossier:US 与 mock/真搜用美国曲线。
+    const demandPoints = source.name.startsWith("dossier:US")
+      ? DEMAND_POINTS
+      : source.name.startsWith("dossier:")
+        ? DEMAND_POINTS_DE
+        : DEMAND_POINTS;
     const ratio = hasSeries ? seasonalityRatio(series!) : null;
     const peak = hasSeries ? series!.indexOf(Math.max(...series!)) + 1 : null;
     return {
@@ -68,13 +83,13 @@ export default defineTool({
           }
         : null,
       scores: {
-        demand: Number(piecewise(metrics.monthlySearchVolume, DEMAND_POINTS).toFixed(4)),
+        demand: Number(piecewise(metrics.monthlySearchVolume, demandPoints).toFixed(4)),
         trend: hasTrend ? Number(trendScore(metrics.trend3m!).toFixed(4)) : null,
       },
       missing,
       note: hasSeries
-        ? undefined
-        : "有月搜索量和环比，没有 12 个月序列。demand 可写；不要编造 monthlySeries。",
+        ? "scores.demand 已算好，原样写入候选，不要按月搜索量再换一次。"
+        : "有月搜索量和环比，没有 12 个月序列。scores.demand 已算好，原样写入，不要编造 monthlySeries，也不要再换算。",
       hint:
         ratio !== null && ratio > 2.5
           ? `旺季与淡季搜索量相差 ${ratio} 倍：现金流要按淡季备货节奏排，考虑是否加 "季节性过强" 风险标记。`

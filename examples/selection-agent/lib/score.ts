@@ -26,7 +26,7 @@ export const UNDER_EVIDENCED = 0.6;
 /** 命中封顶风险时总分的上限。 */
 export const RISK_CAP = 0.3;
 
-export type Action = "打样" | "观察" | "放弃";
+export type Action = "上架" | "观察" | "放弃";
 
 export type Breakdown = {
   demand: number;
@@ -82,9 +82,9 @@ const MARGIN_TIERS: [number, string][] = [
   [0, "利润薄"],
 ];
 
-/** 总分 → 建议动作。MVP 只有三档，且风险商品不许进"打样"。 */
+/** 总分 → 建议动作。只有三档，且风险商品不许进「上架」。 */
 export function decideAction(total: number, cap: number): Action {
-  if (total >= 0.65 && cap === 1) return "打样";
+  if (total >= 0.65 && cap === 1) return "上架";
   if (total >= 0.45) return "观察";
   return "放弃";
 }
@@ -145,7 +145,7 @@ export function scoreCandidate(candidate: Candidate, weights: Weights = WEIGHTS)
   ].filter((r): r is string => Boolean(r));
   if (capped.length > 0) reasons.push(`风险封顶（${capped.join("、")}）：总分上限 ${RISK_CAP}`);
   if (missing.length > 0) {
-    reasons.push(`缺数据（${missing.join("、")}），只按已有维度计分，置信度 ${UNDER_EVIDENCED}，不能打样`);
+    reasons.push(`缺数据（${missing.join("、")}），只按已有维度计分，置信度 ${UNDER_EVIDENCED}，不能上架`);
   } else if (thinEvidence) {
     reasons.push(`证据 ${candidate.evidence.length} 条 < ${MIN_EVIDENCE} 条，置信度降为 ${UNDER_EVIDENCED}`);
   }
@@ -190,24 +190,39 @@ export function normalizeWeights(weights: Partial<Weights>): Weights {
   };
 }
 
-/** 排序结果转 markdown 表，主 Agent 直接把这段话贴给用户即可。 */
-export function toMarkdownTable(rows: Scored[]): string {
+const BAR_CELLS = 8;
+
+/** 数字后面跟一条 8 格的方块，满格对应该维度的权重；总分满格是 1。 */
+function meter(value: number, full: number): string {
+  const ratio = full > 0 ? value / full : 0;
+  const filled = Math.max(0, Math.min(BAR_CELLS, Math.round(ratio * BAR_CELLS)));
+  return `${value.toFixed(3)} ${"█".repeat(filled)}${"░".repeat(BAR_CELLS - filled)}`;
+}
+
+/** 排序结果转 markdown 表，主 Agent 直接把这段话贴给用户即可。images 的 key 是候选 id。 */
+export function toMarkdownTable(rows: Scored[], images: Readonly<Record<string, string>> = {}): string {
   const header =
-    "| 排名 | 商品 | 总分 | 需求 | 趋势 | 竞争 | 利润 | 置信度 | 风险 | 建议动作 |\n" +
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |";
-  const dim = (value: number, gaps: string[], label: string) => (gaps.includes(label) ? "—" : value.toFixed(3));
+    "| 排名 | 图片 | 商品 | 总分 | 需求 | 趋势 | 竞争 | 利润 | 置信度 | 风险 | 建议动作 |\n" +
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |";
+  const dim = (value: number, gaps: string[], label: string, full: number) =>
+    gaps.includes(label) ? "—" : meter(value, full);
+  const picture = (id: string) => {
+    const url = images[id];
+    return url ? `![](${url})` : "—";
+  };
   const body = rows.map((r, i) =>
     [
       i + 1,
+      picture(r.id),
       r.title,
-      r.total.toFixed(3),
-      dim(r.breakdown.demand, r.gaps, "需求（无月搜索量）"),
-      dim(r.breakdown.trend, r.gaps, "趋势（无近 3 个月搜索序列）"),
-      dim(r.breakdown.competition, r.gaps, "竞争"),
-      dim(r.breakdown.margin, r.gaps, "利润（无采购成本）"),
+      meter(r.total, 1),
+      dim(r.breakdown.demand, r.gaps, "需求（无月搜索量）", WEIGHTS.demand),
+      dim(r.breakdown.trend, r.gaps, "趋势（无近 3 个月搜索序列）", WEIGHTS.trend),
+      dim(r.breakdown.competition, r.gaps, "竞争", WEIGHTS.competition),
+      dim(r.breakdown.margin, r.gaps, "利润（无采购成本）", WEIGHTS.margin),
       r.confidence.toFixed(2),
       r.riskFlags.length ? r.riskFlags.join("、") : "—",
-      r.action,
+      r.action === "上架" ? "**上架**" : r.action,
     ].join(" | "),
   );
   return [header, ...body.map((cells) => `| ${cells} |`)].join("\n");

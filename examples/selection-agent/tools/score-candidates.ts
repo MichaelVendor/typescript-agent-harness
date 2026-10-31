@@ -1,4 +1,5 @@
 import { defineTool } from "@typescript-agent-harness/cli";
+import { loadListingImages } from "../lib/listing-images.ts";
 import { validateCandidates } from "../lib/schema.ts";
 import {
   rankCandidates,
@@ -71,12 +72,12 @@ export default defineTool({
       accepted: ok.length,
       rejected,
       rows,
-      markdown: ok.length ? toMarkdownTable(rows) : undefined,
+      markdown: ok.length ? toMarkdownTable(rows, loadListingImages()) : undefined,
       next:
         rejected.length > 0
           ? "有候选没通过校验：按 rejected[].problems 补齐字段后重试；补不出来就把该商品标为“数据不足”并说明缺什么。"
           : rows.length > 0
-            ? "把 rows 原样交给 save_report 落盘，再按 markdown 表回复用户。"
+            ? "把 rows 原样交给 save_report 落盘。先不要回复用户。写结论时，回复第一行必须原样用 save_report 返回的 imageMarkdown，不要只出文字表。"
             : "没有候选可排序。",
     };
   },

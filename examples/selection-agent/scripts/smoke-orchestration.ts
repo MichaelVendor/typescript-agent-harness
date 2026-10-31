@@ -10,7 +10,7 @@
 import { researchCandidates } from "../lib/research.ts";
 import { buildReport, type DataGap } from "../lib/report.ts";
 import { validateCandidates, type Candidate } from "../lib/schema.ts";
-import { rankCandidates, toMarkdownTable } from "../lib/score.ts";
+import { rankCandidates } from "../lib/score.ts";
 import { mockMarketSource } from "../lib/sources/mock.ts";
 import { competitionScore, DEMAND_POINTS, marginScore, piecewise, trendScore, unitEstimate } from "../lib/normalize.ts";
 
@@ -129,7 +129,7 @@ const report = buildReport(ok as Candidate[], {
   dataGaps,
 });
 
-console.log(`\n${toMarkdownTable(rows)}`);
+console.log(`\n${report.markdown}`);
 console.log(`\n通过校验 ${ok.length} 个，被挡下 ${rejected.length} 个，取证失败 ${outcome.failures.length} 个。`);
 console.log(`榜单第一名：${rows[0]?.id} ${rows[0]?.total} ${rows[0]?.action}`);
 console.log(`报告对象已构建（未落盘，避免冒烟污染 out/）：generatedAt=${report.generatedAt}`);

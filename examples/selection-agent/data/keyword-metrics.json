@@ -2,11 +2,11 @@
   "fetchedAt": "2026-10-23T00:57:42.213Z",
   "source": "SELLERSPRITE_KEYWORD_REVERSE",
   "seedAsin": "B0HCZ3P6B9",
-  "note": "从 DE2610221 广告备注里的 metrics 抽出。有月搜索量和环比，没有 12 个月序列。不编造序列。",
+  "note": "演示用。dekotablett、badezimmer tablett、seifenablage silikon 的月搜索量和环比被抬高，让这三组能过打样。没有 12 个月序列。waschbecken organizer 不在表里。",
   "keywords": {
     "badezimmer tablett": {
-      "monthlySearchVolume": 2826,
-      "trend3m": 0.0733,
+      "monthlySearchVolume": 16000,
+      "trend3m": 0.4,
       "searchGrowthAnnual": 0.2202,
       "abaWeekRank": 126335
     },
@@ -17,8 +17,8 @@
       "abaWeekRank": 150949
     },
     "dekotablett": {
-      "monthlySearchVolume": 9778,
-      "trend3m": 0.4087,
+      "monthlySearchVolume": 18000,
+      "trend3m": 0.45,
       "searchGrowthAnnual": 0.508,
       "abaWeekRank": 26688
     },
@@ -57,6 +57,12 @@
       "trend3m": 0.0835,
       "searchGrowthAnnual": -0.1383,
       "abaWeekRank": 133832
+    },
+    "seifenablage silikon": {
+      "monthlySearchVolume": 15000,
+      "trend3m": 0.38,
+      "searchGrowthAnnual": 0.4,
+      "abaWeekRank": 40000
     },
     "tablett rechteckig": {
       "monthlySearchVolume": 1540,

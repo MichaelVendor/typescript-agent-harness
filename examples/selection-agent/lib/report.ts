@@ -6,6 +6,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { loadListingImages } from "./listing-images.ts";
 import { rankCandidates, toMarkdownTable, WEIGHTS, type Scored, type Weights } from "./score.ts";
 import type { Candidate } from "./schema.ts";
 
@@ -35,6 +36,7 @@ export function buildReport(
     weights?: Weights;
     now?: Date;
     dataGaps?: DataGap;
+    images?: Readonly<Record<string, string>>;
   },
 ): Report {
   const rows = rankCandidates(candidates, meta.weights);
@@ -47,7 +49,7 @@ export function buildReport(
     weights: meta.weights ?? WEIGHTS,
     candidates: candidates.length,
     rows,
-    markdown: toMarkdownTable(rows),
+    markdown: toMarkdownTable(rows, meta.images ?? loadListingImages()),
     ...(hasGaps ? { dataGaps: gaps } : {}),
   };
 }

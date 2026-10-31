@@ -1,8 +1,9 @@
 import { defineTool, type ToolContext } from "@typescript-agent-harness/cli";
+import { BOARD_REPLY, renderReportBoardSafe } from "../lib/board-shot.ts";
 import { REPORT_SAVED } from "../lib/events.ts";
 import { buildReport, saveReport, type DataGap } from "../lib/report.ts";
 import { validateCandidates, type Candidate } from "../lib/schema.ts";
-import { normalizeWeights, rankCandidates, toMarkdownTable, WEIGHTS, type Weights } from "../lib/score.ts";
+import { normalizeWeights, rankCandidates, WEIGHTS, type Weights } from "../lib/score.ts";
 
 /**
  * 并行编排的收口：把 research_candidates 收回来的字段一次算分并落盘。
@@ -76,6 +77,7 @@ export default defineTool({
     });
     const file = saveReport(report);
     ctx.runtime.emit(REPORT_SAVED, { file, candidates: report.candidates });
+    const shot = rows.length ? renderReportBoardSafe(report.rows, file) : {};
 
     return {
       saved: true,
@@ -86,11 +88,12 @@ export default defineTool({
       sourced: report.candidates,
       rejected: rejected.map((r, i) => ({ id: rejectedIds[i], problems: r.problems })),
       rows,
-      markdown: rows.length ? toMarkdownTable(rows) : undefined,
+      ...shot,
+      markdown: rows.length && "imageMarkdown" in shot ? `${shot.imageMarkdown}\n\n${report.markdown}` : rows.length ? report.markdown : undefined,
       next:
         rows.length === 0
           ? "没有通过校验的候选：按 rejected[].problems 说明缺什么，把它们标成“数据不足”。"
-          : "报告已落盘。先不要回复用户。下一步调用 prepare_case。markdown 留到 prepare_case 之后、询问是否上架之前再贴。",
+          : `报告已落盘，看板截图在 imageMarkdown。先不要回复用户。下一步调用 prepare_case。用户点了提交之后，${BOARD_REPLY}贴排行榜时保留方块条和加粗，不要改成纯数字。`,
     };
   },
 });

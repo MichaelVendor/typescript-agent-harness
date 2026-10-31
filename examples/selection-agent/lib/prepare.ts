@@ -5,6 +5,8 @@ import { applyCaseState, readCaseState } from "./case-state.ts";
 export type PreparedCase = {
   spu: string;
   name: string;
+  /** 本轮选中的站点。还没 set_marketplace 时是 null。 */
+  marketplace?: "DE" | "US" | null;
   quote: {
     status: "待报价" | "已报价";
     purchasePrice: number | null;

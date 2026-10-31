@@ -4,6 +4,8 @@ import { INQUIRY_ITEMS, type PreparedCase } from "./prepare.ts";
 import { PROJECT_ROOT } from "./report.ts";
 
 export type CaseState = {
+  /** 本轮选品站点。开场 set_marketplace 写入，整轮绑定。 */
+  marketplace?: "DE" | "US";
   quote?: {
     purchasePrice?: number;
     moldFee?: number;
@@ -118,8 +120,9 @@ export function applyCaseState(prepared: PreparedCase, state: CaseState): Prepar
     },
     margin,
     shelf: normalizeShelf(state.shelf),
-    store: storeDraft(normalizeShelf(state.shelf)),
+    store: storeDraft(normalizeShelf(state.shelf), state.marketplace),
     inquiry: normalizeInquiry(state.inquiry),
+    marketplace: state.marketplace ?? null,
   };
 }
 
@@ -133,18 +136,27 @@ function normalizeInquiry(inquiry: CaseState["inquiry"]): PreparedCase["inquiry"
 }
 
 /** 模拟店铺的固定说明。不生成税号、条码、件数或广告花费。 */
-export function storeDraft(shelf: PreparedCase["shelf"]): PreparedCase["store"] {
+export function storeDraft(shelf: PreparedCase["shelf"], marketplace: CaseState["marketplace"] = readCaseState().marketplace): PreparedCase["store"] {
   if (!shelf) return null;
+  const vatNote =
+    marketplace === "US" ? "演示店铺，未登记真实美国销售税号" : "演示店铺，未登记真实德国 VAT";
   return {
     imageNote: "演示图，不是商品照片",
     germanTitle: shelf.title,
     germanNote: "标题用搜索页原文，没有另写卖点",
     gtin: `DEMO-${shelf.sku}`,
     gtinNote: "演示编码，不是 GS1 GTIN",
-    vatNote: "演示店铺，未登记真实德国 VAT",
+    vatNote,
     inboundNote: "演示已建单，件数未填，不会发往亚马逊仓库",
     adsNote: "未投放。没有预算，不创建广告",
   };
+}
+
+export function saveMarketplace(marketplace: "DE" | "US"): CaseState {
+  const next = { ...readCaseState(), marketplace };
+  writeState(next);
+  // 选站闸门在 marketplace.ts 的 live 状态；这里只落盘给后台。
+  return next;
 }
 
 function writeState(state: CaseState, file = STATE_FILE): void {

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { demoLandedCost, demoQuote } from "../demo-margin.ts";
 import type {
   CompetitorSnapshot,
   KeywordMetrics,
@@ -335,8 +336,12 @@ export const dossierMarketSource: MarketSource = {
     const fromCatalog = catalog.items.find((item) => item.asin === asin);
     return fromCatalog ? cohortSnapshot(fromCatalog) : undefined;
   },
-  async landedCost() {
-    return undefined;
+  async landedCost(asin, { priceUsd }) {
+    const item = find(asin.trim().toUpperCase());
+    if (!item || !(priceUsd > 0)) return undefined;
+    const quote = demoQuote(item.asin);
+    if (!quote) return undefined;
+    return demoLandedCost(item.asin, priceUsd, quote);
   },
   async complianceCheck(asin) {
     if (!find(asin)) return undefined;

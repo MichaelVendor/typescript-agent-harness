@@ -7,18 +7,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 LIVE = ROOT / "live.json"
+CASE = ROOT / "case.json"
 PORT = 7455
 
 
-def store_notes(sku: str, title: str) -> dict:
+def store_notes(sku: str, title: str, marketplace: str = "DE") -> dict:
     # 与 lib/case-state.ts 的 storeDraft 保持同一句说明。
+    vat = "演示店铺，未登记真实美国销售税号" if marketplace == "US" else "演示店铺，未登记真实德国 VAT"
     return {
         "imageNote": "演示图，不是商品照片",
         "germanTitle": title,
         "germanNote": "标题用搜索页原文，没有另写卖点",
         "gtin": f"DEMO-{sku}",
         "gtinNote": "演示编码，不是 GS1 GTIN",
-        "vatNote": "演示店铺，未登记真实德国 VAT",
+        "vatNote": vat,
         "inboundNote": "演示已建单，件数未填，不会发往亚马逊仓库",
         "adsNote": "未投放。没有预算，不创建广告",
     }
@@ -34,6 +36,17 @@ def product_image(sku: str) -> str | None:
     return None
 
 
+def case_marketplace() -> str:
+    if not CASE.exists():
+        return "DE"
+    try:
+        raw = json.loads(CASE.read_text(encoding="utf-8"))
+        market = raw.get("marketplace")
+        return "US" if market == "US" else "DE"
+    except (OSError, json.JSONDecodeError, TypeError):
+        return "DE"
+
+
 def listing_from(body: dict) -> dict:
     sku = str(body.get("sku", "")).strip()
     title = str(body.get("title", "")).strip()
@@ -41,6 +54,9 @@ def listing_from(body: dict) -> dict:
     ship = str(body.get("ship", "")).strip()
     price = body.get("priceEur")
     bullets = body.get("bullets", [])
+    marketplace = str(body.get("marketplace") or case_marketplace()).strip().upper()
+    if marketplace not in ("DE", "US"):
+        marketplace = "DE"
     if not sku or len(sku) > 40 or any(ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-" for ch in sku):
         raise ValueError("sku 无效")
     if not title or len(title) > 500:
@@ -62,6 +78,8 @@ def listing_from(body: dict) -> dict:
     image = product_image(sku)
     return {
         "status": "已上架",
+        "marketplace": marketplace,
+        "currency": "USD" if marketplace == "US" else "EUR",
         "sku": sku,
         "title": title,
         "priceEur": round(float(price), 2),
@@ -69,7 +87,7 @@ def listing_from(body: dict) -> dict:
         "ship": ship,
         "bullets": clean,
         **({"image": image} if image else {}),
-        **store_notes(sku, title),
+        **store_notes(sku, title, marketplace),
     }
 
 

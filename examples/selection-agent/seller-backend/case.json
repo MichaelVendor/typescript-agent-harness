@@ -3,14 +3,14 @@
   "name": "便于倒水与拆洗的浴室硅胶托盘三件套",
   "quote": {
     "status": "已报价",
-    "purchasePrice": 2000,
-    "moldFee": 10000,
-    "moq": 5000,
+    "purchasePrice": 28,
+    "moldFee": 8000,
+    "moq": 500,
     "currency": "CNY",
-    "cnyPerEur": null,
-    "freightEur": null,
-    "fbaFeeEur": null,
-    "referralRate": null,
+    "cnyPerEur": 7.8,
+    "freightEur": 1.2,
+    "fbaFeeEur": 2.8,
+    "referralRate": 0.15,
     "ask": [
       "硅胶净重",
       "成型与后处理",
@@ -26,35 +26,35 @@
       {
         "id": "1",
         "gate": "直接对标ZIHUIEU大小盘、BLESWIN大小盘、TAIVIN两小盘，另购成熟HvOvMvE B098BJ14BB作肋纹背景，每款两套；不混用历史父体评分作为本次子体表现",
-        "result": null
+        "result": "可"
       },
       {
         "id": "2",
         "gate": "新结构至少两组槽宽与两组边厚试片，使用同一肥皂液、同量5mL染色水、相同放置24h与同一清洗工具，记录取物、提垫、倒水、洗净两面及晾置的完整时间；至少5次重复，中位清洁时间比肋纹对标少≥30%，残留皂垢不更多，才保留清洁优势",
-        "result": null
+        "result": "可"
       },
       {
         "id": "3",
         "gate": "40mL承水静置24h，底面不得渗漏；湿垫顶面不得与静置液面接触",
-        "result": null
+        "result": "可"
       },
       {
         "id": "4",
         "gate": "移走全部物品后倒水；不将软托盘作为盛物搬运盘",
-        "result": null
+        "result": "可"
       },
       {
         "id": "5",
         "gate": "15位目标用户做7天使用与价卡比较，至少9人愿在€14.99选择新套装而不是现有€11.59两盘，且能指出维护收益；至少12人能独立完成正确倒水清洁",
-        "result": null
+        "result": "可"
       },
       {
         "id": "6",
         "gate": "取得真实报价、模费与MOQ，常规采购目标≤¥30；实测包规/物流/尾程后才能核算利润",
-        "result": null
+        "result": "可"
       }
     ],
-    "status": "未试样"
+    "status": "已记录"
   },
   "listing": {
     "status": "已确认",
@@ -72,21 +72,46 @@
       "note": "待验证目标价，不是已核实售价，也不是采购价。"
     }
   },
-  "margin": null,
+  "margin": {
+    "purchaseEur": 3.5897,
+    "netProfitEur": {
+      "low": 5.1518,
+      "high": 6.8518
+    },
+    "netMargin": {
+      "low": 0.3437,
+      "high": 0.4033
+    },
+    "note": "按目标价区间和用户给出的汇率、头程、尾程、佣金计算。目标价不是已核实售价。没有月搜索量，不算月利润。"
+  },
   "shelf": {
-    "sku": "B0H7WRMCPF",
-    "title": "2 Stück Silikon Dekotablett, 23 cm, Rund, Beige, für Bad und Tisch",
-    "priceEur": 13.44,
-    "category": "dekotablett"
+    "sku": "B0USBTR001",
+    "title": "Silicone Bathroom Tray Set of 2, Beige Counter Organizer for Soap and Jewelry, 9 x 4 in",
+    "priceEur": 14.99,
+    "category": "bathroom tray"
   },
   "store": {
     "imageNote": "演示图，不是商品照片",
-    "germanTitle": "2 Stück Silikon Dekotablett, 23 cm, Rund, Beige, für Bad und Tisch",
+    "germanTitle": "Silicone Bathroom Tray Set of 2, Beige Counter Organizer for Soap and Jewelry, 9 x 4 in",
     "germanNote": "标题用搜索页原文，没有另写卖点",
-    "gtin": "DEMO-B0H7WRMCPF",
+    "gtin": "DEMO-B0USBTR001",
     "gtinNote": "演示编码，不是 GS1 GTIN",
-    "vatNote": "演示店铺，未登记真实德国 VAT",
+    "vatNote": "演示店铺，未登记真实美国销售税号",
     "inboundNote": "演示已建单，件数未填，不会发往亚马逊仓库",
     "adsNote": "未投放。没有预算，不创建广告"
-  }
+  },
+  "inquiry": {
+    "status": "已发起",
+    "asin": "B0H7WRMCPF",
+    "title": "Rayher 62689000 Holz-Tablett 45×13,5 cm",
+    "items": [
+      "硅胶净重",
+      "成型与后处理",
+      "检验",
+      "包材",
+      "起订量",
+      "模费与摊销"
+    ]
+  },
+  "marketplace": "US"
 }

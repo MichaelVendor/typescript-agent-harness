@@ -3,5 +3,6 @@ node_modules
 .tah
 out/
 data/case-state.json
+data/session-marketplace.json
 seller-backend/live.json
 login-state.png

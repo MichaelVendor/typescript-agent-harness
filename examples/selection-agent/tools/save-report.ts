@@ -1,4 +1,5 @@
 import { defineTool, type ToolContext } from "@typescript-agent-harness/cli";
+import { BOARD_REPLY, renderReportBoardSafe } from "../lib/board-shot.ts";
 import { REPORT_SAVED } from "../lib/events.ts";
 import { buildReport, saveReport } from "../lib/report.ts";
 import { validateCandidates, type Candidate } from "../lib/schema.ts";
@@ -35,12 +36,16 @@ export default defineTool({
     const file = saveReport(report);
     // 落盘路径也发一个事件，plugins/run-log.ts 据此提示。
     ctx.runtime.emit(REPORT_SAVED, { file, candidates: report.candidates });
+    const shot = renderReportBoardSafe(report.rows, file);
     return {
       saved: true,
       file,
       candidates: report.candidates,
       topActions: report.rows.map((r) => ({ id: r.id, total: r.total, action: r.action })),
       rejected,
+      ...shot,
+      markdown: "imageMarkdown" in shot ? `${shot.imageMarkdown}\n\n${report.markdown}` : report.markdown,
+      next: `报告已落盘。先不要回复用户。下一步调用 prepare_case，然后只弹 ask_user。等用户点了提交之后，${BOARD_REPLY}`,
     };
   },
 });

@@ -9,6 +9,7 @@ import {
   rankCandidates,
   scoreCandidate,
   sumRanges,
+  toMarkdownTable,
   WEIGHTS,
 } from "./score.ts";
 import { validateCandidate } from "./schema.ts";
@@ -54,7 +55,7 @@ test("零数据不崩、分数为 0", () => {
   assert.equal(s.gaps.length, 4, "四个证据维度全缺");
 });
 
-test("侵权 / 认证缺失 触发封顶 0.3，且不许进打样", () => {
+test("侵权 / 认证缺失 触发封顶 0.3，且不许上架", () => {
   const hot: Candidate = {
     ...base,
     metrics: { demand: 1, trend: 1, competition: 1, margin: 1 },
@@ -64,7 +65,7 @@ test("侵权 / 认证缺失 触发封顶 0.3，且不许进打样", () => {
   assert.equal(s.raw, 1);
   assert.equal(s.cap, RISK_CAP);
   assert.equal(s.total, RISK_CAP);
-  assert.notEqual(s.action, "打样", "封顶商品不能建议打样");
+  assert.notEqual(s.action, "上架", "封顶商品不能建议上架");
   assert.ok(s.reasons.some((r) => r.includes("封顶")));
 });
 
@@ -94,7 +95,7 @@ test("证据不足降权 0.6：恰好 3 条为满置信度，2 条为 0.6", () =
 });
 
 test("动作阈值与封顶交互", () => {
-  assert.equal(decideAction(0.66, 1), "打样");
+  assert.equal(decideAction(0.66, 1), "上架");
   assert.equal(decideAction(0.66, RISK_CAP), "观察");
   assert.equal(decideAction(0.5, 1), "观察");
   assert.equal(decideAction(0.44, 1), "放弃");
@@ -137,6 +138,19 @@ test("schema 校验拦住越界分数、缺失证据和未知风险标记", () =
   assert.ok(paths.includes("riskFlags[0]"));
 
   assert.deepEqual(validateCandidate(base), [], "合法候选不应报错");
+});
+
+test("排行榜表带图片列，没有图的格子是破折号", () => {
+  const row = scoreCandidate(base);
+  const url = "https://m.media-amazon.com/images/I/abc.jpg";
+  const withImage = toMarkdownTable([row], { B0TEST01: url });
+  assert.match(withImage, /\| 图片 \|/);
+  assert.match(withImage, /\| 1 \| !\[\]\(https:\/\/m\.media-amazon\.com\/images\/I\/abc\.jpg\) \| 测试商品 \|/);
+  assert.match(withImage, /0\.655 █████░░░/);
+  assert.match(withImage, /0\.240 ██████░░/);
+  assert.match(withImage, /\*\*上架\*\*/);
+  const blank = toMarkdownTable([row]);
+  assert.match(blank, /\| 1 \| — \| 测试商品 \|/);
 });
 
 test("schema 拦住倒挂区间", () => {

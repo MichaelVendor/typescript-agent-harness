@@ -3,135 +3,329 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>店铺后台（模拟）</title>
+  <title>选品台 · 德国站</title>
   <style>
     :root {
-      --bg: #f3f4f6;
-      --ink: #1c1f26;
-      --muted: #5c6570;
-      --line: #e2e5ea;
+      --bg: #eef2f6;
+      --ink: #152033;
+      --muted: #5b6b7c;
+      --line: #d7dee8;
       --card: #fff;
-      --side: #1c1f26;
-      --accent: #0f6e56;
+      --side: #122033;
+      --side-ink: #c5d0dc;
+      --accent: #0d6e6e;
       --accent-ink: #fff;
-      --warn: #8a5a00;
-      --warn-bg: #fff6e0;
-      --ok: #0f6e56;
-      --ok-bg: #e7f6f1;
+      --accent-soft: #e4f4f3;
+      --warn: #9a6700;
+      --warn-bg: #fff4d6;
+      --ok: #0f7a4a;
+      --ok-bg: #e6f6ee;
+      --ref: #5b6b7c;
+      --ref-bg: #eef2f6;
+      --top: #fff;
+      --radius: 10px;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font: 14px/1.5 "Segoe UI", "PingFang SC", sans-serif;
+      font: 14px/1.5 "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif;
       color: var(--ink);
       background: var(--bg);
     }
     button, input, textarea, select { font: inherit; color: inherit; }
     button { cursor: pointer; }
+    a { color: var(--accent); }
+
     .login {
       min-height: 100vh;
       display: grid;
       place-items: center;
       padding: 24px;
+      background:
+        radial-gradient(ellipse 80% 50% at 10% 0%, #d7ebea 0%, transparent 55%),
+        radial-gradient(ellipse 60% 40% at 100% 100%, #d9e4f2 0%, transparent 50%),
+        var(--bg);
     }
     .login-card {
-      width: min(400px, 100%);
+      width: min(420px, 100%);
       background: var(--card);
       border: 1px solid var(--line);
-      padding: 28px 28px 22px;
+      border-radius: 14px;
+      padding: 32px 28px 24px;
     }
-    h1 { font-size: 22px; font-weight: 650; margin: 0 0 6px; }
-    .sub { color: var(--muted); margin: 0 0 22px; }
-    label { display: block; margin: 12px 0 6px; font-size: 12px; color: var(--muted); }
+    .login-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 4px 10px 4px 4px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .login-brand i {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-style: normal;
+      font-size: 11px;
+    }
+    h1 { font-size: 24px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); margin: 0 0 18px; }
+    label { display: block; margin: 12px 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
     input, textarea, select {
       width: 100%;
       border: 1px solid var(--line);
+      border-radius: 8px;
       background: #fff;
-      padding: 8px 10px;
+      padding: 9px 11px;
     }
-    textarea { min-height: 88px; resize: vertical; }
+    input:focus, textarea:focus, select:focus {
+      outline: 2px solid color-mix(in srgb, var(--accent) 28%, transparent);
+      border-color: var(--accent);
+    }
+    textarea { min-height: 96px; resize: vertical; }
     .primary {
       margin-top: 16px;
       width: 100%;
       border: 0;
+      border-radius: 8px;
       background: var(--accent);
       color: var(--accent-ink);
-      padding: 10px 12px;
+      padding: 11px 12px;
+      font-weight: 650;
     }
     .primary:disabled { opacity: 0.45; cursor: default; }
     .hint { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
     .error { color: #9b2c2c; font-size: 12px; min-height: 18px; margin: 8px 0 0; }
+
     .app { display: none; min-height: 100vh; grid-template-columns: 220px 1fr; }
     .app.on { display: grid; }
     .side {
       background: var(--side);
       color: #fff;
-      padding: 20px 16px;
+      padding: 20px 14px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
     }
-    .brand { font-weight: 650; margin-bottom: 4px; }
-    .brand small { display: block; font-weight: 400; color: #b7bdc7; margin-top: 4px; }
+    .brand { font-weight: 700; font-size: 16px; margin-bottom: 4px; letter-spacing: -0.02em; }
+    .brand small { display: block; font-weight: 400; color: #8fa0b3; margin-top: 4px; font-size: 12px; }
     .nav { margin-top: 28px; display: grid; gap: 4px; }
     .nav button {
       text-align: left;
       background: transparent;
-      color: #d5d8de;
+      color: var(--side-ink);
       border: 0;
-      padding: 8px 10px;
+      border-radius: 8px;
+      padding: 9px 12px;
     }
-    .nav button.on { background: #2a2f38; color: #fff; }
-    .main { padding: 22px 28px 48px; }
-    .top {
+    .nav button:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav button.on { background: var(--accent); color: #fff; font-weight: 650; }
+
+    .workspace { min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+    .bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 18px;
+      gap: 16px;
+      padding: 12px 28px;
+      background: var(--top);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
+    .bar-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: var(--ref-bg);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .pill.site { background: #e8eef8; color: #2b4c7e; }
+    .bar-actions { display: flex; align-items: center; gap: 10px; flex: none; }
+    .bar-actions #who { margin: 0; font-size: 12px; color: var(--muted); }
+    .main { padding: 20px 28px 48px; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .top strong { font-size: 20px; letter-spacing: -0.02em; }
     .ghost {
       background: #fff;
       border: 1px solid var(--line);
+      border-radius: 8px;
       padding: 7px 12px;
     }
-    table { width: 100%; border-collapse: collapse; background: #fff; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    th { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0 0 18px;
+      padding: 12px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+    .step {
+      position: relative;
+      padding: 8px 10px 8px 36px;
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .step::before {
+      content: attr(data-n);
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      background: #cfd7e2;
+      color: #fff;
+      font-size: 11px;
+      display: grid;
+      place-items: center;
+    }
+    .step.on { background: var(--accent-soft); color: var(--accent); }
+    .step.on::before { background: var(--accent); }
+    .step.done { color: var(--ok); background: var(--ok-bg); }
+    .step.done::before { content: "✓"; background: var(--ok); }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tr:last-child td { border-bottom: 0; }
+    th { font-size: 12px; color: var(--muted); font-weight: 650; background: #f7f9fc; }
     .tag {
       display: inline-block;
-      padding: 1px 8px;
+      padding: 2px 8px;
+      border-radius: 999px;
       font-size: 12px;
+      font-weight: 650;
       background: var(--warn-bg);
       color: var(--warn);
     }
     .tag.live { background: var(--ok-bg); color: var(--ok); }
-    .tag.ref { background: #eef0f3; color: var(--muted); }
+    .tag.ref { background: var(--ref-bg); color: var(--ref); }
+    .tag.ok { background: var(--ok-bg); color: var(--ok); }
+    .tag.warn { background: var(--warn-bg); color: var(--warn); }
+
     .panel { display: none; }
     .panel.on { display: block; }
     .form {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
+      grid-template-columns: 1.25fr 0.85fr;
+      gap: 16px;
+      align-items: start;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .card + .card, .stack .card { margin-top: 12px; }
+    .stack .card:first-child { margin-top: 0; }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card h2 { margin: 0; font-size: 15px; font-weight: 700; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+    .metric {
+      padding: 10px;
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    .metric span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 2px; }
+    .metric b { font-size: 13px; font-variant-numeric: tabular-nums; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .status-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    .status-banner.warn { background: var(--warn-bg); color: var(--warn); }
+    .status-banner.ok { background: var(--ok-bg); color: var(--ok); }
+    .status-banner strong { font-size: 14px; }
+
+    .buyer-layout {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
       gap: 18px;
       align-items: start;
     }
-    .card { background: #fff; border: 1px solid var(--line); padding: 16px; }
-    .card h2 { margin: 0 0 12px; font-size: 16px; }
-    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .preview-title { font-size: 18px; margin: 0 0 8px; }
-    .price { font-size: 20px; margin: 0 0 10px; }
+    .preview-title { font-size: 20px; margin: 0 0 8px; line-height: 1.35; font-weight: 700; }
+    .price { font-size: 28px; margin: 0 0 10px; font-weight: 750; color: #b42318; font-variant-numeric: tabular-nums; }
     .bullets { margin: 0; padding-left: 18px; }
     .bullets li { margin: 4px 0; }
-    .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .notes-box {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px dashed var(--line);
+    }
+    .notes-box p { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+    .notes-box p:last-child { margin-bottom: 0; }
+    .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0; }
     .shot {
-      height: 180px;
-      background: #eef1f4;
+      min-height: 220px;
+      border-radius: 10px;
+      background: #f4f7fa;
+      border: 1px solid var(--line);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 10px;
       color: var(--muted);
+      padding: 12px;
     }
-    .shot.scene { background: #e7eef2; }
-    .shot img { max-width: 100%; max-height: 150px; object-fit: contain; }
+    .shot.scene { background: #eef5f4; }
+    .shot img { max-width: 100%; max-height: 180px; object-fit: contain; }
+    .shot .mark {
       width: 84px;
       height: 52px;
       border: 2px solid #9aa3ad;
@@ -143,21 +337,35 @@
       min-height: 100vh;
       place-items: center;
       padding: 24px;
+      background: var(--bg);
     }
     .shop.on { display: grid; }
-    .shop-card { width: min(760px, 100%); background: #fff; border: 1px solid var(--line); padding: 24px; }
-    .cart { margin-top: 8px; }
+    .shop-card {
+      width: min(880px, 100%);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .cart { margin-top: 12px; width: auto; min-width: 160px; }
+
+    @media (max-width: 980px) {
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .buyer-layout, .form { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr 1fr; }
+    }
     @media (max-width: 860px) {
       .app.on { grid-template-columns: 1fr; }
-      .form { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; }
     }
   </style>
 </head>
 <body>
   <section class="login" id="login">
     <form class="login-card" id="login-form">
-      <h1>店铺后台</h1>
-      <p class="sub">亚马逊德国站的本地模拟。不会连接真实卖家账号。</p>
+      <div class="login-brand"><i>选</i>选品台 · 运营台</div>
+      <h1>选品台</h1>
+      <p class="sub">德国站本地模拟后台。不会连接真实卖家账号。</p>
       <label for="account">账号</label>
       <input id="account" name="account" autocomplete="username" value="seller" />
       <label for="password">密码</label>
@@ -170,7 +378,7 @@
 
   <div class="app" id="app">
     <aside class="side">
-      <div class="brand">Studio DE<small>模拟店铺 · 德国站</small></div>
+      <div class="brand">选品台<small>德国站 · 本地模拟</small></div>
       <nav class="nav">
         <button type="button" class="on" data-tab="list">商品</button>
         <button type="button" data-tab="prep">准备</button>
@@ -180,70 +388,93 @@
         <button type="button" data-tab="preview">买家页面</button>
       </nav>
     </aside>
-    <main class="main">
-      <div class="top">
-        <div>
-          <strong id="heading">商品</strong>
-          <div class="sub" id="who" style="margin:0"></div>
+    <div class="workspace">
+      <div class="bar">
+        <div class="bar-meta">
+          <span class="pill site" id="meta-site">Amazon.de</span>
+          <span class="pill" id="meta-sku">SKU —</span>
+          <span class="tag" id="meta-status">草稿</span>
         </div>
-        <button class="ghost" type="button" id="logout">退出</button>
+        <div class="bar-actions">
+          <div id="who"></div>
+          <button class="ghost" type="button" id="logout">退出</button>
+        </div>
       </div>
-
-      <section class="panel on" id="panel-list">
-        <table>
-          <thead>
-            <tr><th>SKU / ASIN</th><th>标题</th><th>售价</th><th>状态</th></tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </section>
-
-      <section class="panel" id="panel-prep">
-        <div id="prep"></div>
-      </section>
-
-      <section class="panel" id="panel-edit">
-        <form class="form" id="edit-form">
-          <div class="card">
-            <h2 id="edit-heading">草稿</h2>
-            <label for="title">标题</label>
-            <input id="title" name="title" />
-            <div class="row2">
-              <div>
-                <label for="price">售价（EUR）</label>
-                <input id="price" name="price" type="number" min="0" step="0.01" />
-              </div>
-              <div>
-                <label for="ship">配送</label>
-                <select id="ship" name="ship">
-                  <option>FBA</option>
-                  <option>自发货</option>
-                </select>
-              </div>
-            </div>
-            <label for="category">类目</label>
-            <input id="category" name="category" />
-            <label for="bullets">五点，一行一条</label>
-            <textarea id="bullets" name="bullets"></textarea>
-            <button class="primary" id="publish" type="submit">发布到德国站</button>
-            <p class="hint" id="publish-note"></p>
+      <main class="main">
+        <div class="top">
+          <div>
+            <strong id="heading">商品</strong>
+            <div class="sub" id="heading-sub" style="margin:4px 0 0">跨境上架工作台</div>
           </div>
-          <div class="card" id="pack"></div>
-        </form>
-      </section>
+        </div>
 
-      <section class="panel" id="panel-inbound">
-        <div class="card" id="inbound"></div>
-      </section>
+        <div class="steps" id="steps" aria-label="上架进度">
+          <div class="step" data-step="prep" data-n="1">准备</div>
+          <div class="step" data-step="edit" data-n="2">编辑链接</div>
+          <div class="step" data-step="inbound" data-n="3">入库</div>
+          <div class="step" data-step="ads" data-n="4">广告</div>
+          <div class="step" data-step="publish" data-n="5">发布</div>
+        </div>
 
-      <section class="panel" id="panel-ads">
-        <div class="card" id="ads"></div>
-      </section>
+        <section class="panel on" id="panel-list">
+          <table>
+            <thead>
+              <tr><th>SKU / ASIN</th><th>标题</th><th>售价</th><th>状态</th></tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </section>
 
-      <section class="panel" id="panel-preview">
-        <div class="card" id="buyer"></div>
-      </section>
-    </main>
+        <section class="panel" id="panel-prep">
+          <div class="stack" id="prep"></div>
+        </section>
+
+        <section class="panel" id="panel-edit">
+          <form class="form" id="edit-form">
+            <div class="card">
+              <div class="card-head">
+                <h2 id="edit-heading">草稿</h2>
+                <span class="tag" id="edit-status">草稿</span>
+              </div>
+              <label for="title">标题</label>
+              <input id="title" name="title" />
+              <div class="row2">
+                <div>
+                  <label for="price" id="price-label">售价（EUR）</label>
+                  <input id="price" name="price" type="number" min="0" step="0.01" />
+                </div>
+                <div>
+                  <label for="ship">配送</label>
+                  <select id="ship" name="ship">
+                    <option>FBA</option>
+                    <option>自发货</option>
+                  </select>
+                </div>
+              </div>
+              <label for="category">类目</label>
+              <input id="category" name="category" />
+              <label for="bullets">五点，一行一条</label>
+              <textarea id="bullets" name="bullets"></textarea>
+              <button class="primary" id="publish" type="submit">发布到德国站</button>
+              <p class="hint" id="publish-note"></p>
+            </div>
+            <div class="card" id="pack"></div>
+          </form>
+        </section>
+
+        <section class="panel" id="panel-inbound">
+          <div class="card" id="inbound"></div>
+        </section>
+
+        <section class="panel" id="panel-ads">
+          <div class="card" id="ads"></div>
+        </section>
+
+        <section class="panel" id="panel-preview">
+          <div class="card" id="buyer"></div>
+        </section>
+      </main>
+    </div>
   </div>
 
   <section class="shop" id="shop"></section>
@@ -251,6 +482,25 @@
   <script>
     const KEY = "fake-seller-de";
     const DEMO = { account: "seller", password: "demo" };
+    let marketplace = "DE";
+    function currencyCode() { return marketplace === "US" ? "USD" : "EUR"; }
+    function moneySign() { return marketplace === "US" ? "$" : "€"; }
+    function siteLabel() { return marketplace === "US" ? "Amazon.com" : "Amazon.de"; }
+    function publishLabel(live) {
+      if (live) return "已发布";
+      return marketplace === "US" ? "发布到美国站" : "发布到德国站";
+    }
+    function applyMarketplace(value) {
+      marketplace = value === "US" ? "US" : "DE";
+      const brand = document.querySelector(".brand");
+      if (brand) brand.innerHTML = marketplace === "US"
+        ? "选品台<small>美国站 · 本地模拟</small>"
+        : "选品台<small>德国站 · 本地模拟</small>";
+      const site = document.querySelector("#meta-site");
+      if (site) site.textContent = siteLabel();
+      const priceLabel = document.querySelector("#price-label");
+      if (priceLabel) priceLabel.textContent = marketplace === "US" ? "售价（USD）" : "售价（EUR）";
+    }
     const REFS = [
       ["B0HCZ3P6B9", "ZIHUIEU 硅胶托盘两件套", "11.59"],
       ["B0GST7MBPT", "BLESWIN 硅胶托盘两件套", "19.59"],
@@ -265,6 +515,8 @@
       bullets: "封底承水托盘，湿区垫可提起\n独立小盘与承水分开\n不承诺自排水、抗菌或可进洗碗机",
       status: "草稿",
     };
+    const STEP_ORDER = ["prep", "edit", "inbound", "ads", "publish"];
+    const TAB_STEP = { list: "prep", prep: "prep", edit: "edit", inbound: "inbound", ads: "ads", preview: "publish" };
 
     const login = document.querySelector("#login");
     const app = document.querySelector("#app");
@@ -282,6 +534,7 @@
       localStorage.setItem(KEY, JSON.stringify(state));
     }
     let state = load();
+    let currentTab = "list";
 
     let imageMap = {};
     function photoFor(sku) {
@@ -289,7 +542,33 @@
       return typeof url === "string" && url.startsWith("https://") ? url : "";
     }
 
+    function syncMeta() {
+      const live = state.status === "已上架";
+      document.querySelector("#meta-site").textContent = siteLabel();
+      document.querySelector("#meta-sku").textContent = "SKU " + state.sku;
+      const status = document.querySelector("#meta-status");
+      status.textContent = state.status;
+      status.className = "tag" + (live ? " live" : "");
+      const editStatus = document.querySelector("#edit-status");
+      if (editStatus) {
+        editStatus.textContent = state.status;
+        editStatus.className = "tag" + (live ? " live" : "");
+      }
+    }
+
+    function syncSteps(tab) {
+      const current = TAB_STEP[tab] || "prep";
+      const currentIndex = STEP_ORDER.indexOf(current);
+      const published = state.status === "已上架";
+      document.querySelectorAll("#steps .step").forEach((el) => {
+        const index = STEP_ORDER.indexOf(el.dataset.step);
+        el.classList.toggle("on", !published && index === currentIndex);
+        el.classList.toggle("done", published || index < currentIndex);
+      });
+    }
+
     function show(tab) {
+      currentTab = tab;
       document.querySelectorAll(".nav button").forEach((btn) => {
         btn.classList.toggle("on", btn.dataset.tab === tab);
       });
@@ -297,7 +576,17 @@
         panel.classList.toggle("on", panel.id === "panel-" + tab);
       });
       const names = { list: "商品", prep: "准备", edit: "编辑链接", inbound: "入库", ads: "广告", preview: "买家页面" };
+      const subs = {
+        list: "本店草稿与竞品对照",
+        prep: "报价、试样与链接草稿",
+        edit: "核对标题、售价后发布",
+        inbound: "入库单状态",
+        ads: "广告投放状态",
+        preview: "买家视角预览",
+      };
       document.querySelector("#heading").textContent = names[tab];
+      document.querySelector("#heading-sub").textContent = subs[tab];
+      syncSteps(tab);
     }
 
     function notesFor(sku, title) {
@@ -307,7 +596,7 @@
         germanNote: "标题用搜索页原文，没有另写卖点",
         gtin: "DEMO-" + sku,
         gtinNote: "演示编码，不是 GS1 GTIN",
-        vatNote: "演示店铺，未登记真实德国 VAT",
+        vatNote: marketplace === "US" ? "演示店铺，未登记真实美国销售税号" : "演示店铺，未登记真实德国 VAT",
         inboundNote: "演示已建单，件数未填，不会发往亚马逊仓库",
         adsNote: "未投放。没有预算，不创建广告",
       };
@@ -327,56 +616,70 @@
         ? `<ul class="bullets">${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>`
         : `<p class="sub">卖点没有另写。</p>`;
       return `
-        <div class="shots">${shotHtml("主图", item.image)}${shotHtml("场景")}</div>
-        <p class="preview-title">${escapeHtml(item.title)}</p>
-        <p class="price">€${Number(item.price).toFixed(2)}</p>
-        <p class="sub">${escapeHtml(item.category)} · ${escapeHtml(item.ship || "FBA")} · ${escapeHtml(status)}</p>
-        ${bulletBlock}
-        <p class="sub">${escapeHtml(item.germanNote)}</p>
-        <p class="sub">${escapeHtml(item.gtin)} · ${escapeHtml(item.gtinNote)}</p>
-        <p class="sub">${escapeHtml(item.vatNote)}</p>
-        <p class="sub">${escapeHtml(item.inboundNote)}</p>
-        <p class="sub">${escapeHtml(item.adsNote)}</p>
-        <button class="primary cart" type="button" id="cart">加入购物车</button>
-        <p class="hint" id="cart-note"></p>`;
+        <div class="buyer-layout">
+          <div class="shots">${shotHtml("主图", item.image)}${shotHtml("场景")}</div>
+          <div>
+            <p class="preview-title">${escapeHtml(item.title)}</p>
+            <p class="price">${moneySign()}${Number(item.price).toFixed(2)}</p>
+            <p class="sub">${escapeHtml(item.category)} · ${escapeHtml(item.ship || "FBA")} · <span class="tag ${status === "已上架" ? "live" : ""}">${escapeHtml(status)}</span></p>
+            ${bulletBlock}
+            <button class="primary cart" type="button" id="cart">加入购物车</button>
+            <p class="hint" id="cart-note"></p>
+            <div class="notes-box">
+              <p>${escapeHtml(item.germanNote)}</p>
+              <p>${escapeHtml(item.gtin)} · ${escapeHtml(item.gtinNote)}</p>
+              <p>${escapeHtml(item.vatNote)}</p>
+              <p>${escapeHtml(item.inboundNote)}</p>
+              <p>${escapeHtml(item.adsNote)}</p>
+            </div>
+          </div>
+        </div>`;
     }
 
     function render() {
       const live = state.status === "已上架";
       const pack = notesFor(state.sku, state.title);
+      syncMeta();
+      syncSteps(currentTab);
       rows.innerHTML = [
         `<tr>
-          <td>${state.sku}</td>
+          <td><strong>${state.sku}</strong></td>
           <td>${escapeHtml(state.title)}</td>
-          <td>€${Number(state.price).toFixed(2)}</td>
+          <td>${moneySign()}${Number(state.price).toFixed(2)}</td>
           <td><span class="tag ${live ? "live" : ""}">${state.status}</span></td>
         </tr>`,
-        ...REFS.filter(([asin]) => asin !== state.sku).map(([asin, title, price]) => `<tr>
+        ...(marketplace === "DE" ? REFS.filter(([asin]) => asin !== state.sku).map(([asin, title, price]) => `<tr>
           <td>${asin}</td>
           <td>${title}</td>
           <td>€${price}</td>
           <td><span class="tag ref">竞品，只读</span></td>
-        </tr>`),
+        </tr>`) : []),
       ].join("");
       document.querySelector("#edit-heading").textContent = state.sku + (live ? " 已上架" : " 草稿");
       const photo = photoFor(state.sku);
       document.querySelector("#pack").innerHTML = `
-        <h2>随链接带上</h2>
+        <div class="card-head"><h2>随链接带上</h2><span class="tag ref">演示字段</span></div>
         <ul class="bullets">
           <li>${photo ? "主图用搜索页上的那张。场景图没有。" : `${escapeHtml(pack.imageNote)}。主图和场景都是图形，不是照片。`}</li>
-          <li>德语标题：${escapeHtml(pack.germanTitle)}。${escapeHtml(pack.germanNote)}。</li>
+          <li>标题：${escapeHtml(pack.germanTitle)}。${escapeHtml(pack.germanNote)}。</li>
           <li>${escapeHtml(pack.gtin)}。${escapeHtml(pack.gtinNote)}。</li>
           <li>${escapeHtml(pack.vatNote)}。</li>
         </ul>`;
-      document.querySelector("#inbound").innerHTML = `<h2>入库</h2><p>${escapeHtml(pack.inboundNote)}。</p>`;
-      document.querySelector("#ads").innerHTML = `<h2>广告</h2><p>${escapeHtml(pack.adsNote)}。</p>`;
+      document.querySelector("#inbound").innerHTML = `
+        <div class="status-banner warn"><strong>已建单 · 件数未填</strong><span class="tag warn">未发仓</span></div>
+        <div class="card-head"><h2>入库</h2></div>
+        <p class="sub" style="margin:0">${escapeHtml(pack.inboundNote)}。</p>`;
+      document.querySelector("#ads").innerHTML = `
+        <div class="status-banner warn"><strong>未投放</strong><span class="tag warn">无预算</span></div>
+        <div class="card-head"><h2>广告</h2></div>
+        <p class="sub" style="margin:0">${escapeHtml(pack.adsNote)}</p>`;
       document.querySelector("#title").value = state.title;
       document.querySelector("#price").value = state.price;
       document.querySelector("#category").value = state.category;
       document.querySelector("#ship").value = state.ship;
       document.querySelector("#bullets").value = state.bullets;
       document.querySelector("#publish").disabled = live;
-      document.querySelector("#publish").textContent = live ? "已发布" : "发布到德国站";
+      document.querySelector("#publish").textContent = publishLabel(live);
       document.querySelector("#publish-note").textContent = live
         ? "买家打开本机的 #shop 能看到。这不是真实亚马逊链接。"
         : "发布后可在「买家页面」查看。";
@@ -396,10 +699,16 @@
       })[ch]);
     }
 
+    function statusClass(text) {
+      if (/已/.test(text)) return "ok";
+      return "warn";
+    }
+
     function enter() {
       login.style.display = "none";
+      document.querySelector("#shop").classList.remove("on");
       app.classList.add("on");
-      document.querySelector("#who").textContent = state.account + " · 德国站";
+      document.querySelector("#who").textContent = state.account + " · " + (marketplace === "US" ? "美国站" : "德国站");
       render();
       show("list");
     }
@@ -448,11 +757,13 @@
             priceEur: Number(document.querySelector("#price").value),
             category: document.querySelector("#category").value.trim(),
             ship: document.querySelector("#ship").value,
+            marketplace,
             bullets,
           }),
         });
         const body = await res.json();
         if (!res.ok || !body.ok) throw new Error(body.error || "发布没有写成");
+        if (body.marketplace === "US" || body.marketplace === "DE") applyMarketplace(body.marketplace);
         state = {
           ...state,
           sku: body.sku,
@@ -481,24 +792,36 @@
       const ask = prepared.quote.ask.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
       const bullets = prepared.listing.bullets.map((line) => `<li>${escapeHtml(line)}</li>`).join("");
       const target = prepared.listing.priceTarget;
+      const qClass = statusClass(prepared.quote.status);
+      const sClass = statusClass(prepared.sample.status);
+      const lClass = statusClass(prepared.listing.status);
       box.innerHTML = `
-        <div class="card" style="margin-bottom:14px">
-          <h2>报价 · ${prepared.quote.status}</h2>
-          <p class="sub">采购价 ${money(prepared.quote.purchasePrice)} ${prepared.quote.currency || "CNY"} · 模费 ${money(prepared.quote.moldFee)} · 起订量 ${money(prepared.quote.moq)} · 汇率 ${money(prepared.quote.cnyPerEur)} · 头程 €${money(prepared.quote.freightEur)} · 尾程 €${money(prepared.quote.fbaFeeEur)} · 佣金 ${money(prepared.quote.referralRate)}</p>
-          <p class="sub">${prepared.margin ? `单件利润 €${prepared.margin.netProfitEur.low}–€${prepared.margin.netProfitEur.high}，净利率 ${(prepared.margin.netMargin.low * 100).toFixed(1)}%–${(prepared.margin.netMargin.high * 100).toFixed(1)}%。${escapeHtml(prepared.margin.note)}` : "汇率、头程、尾程或佣金还没齐，不算欧元利润。"}</p>
+        <div class="card">
+          <div class="card-head"><h2>报价</h2><span class="tag ${qClass}">${escapeHtml(prepared.quote.status)}</span></div>
+          <div class="metrics">
+            <div class="metric"><span>采购价</span><b>${money(prepared.quote.purchasePrice)} ${prepared.quote.currency || "CNY"}</b></div>
+            <div class="metric"><span>模费</span><b>${money(prepared.quote.moldFee)}</b></div>
+            <div class="metric"><span>起订量</span><b>${money(prepared.quote.moq)}</b></div>
+            <div class="metric"><span>汇率</span><b>${money(prepared.quote.cnyPerEur)}</b></div>
+            <div class="metric"><span>头程</span><b>€${money(prepared.quote.freightEur)}</b></div>
+            <div class="metric"><span>尾程</span><b>€${money(prepared.quote.fbaFeeEur)}</b></div>
+            <div class="metric"><span>佣金</span><b>${money(prepared.quote.referralRate)}</b></div>
+            <div class="metric"><span>利润</span><b>${prepared.margin ? `€${prepared.margin.netProfitEur.low}–€${prepared.margin.netProfitEur.high}` : "空"}</b></div>
+          </div>
+          <p class="sub">${prepared.margin ? `净利率 ${(prepared.margin.netMargin.low * 100).toFixed(1)}%–${(prepared.margin.netMargin.high * 100).toFixed(1)}%。${escapeHtml(prepared.margin.note)}` : "汇率、头程、尾程或佣金还没齐，不算欧元利润。"}</p>
           <ul class="bullets">${ask}</ul>
           <p class="hint">${escapeHtml(prepared.quote.note)}</p>
         </div>
-        <div class="card" style="margin-bottom:14px">
-          <h2>试样 · ${prepared.sample.status}</h2>
+        <div class="card">
+          <div class="card-head"><h2>试样</h2><span class="tag ${sClass}">${escapeHtml(prepared.sample.status)}</span></div>
           <ul class="bullets">${checks}</ul>
         </div>
         <div class="card">
-          <h2>链接 · ${prepared.listing.status}</h2>
+          <div class="card-head"><h2>链接</h2><span class="tag ${lClass}">${escapeHtml(prepared.listing.status)}</span></div>
           <p class="preview-title">${escapeHtml(prepared.listing.title)}</p>
           <p class="sub">${target ? `目标价 €${target.min}–€${target.max}。${escapeHtml(target.note)}` : ""}</p>
           <ul class="bullets">${bullets}</ul>
-          ${prepared.store ? `<p class="sub">${escapeHtml(prepared.store.imageNote)} · ${escapeHtml(prepared.store.germanNote)}</p><p class="sub">${escapeHtml(prepared.store.gtin)} · ${escapeHtml(prepared.store.gtinNote)}</p><p class="sub">${escapeHtml(prepared.store.vatNote)}</p><p class="sub">${escapeHtml(prepared.store.inboundNote)}</p><p class="sub">${escapeHtml(prepared.store.adsNote)}</p>` : ""}
+          ${prepared.store ? `<div class="notes-box"><p>${escapeHtml(prepared.store.imageNote)} · ${escapeHtml(prepared.store.germanNote)}</p><p>${escapeHtml(prepared.store.gtin)} · ${escapeHtml(prepared.store.gtinNote)}</p><p>${escapeHtml(prepared.store.vatNote)}</p><p>${escapeHtml(prepared.store.inboundNote)}</p><p>${escapeHtml(prepared.store.adsNote)}</p></div>` : ""}
         </div>`;
     }
 
@@ -506,9 +829,10 @@
       const shop = document.querySelector("#shop");
       shop.classList.add("on");
       if (!live || live.status !== "已上架") {
-        shop.innerHTML = `<div class="login-card"><h1>还没上架</h1><p class="sub">买家页面在发布之后才看得到。</p></div>`;
+        shop.innerHTML = `<div class="login-card"><div class="login-brand"><i>选</i>选品台</div><h1>还没上架</h1><p class="sub">买家页面在发布之后才看得到。</p></div>`;
         return;
       }
+      if (live.marketplace === "US" || live.marketplace === "DE") applyMarketplace(live.marketplace);
       const item = { ...live, price: live.priceEur, image: live.image || photoFor(live.sku) };
       shop.innerHTML = `<div class="shop-card">${buyerHtml(item, "已上架")}</div>`;
       const cart = shop.querySelector("#cart");
@@ -540,6 +864,9 @@
     ]).then(([prepared, live, images]) => {
       imageMap = images && typeof images === "object" ? images : {};
       try {
+      const marketFromCase = prepared && (prepared.marketplace === "US" || prepared.marketplace === "DE") ? prepared.marketplace : null;
+      const marketFromLive = live && (live.marketplace === "US" || live.marketplace === "DE") ? live.marketplace : null;
+      applyMarketplace(marketFromLive || marketFromCase || "DE");
       if (prepared) renderPrep(prepared);
       else document.querySelector("#prep").textContent = "准备结果没加载到。";
       const published = live && live.status === "已上架" ? live : null;

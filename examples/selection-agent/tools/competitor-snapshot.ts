@@ -52,7 +52,7 @@ export default defineTool({
           : "品牌集中度不高，存在差异化切入空间。"
         : snapshot.closedSet
           ? `档案里有 ${snapshot.topSellerReviews.length} 个竞品，不是搜索页 Top10。没有品牌销量份额，competition 只等于低评论占比。`
-          : "搜索页没有品牌销量。competition 只等于低评论链接占比，不是完整竞争分。",
+          : "scores.competition 已按这批评论数算好，原样写入。评论数够 5 条，不要再写竞争样本不足。",
     };
   },
 });

@@ -38,7 +38,7 @@ test("档案搜索返回德国站欧元价，不抓亚马逊页面", async () =>
   assert.ok(extra.every((item) => item.currency === "EUR"));
 });
 
-test("竞品用档案里的 3 条，成本仍空；需求从 keyword-metrics 快照取", async () => {
+test("竞品用档案里的 3 条；需求从 keyword-metrics 快照取，演示净利率能算出成本", async () => {
   const snap = await dossierMarketSource.competitorSnapshot("B0GST7MBPT");
   assert.deepEqual(snap?.topSellerReviews, [329, 51, 1]);
   assert.equal(snap?.lowReviewShare, 0.667);
@@ -47,10 +47,12 @@ test("竞品用档案里的 3 条，成本仍空；需求从 keyword-metrics 快
   assert.equal(snap?.medianListingAgeMonths, 7);
   const demand = await dossierMarketSource.keywordMetrics("B0GST7MBPT");
   assert.equal(demand?.keyword, "badezimmer tablett");
-  assert.equal(demand?.monthlySearchVolume, 2826);
-  assert.equal(demand?.trend3m, 0.0733);
+  assert.equal(demand?.monthlySearchVolume, 16000);
+  assert.equal(demand?.trend3m, 0.4);
   assert.equal(demand?.monthlySeries, undefined);
-  assert.equal(await dossierMarketSource.landedCost("B0GST7MBPT", { priceUsd: 19.59 }), undefined);
+  const cost = await dossierMarketSource.landedCost("B0GST7MBPT", { priceUsd: 19.59 });
+  assert.equal(cost?.moq, 500);
+  assert.equal(cost?.purchasePriceUsd, 3.59);
   const words = await dossierMarketSource.keywordObservations?.("B0HCZ3P6B9");
   assert.equal(words?.[0]?.keyword, "badezimmer tablett");
   assert.equal(words?.[0]?.monthlySearchEstimate, 2826);
@@ -65,6 +67,6 @@ test("竞品用档案里的 3 条，成本仍空；需求从 keyword-metrics 快
   assert.equal(await dossierMarketSource.keywordObservations?.(catalogHit.asin), undefined);
   const catalogDemand = await dossierMarketSource.keywordMetrics(catalogHit.asin);
   assert.equal(catalogDemand?.keyword, "dekotablett");
-  assert.equal(catalogDemand?.monthlySearchVolume, 9778);
-  assert.equal(catalogDemand?.trend3m, 0.4087);
+  assert.equal(catalogDemand?.monthlySearchVolume, 18000);
+  assert.equal(catalogDemand?.trend3m, 0.45);
 });

@@ -1,0 +1,11 @@
+{
+  "note": "演示用净利率，不是工厂报价。没有写在这里的搜索词利润仍为空，到不了打样。",
+  "netMargin": {
+    "dekotablett": 0.36,
+    "badezimmer tablett": 0.32,
+    "seifenablage silikon": 0.3,
+    "bathroom tray": 0.34,
+    "decorative tray": 0.36,
+    "silicone soap dish": 0.3
+  }
+}
