@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.9 — 2026-11-09
+
+**Agent Room:** `@typescript-agent-harness/agent` adds bypass group-chat orchestration (`createRoom`, `createSessionTurnRunner`) with shared transcript, TL delegate → member result → TL `done`, visibility, and user-queue while a member is running. Does not change `DefaultLoop` or `tah serve` UI. Demo: `packages/agent/scripts/demo-room.ts` (`--session` uses real `Session.run` + stub LLM).
+
+**Web:** Workspace folder row hover no longer changes height (action buttons reserve space). Page zoom applies to `#root` only, not `html`, so portaled context menus keep correct coordinates.
+
+## 1.6.8 — 2026-10-29
+
+**Web:** Page zoom applies to `#root` only, not `html`. Context menus portaled to `document.body` keep correct `position: fixed` coordinates under Cursor `zoomLevel: 2`.
+
 ## 1.6.7 — 2026-10-27
 
 **Browser panel:** Screencast captures at `devicePixelRatio` (`deviceScaleFactor` + `maxWidth`/`maxHeight`) so Retina text stays sharper. The remote CSS viewport matches the panel's visual box (`getBoundingClientRect`) so page zoom does not magnify the page; mouse input stays in CSS pixels. `POST /api/browser/viewport` accepts optional `scale`.
