@@ -57,16 +57,20 @@
   box-sizing: border-box;
 }
 
-html {
-  /* Cursor window.zoomLevel: 2 → Math.pow(1.2, 2). */
-  zoom: var(--ui-zoom);
-}
-
 html,
 body,
 #root {
   height: 100%;
   margin: 0;
+}
+
+/*
+ * Zoom the app shell only — not `html`. Context menus portal to `document.body`;
+ * if `html` is zoomed, fixed left/top from getBoundingClientRect drift (~zoom×).
+ */
+#root {
+  /* Cursor window.zoomLevel: 2 → Math.pow(1.2, 2). */
+  zoom: var(--ui-zoom);
 }
 
 button {
@@ -405,6 +409,8 @@ pre {
   display: flex;
   align-items: center;
   gap: 4px;
+  /* Keep row height stable when + / … appear (avoids hover jitter). */
+  min-height: 24px;
   padding: 6px 4px 2px 2px;
   font-size: 12px;
   color: var(--muted);
@@ -439,11 +445,15 @@ pre {
 }
 .ws-tools {
   flex: none;
-  display: none;
-  gap: 2px;
-}
-.ws-head:hover .ws-tools {
   display: flex;
+  align-items: center;
+  gap: 2px;
+  /* Reserve space always — display:none→flex was changing row height on hover. */
+  visibility: hidden;
+}
+.ws-head:hover .ws-tools,
+.ws-head:focus-within .ws-tools {
+  visibility: visible;
 }
 .ws-tools button {
   display: flex;
