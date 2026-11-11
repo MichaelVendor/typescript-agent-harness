@@ -18,6 +18,7 @@ export function ToolLine(props: {
     if (props.expandAll) setOpen(true);
     else if (!failed) setOpen(false);
   }, [props.expandAll, failed]);
+  // Failed tools stay readable even when the row is collapsed.
   const showResult = props.status !== "running" && (open || failed);
 
   return (
@@ -25,7 +26,7 @@ export function ToolLine(props: {
       <button
         type="button"
         className="tool-head"
-        aria-expanded={showResult}
+        aria-expanded={showResult && open}
         disabled={props.status === "running"}
         onClick={() => setOpen((v) => !v)}
       >
@@ -52,7 +53,11 @@ export function ToolLine(props: {
         {props.status === "ok" && !showResult ? <span className="result muted">···</span> : null}
         {failed && !open ? <span className="result">✗</span> : null}
       </button>
-      {showResult ? <pre className={`tool-detail${failed ? " failed" : ""}`}>{failed ? `✗ ${props.result}` : props.result}</pre> : null}
+      {showResult ? (
+        <pre className={`tool-detail${failed ? " failed" : ""}`}>
+          {failed ? `✗ ${props.result}` : props.result}
+        </pre>
+      ) : null}
     </div>
   );
 }

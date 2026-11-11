@@ -1096,11 +1096,12 @@ button.reply-image {
   color: var(--hl-attr);
 }
 
+/* Tool rows are line-based (Claude-style), not white cards. */
 .tool {
-  margin: 0 0 8px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card);
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
   font-size: 13px;
   overflow: hidden;
 }
@@ -1111,7 +1112,7 @@ button.reply-image {
   gap: 12px;
   width: 100%;
   margin: 0;
-  padding: 8px 12px;
+  padding: 3px 0;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -1147,9 +1148,8 @@ button.reply-image {
 }
 .tool-detail {
   margin: 0;
-  padding: 0 12px 10px;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
+  padding: 0 0 6px 1.1em;
+  border-top: none;
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--muted);
@@ -1173,9 +1173,14 @@ button.reply-image {
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
+  cursor: pointer;
 }
 .steps-head:hover {
   color: var(--text);
+}
+.steps-chevron {
+  flex: none;
+  width: 0.9em;
 }
 .steps-title {
   font-weight: 600;

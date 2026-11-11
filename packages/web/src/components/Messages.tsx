@@ -6,8 +6,9 @@ import { fileRawURL } from "../api";
 import { opensInPanel } from "../browser-view";
 import { codePath, linkPath, markdownImagePath, replyImages, type FileTarget } from "../preview-view";
 import type { Entry } from "../state";
+import { groupToolRuns } from "../tool-runs";
 import { CopyButton } from "./CopyButton";
-import { ToolLine } from "./ToolLine";
+import { ToolSteps } from "./ToolSteps";
 
 type Open = (target: FileTarget) => void;
 type Browse = ((url: string) => void) | undefined;
@@ -133,12 +134,10 @@ const Row = memo(function Row({
   entry,
   onOpen,
   onBrowse,
-  expandTools,
 }: {
-  entry: Entry;
+  entry: Exclude<Entry, { kind: "tool" }>;
   onOpen: Open;
   onBrowse: Browse;
-  expandTools: boolean;
 }) {
   switch (entry.kind) {
     case "user": {
@@ -186,18 +185,6 @@ const Row = memo(function Row({
     }
     case "assistant":
       return <Reply text={entry.text} onOpen={onOpen} onBrowse={onBrowse} />;
-    case "tool":
-      return (
-        <ToolLine
-          tool={entry.tool}
-          summary={entry.summary}
-          status={entry.status}
-          result={entry.result}
-          expandAll={expandTools}
-          {...(entry.path ? { path: entry.path } : {})}
-          onOpen={onOpen}
-        />
-      );
     case "notice":
       return <div className={entry.error ? "notice error" : "notice"}>{entry.text}</div>;
   }
@@ -221,6 +208,7 @@ export function Messages({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  const blocks = useMemo(() => groupToolRuns(entries), [entries]);
   useEffect(() => {
     const el = ref.current;
     if (el && pinned.current) el.scrollTop = el.scrollHeight;
@@ -242,9 +230,18 @@ export function Messages({
           </p>
         </div>
       ) : null}
-      {entries.map((entry) => (
-        <Row key={entry.id} entry={entry} onOpen={onOpen} onBrowse={onBrowse} expandTools={expandTools} />
-      ))}
+      {blocks.map((block) =>
+        block.kind === "tools" ? (
+          <ToolSteps
+            key={`tools-${block.tools[0]!.id}`}
+            tools={block.tools}
+            expandAll={expandTools}
+            onOpen={onOpen}
+          />
+        ) : (
+          <Row key={block.entry.id} entry={block.entry} onOpen={onOpen} onBrowse={onBrowse} />
+        ),
+      )}
       {children}
     </div>
   );
