@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.0 — 2026-11-11
+
+**Web tools:** Consecutive tool calls fold into a Claude-style **步骤** group (collapsed by default → timeline list → per-tool detail). Tool rows no longer use white card backgrounds; `Ctrl+O` still expands results, and failed tools stay open.
+
 ## 1.6.9 — 2026-11-09
 
 **Agent Room:** `@typescript-agent-harness/agent` adds bypass group-chat orchestration (`createRoom`, `createSessionTurnRunner`) with shared transcript, TL delegate → member result → TL `done`, visibility, and user-queue while a member is running. Does not change `DefaultLoop` or `tah serve` UI. Demo: `packages/agent/scripts/demo-room.ts` (`--session` uses real `Session.run` + stub LLM).
