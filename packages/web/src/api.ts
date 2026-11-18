@@ -7,6 +7,7 @@ import type {
   FileStat,
   HostEvent,
   RecentFolder,
+  ReviewPanelSnapshot,
   ServeError,
   ServeInfo,
   ServeRequest,
@@ -128,6 +129,8 @@ export const api = {
   browserInput: (input: BrowserInput) => post("/api/browser/input", input),
   browserDialog: (body: ServeRequest["browserDialog"]) => post("/api/browser/dialog", body),
   browserClose: () => post("/api/browser/close"),
+  superAgentPanel: async () =>
+    (await (await call("GET", "/api/super-agent/panel")).json()) as ReviewPanelSnapshot,
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";

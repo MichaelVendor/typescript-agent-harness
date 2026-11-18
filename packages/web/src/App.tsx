@@ -10,6 +10,7 @@ import { DiffPane } from "./components/DiffPane";
 import { QueueList } from "./components/QueueList";
 import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
+import { ReviewTicketsPanel, useSuperAgentPanel } from "./components/ReviewTicketsPanel";
 import { Messages } from "./components/Messages";
 import { ModelPicker } from "./components/ModelPicker";
 import { NewFolder } from "./components/NewFolder";
@@ -56,9 +57,12 @@ function SessionRail(props: {
   thinking: boolean;
   onOpenDiff(path?: string): void;
   onCompact: (() => void) | undefined;
+  /** When true, show read-only Super-agent ticket card (polls separately). */
+  superAgentPanel?: boolean;
 }) {
   const tokens = props.tokens;
   const used = tokens ? tokens.promptTokens + tokens.completionTokens : 0;
+  const panel = useSuperAgentPanel(props.superAgentPanel === true);
   return (
     <aside className="session-rail">
       <div className="rail-card">
@@ -103,6 +107,7 @@ function SessionRail(props: {
         <h2>正在跑</h2>
         {props.running.length ? props.running.join(" · ") : props.thinking ? "思考中" : "空闲"}
       </div>
+      {props.superAgentPanel ? <ReviewTicketsPanel panel={panel} /> : null}
     </aside>
   );
 }
@@ -499,6 +504,7 @@ export function App() {
                 }
               : undefined
           }
+          superAgentPanel={info?.superAgentPanel === true}
         />
       )}
       {side ? (
