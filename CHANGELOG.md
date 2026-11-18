@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.2 — 2026-11-18
+
+**Serve Super-agent:** `tah serve --super-agent` (or any enabled IM channel) embeds Super-agent so web chat works without Telegram. Web ↔ Telegram/Slack/飞书 mirror in one process; first TG message auto-saves `mirrorChatId`.
+
+**Settings → Messaging:** Visual toggles + tokens (secrets in `~/.tah/settings.json`, hints only in UI). Save hot-reloads IM adapters — no serve restart.
+
+**i18n:** Settings Messaging copy lives in `packages/web/src/i18n/settings.en.ts` for future locales.
+
 ## 1.7.1 — 2026-11-18
 
 **Super-agent:** Bypass Router/Worker orchestration (`createSuperAgent`, Mandate/Ticket, Thread subscription, persist/Watchdog, `createMockGitHubSource`, `reviewPanel`). `tah serve --super-agent-panel` shows a read-only ticket card. Does not change `DefaultLoop` or default chat.
