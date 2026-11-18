@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.1 — 2026-11-18
+
+**Super-agent:** Bypass Router/Worker orchestration (`createSuperAgent`, Mandate/Ticket, Thread subscription, persist/Watchdog, `createMockGitHubSource`, `reviewPanel`). `tah serve --super-agent-panel` shows a read-only ticket card. Does not change `DefaultLoop` or default chat.
+
+**Channels:** New `@typescript-agent-harness/channels` + `tah channel-host` for Telegram (long-poll), Slack, and 飞书. Config via `tah.channels.json` and env tokens. `--mock-channel` for local demos.
+
+**Desktop:** Opening a project with enabled IM channels starts `tah channel-host` alongside serve and passes `--super-agent-panel` so the sidebar tracks tickets.
+
 ## 1.7.0 — 2026-11-11
 
 **Web tools:** Consecutive tool calls fold into a Claude-style **步骤** group (collapsed by default → timeline list → per-tool detail). Tool rows no longer use white card backgrounds; `Ctrl+O` still expands results, and failed tools stay open.
