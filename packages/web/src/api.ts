@@ -92,6 +92,8 @@ export const api = {
     (await (await call("POST", "/api/rename", body)).json()) as { id: string; title: string | null },
   sessionFlag: (body: ServeRequest["sessionFlag"]) => post("/api/session-flag", body),
   settings: async () => (await (await call("GET", "/api/settings")).json()) as SettingsView,
+  channels: async (body: ServeRequest["channels"]) =>
+    (await (await call("POST", "/api/settings/channels", body)).json()) as SettingsView,
   addModel: async (body: ServeRequest["addModel"]) =>
     (await (await call("POST", "/api/settings/models", body)).json()) as SettingsView,
   removeModel: async (body: ServeRequest["removeModel"]) =>

@@ -2,6 +2,8 @@ import type { SettingsView } from "@typescript-agent-harness/cli";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { TrashIcon } from "./icons";
+import { settingsMessages as t } from "../i18n/settings.en";
+import { ChannelsSettings } from "./ChannelsSettings";
 import { SkillsSettings } from "./SkillsSettings";
 
 const text = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -26,7 +28,7 @@ const CloseIcon = () => (
   </svg>
 );
 
-const SECTIONS = { models: "Models", web: "Web search", skills: "Skills" } as const;
+const SECTIONS = t.sections;
 type Section = keyof typeof SECTIONS;
 
 /** Cursor-style settings: section nav on the left, the chosen page on the right. */
@@ -49,9 +51,9 @@ export function Settings(props: {
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="settings" role="dialog" aria-label="Settings">
+      <div className="settings" role="dialog" aria-label={t.title}>
         <nav className="settings-nav">
-          <div className="settings-nav-title">Settings</div>
+          <div className="settings-nav-title">{t.title}</div>
           {(Object.keys(SECTIONS) as Section[]).map((key) => (
             <button key={key} type="button" className={key === section ? "active" : undefined} onClick={() => setSection(key)}>
               {SECTIONS[key]}
@@ -61,7 +63,7 @@ export function Settings(props: {
         <section className="settings-body">
           <header className="settings-head">
             <h2>{SECTIONS[section]}</h2>
-            <button type="button" className="icon-btn" aria-label="Close settings" title="Close" onClick={onClose}>
+            <button type="button" className="icon-btn" aria-label={t.close} title="Close" onClick={onClose}>
               <CloseIcon />
             </button>
           </header>
@@ -69,6 +71,8 @@ export function Settings(props: {
             <ModelsSettings busy={props.busy} view={props.view} onChange={props.onChange} />
           ) : section === "web" ? (
             <WebSettings busy={props.busy} view={props.view} onChange={props.onChange} />
+          ) : section === "channels" ? (
+            <ChannelsSettings busy={props.busy} view={props.view} onChange={props.onChange} />
           ) : (
             <SkillsSettings busy={props.busy} />
           )}
