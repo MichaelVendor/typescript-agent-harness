@@ -3,6 +3,8 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { startChannelHost, type ChannelHost } from "./channel-host.js";
+import { readChannelsConfig } from "./channels-config.js";
 import { startServer, StartError, type Server } from "./server.js";
 import { loadShellEnv } from "./shell-env.js";
 import { listProjects, writeLastFolder } from "./state.js";
@@ -17,6 +19,7 @@ const preloadJs = path.join(here, "..", "welcome", "preload.cjs");
 
 let env: NodeJS.ProcessEnv = process.env;
 let server: Server | undefined;
+let channelHost: ChannelHost | undefined;
 let starting: Promise<Server | undefined> | undefined;
 let win: BrowserWindow | undefined;
 /** `welcome` while on the local welcome page; otherwise the serve origin. */
@@ -106,15 +109,24 @@ async function pickFolder(kind: "open" | "new"): Promise<string | undefined> {
   return result.canceled ? undefined : result.filePaths[0];
 }
 
-/** Starts tah in `folder`, offering Retry / Quit until it starts or the user quits. */
+/** Starts tah serve (+ optional channel-host) in `folder`. */
 async function launch(folder: string): Promise<boolean> {
   if (launching) return false;
   launching = true;
   try {
     for (;;) {
       let started: Server;
+      const channels = readChannelsConfig(folder);
       try {
-        const pending = startServer({ node, cli, cwd: folder, env, onExit: (stderr) => void crashed(folder, stderr) });
+        const pending = startServer({
+          node,
+          cli,
+          cwd: folder,
+          env,
+          onExit: (stderr) => void crashed(folder, stderr),
+          // Always expose panel path so IM tickets appear when channel-host writes panel.json
+          superAgentPanel: channels.persistDir,
+        });
         starting = pending.then(
           (s) => s,
           () => undefined,
@@ -143,6 +155,21 @@ async function launch(folder: string): Promise<boolean> {
       }
       starting = undefined;
       server = started;
+      if (channels.anyEnabled) {
+        channelHost = startChannelHost({
+          node,
+          cli,
+          cwd: folder,
+          env,
+          onExit: (stderr) => {
+            log(`[desktop] channel-host exited:\n${stderr}`);
+            channelHost = undefined;
+          },
+        });
+        log(`[desktop] channel-host started (persist=${channels.persistDir})`);
+      } else {
+        log("[desktop] no IM channels enabled in tah.channels.json — skip channel-host");
+      }
       if (quitting) return false;
       writeLastFolder(home, folder);
       loadWorkbench(started.url);
@@ -153,11 +180,18 @@ async function launch(folder: string): Promise<boolean> {
   }
 }
 
+async function stopChannelHost(): Promise<void> {
+  const running = channelHost;
+  channelHost = undefined;
+  if (running) await running.stop();
+}
+
 async function stopServer(): Promise<void> {
   const pendingStart = starting;
   const running = server ?? (pendingStart ? await pendingStart : undefined);
   server = undefined;
   starting = undefined;
+  await stopChannelHost();
   if (running) await running.stop();
 }
 
@@ -190,6 +224,7 @@ async function openPicked(kind: "open" | "new"): Promise<{ ok: boolean }> {
 
 async function crashed(folder: string, stderr: string): Promise<void> {
   server = undefined;
+  await stopChannelHost();
   if (quitting) return;
   const { response } = await dialog.showMessageBox(ensureWindow(), {
     type: "error",
@@ -287,8 +322,9 @@ if (!app.requestSingleInstanceLock()) {
         } catch (err) {
           log(`[desktop] could not save the last folder: ${message(err)}`);
         }
-        await running.stop();
       }
+      await stopChannelHost();
+      if (running) await running.stop();
       stopped = true;
       app.quit();
     })();

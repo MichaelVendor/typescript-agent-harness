@@ -4,13 +4,22 @@ import http from "node:http";
 
 const mode = process.env.FAKE_MODE ?? "ok";
 const args = process.argv.slice(2);
-const cwd = args[args.indexOf("--cwd") + 1];
+const cwdIdx = args.indexOf("--cwd");
+const cwd = cwdIdx >= 0 ? args[cwdIdx + 1] : process.cwd();
 
-if (mode === "exit") {
+if (args[0] === "channel-host") {
+  console.log(`[tah] channel-host persist → ${cwd}/.tah/super-agent`);
+  console.log("[tah] Ctrl+C to stop");
+  if (mode === "channel-exit") {
+    console.error("channel-host boom");
+    process.exit(1);
+  }
+  process.on("SIGINT", () => process.exit(0));
+  setInterval(() => {}, 60_000);
+} else if (mode === "exit") {
   console.error("boom: no model configured");
   process.exit(1);
-}
-if (mode === "hang") {
+} else if (mode === "hang") {
   setInterval(() => {}, 1000);
 } else {
   if (mode === "family") {
@@ -19,6 +28,10 @@ if (mode === "hang") {
     console.log(`[fake] grandchild ${grandchild.pid}`);
   }
   const token = "secret";
+  const panel = args.includes("--super-agent-panel")
+    ? args[args.indexOf("--super-agent-panel") + 1]
+    : "";
+  if (panel) console.error(`[fake] panel=${panel}`);
   const server = http.createServer((req, res) => {
     const { port } = server.address();
     if (req.url !== "/api/workspaces" || req.headers.cookie !== `tah_token_${port}=${token}`) {

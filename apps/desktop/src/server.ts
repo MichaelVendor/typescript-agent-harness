@@ -28,10 +28,17 @@ export type ServerOptions = {
   onExit(stderr: string): void;
   startTimeoutMs?: number;
   stopTimeoutMs?: number;
+  /**
+   * Absolute path to Super-agent persistDir (`panel.json`).
+   * Passed as `tah serve --super-agent-panel` so the web sidebar shows IM tickets.
+   */
+  superAgentPanel?: string;
 };
 
 export function startServer(opts: ServerOptions): Promise<Server> {
-  const child = spawn(opts.node, [opts.cli, "serve", "--cwd", opts.cwd, "--port", "0", "--no-open"], {
+  const argv = [opts.cli, "serve", "--cwd", opts.cwd, "--port", "0", "--no-open"];
+  if (opts.superAgentPanel) argv.push("--super-agent-panel", opts.superAgentPanel);
+  const child = spawn(opts.node, argv, {
     cwd: opts.cwd,
     env: opts.env,
     stdio: ["ignore", "pipe", "pipe"],
