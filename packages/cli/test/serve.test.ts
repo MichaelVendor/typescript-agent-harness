@@ -221,6 +221,7 @@ async function fakeServer(
   webDir = path.join(tmpdir(), "tah-no-web"),
   chooseFolder: (start?: string) => Promise<string | null> = async () => null,
   connectCdp?: (port: number) => Promise<unknown>,
+  superAgentPanelDir?: string,
 ) {
   const fake = fakeHost();
   const hub = createHub(fake.host);
@@ -239,12 +240,20 @@ async function fakeServer(
     workspaces,
     hub,
     token: TOKEN,
-    info: { approve: true, maxSteps: null, version: "0.0.0", vision: false, desktop: "/unused" },
+    info: {
+      approve: true,
+      maxSteps: null,
+      version: "0.0.0",
+      vision: false,
+      desktop: "/unused",
+      ...(superAgentPanelDir ? { superAgentPanel: true as const } : {}),
+    },
     webDir,
     persist: true,
     home,
     chooseFolder,
     ...(connectCdp ? { connectCdp } : {}),
+    ...(superAgentPanelDir ? { superAgentPanelDir } : {}),
   });
   const server = createServer(handle);
   const base = await listen(server);
@@ -1164,6 +1173,50 @@ test("browser stream: a frame parked behind a slow tab is dropped once a state e
     assert.equal(chunks.some((c) => c.includes('"OLD2"')), false);
   } finally {
     req.emit("close");
+    await s.close();
+  }
+});
+
+test("GET /api/super-agent/panel reads panel.json when enabled", async () => {
+  const panelDir = mkdtempSync(path.join(tmpdir(), "tah-sa-panel-http-"));
+  writeFileSync(
+    path.join(panelDir, "panel.json"),
+    JSON.stringify({
+      agentId: "sa1",
+      status: "running",
+      needsHuman: [],
+      running: [
+        {
+          id: "t9",
+          mandateId: "m1",
+          goal: "fix login",
+          status: "running",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      recentReplies: [],
+      subscriptions: [],
+    }),
+  );
+  const s = await fakeServer(undefined, undefined, undefined, panelDir);
+  const api = client(s.base, s.cookie);
+  try {
+    assert.equal(JSON.parse((await api.get("/api/info")).body).superAgentPanel, true);
+    const res = await api.get("/api/super-agent/panel");
+    assert.equal(res.status, 200);
+    const body = JSON.parse(res.body) as { agentId: string; running: { goal: string }[] };
+    assert.equal(body.agentId, "sa1");
+    assert.equal(body.running[0]?.goal, "fix login");
+  } finally {
+    await s.close();
+  }
+});
+
+test("GET /api/super-agent/panel is 404 when disabled", async () => {
+  const s = await fakeServer();
+  try {
+    assert.equal((await client(s.base, s.cookie).get("/api/super-agent/panel")).status, 404);
+  } finally {
     await s.close();
   }
 });

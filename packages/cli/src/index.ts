@@ -19,6 +19,7 @@ export type {
   FileStat,
   RecentFolder,
   PermissionMode,
+  ReviewPanelSnapshot,
   ServeError,
   ServeInfo,
   ServeRequest,

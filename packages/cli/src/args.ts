@@ -45,6 +45,13 @@ export type CliFlags = {
   project: boolean;
   /** `tah skill add`: only these skill folder names (repeatable). */
   skillNames: string[];
+  /**
+   * `tah serve`: path to a Super-agent persistDir (with `panel.json`).
+   * Enables read-only `GET /api/super-agent/panel` + sidebar ticket card. Default off.
+   */
+  superAgentPanel: string;
+  /** `tah channel-host`: use in-process mock IM instead of real bots. */
+  mockChannel: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -81,6 +88,8 @@ export function parseArgv(argv: string[]): CliFlags {
     visionSet: visionFromEnv,
     project: false,
     skillNames: [],
+    superAgentPanel: "",
+    mockChannel: false,
   };
   const rest: string[] = [];
   let help = false;
@@ -130,6 +139,13 @@ export function parseArgv(argv: string[]): CliFlags {
       flags.port = n;
       portSet = true;
       i += 1;
+    } else if (arg === "--super-agent-panel") {
+      const next = argv[i + 1];
+      if (!next) throw new Error("--super-agent-panel requires a persist directory");
+      flags.superAgentPanel = next;
+      i += 1;
+    } else if (arg === "--mock-channel") {
+      flags.mockChannel = true;
     } else if (arg === "--host") {
       const next = argv[i + 1];
       if (!next) throw new Error("--host requires a bind address");
@@ -211,6 +227,7 @@ export function parseArgv(argv: string[]): CliFlags {
   flags.command = rest[0] ?? "help";
   flags.prompt = rest.slice(1).join(" ");
   if (flags.command === "agent-host" && !portSet) flags.port = 7800;
+  if (flags.command === "channel-host" && !portSet) flags.port = 7430;
   return flags;
 }
 
@@ -224,6 +241,7 @@ Usage:
                        /exit /reset /sessions /resume <id|n> /fork [turns]
   tah serve            web UI on 127.0.0.1 for this machine's agent; prints a one-time login link
   tah agent-host       headless /v1 HTTP (Bearer); default 0.0.0.0:7800
+  tah channel-host     Super-agent IM bridge (Telegram/Slack/飞书); default hooks 127.0.0.1:7430
   tah sessions         list saved sessions (newest first; numbers work with --session)
   tah init             scaffold a project (AGENTS.md, tools/, package.json) and install it
   tah skill add <src>  install skills from GitHub (owner/repo), a git URL, or a local path
@@ -256,6 +274,9 @@ Flags:
   --plain             tah chat: line mode instead of the terminal UI
   --port <n>          tah serve: port on 127.0.0.1 (default 7420; 0 = any free port)
                       tah agent-host: listen port (default 7800; 0 = any free port)
+  --super-agent-panel <dir>
+                      tah serve: read-only Super-agent ticket panel from persistDir (panel.json)
+  --mock-channel      tah channel-host: in-process mock IM (no real bot tokens)
   --host <addr>       tah agent-host: bind address (default 0.0.0.0)
   --project-id <id>   tah agent-host: project id (or TAH_PROJECT_ID)
   --no-open           tah serve: do not open the browser

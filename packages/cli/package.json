@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/cli",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "typescript-agent-harness CLI (tah)",
   "type": "module",
   "bin": {
@@ -29,6 +29,7 @@
   "dependencies": {
     "@playwright/mcp": "0.0.83",
     "@typescript-agent-harness/agent": "workspace:*",
+    "@typescript-agent-harness/channels": "workspace:*",
     "@typescript-agent-harness/core": "workspace:*",
     "@typescript-agent-harness/llm": "workspace:*",
     "@typescript-agent-harness/mcp": "workspace:*",

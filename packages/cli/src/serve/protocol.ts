@@ -6,7 +6,18 @@ import type { SessionRow } from "../sessions.js";
 export type { PermissionMode };
 
 /** `GET /api/info`; `maxSteps` is null when unlimited; `desktop` is where "New folder" starts (home when there is no Desktop). */
-export type ServeInfo = { approve: boolean; maxSteps: number | null; version: string; vision: boolean; desktop: string };
+export type ServeInfo = {
+  approve: boolean;
+  maxSteps: number | null;
+  version: string;
+  vision: boolean;
+  desktop: string;
+  /** Present when `tah serve --super-agent-panel <dir>` — UI may poll `GET /api/super-agent/panel`. */
+  superAgentPanel?: true;
+};
+
+/** `GET /api/super-agent/panel` body (read-only Super-agent snapshot). */
+export type { ReviewPanelSnapshot } from "@typescript-agent-harness/agent";
 
 /** Request bodies of the `POST /api/*` commands that take one. */
 export type ServeRequest = {

@@ -28,6 +28,7 @@ import { importSkills, removeSkill } from "../skills/install.js";
 import { addRemoteSkills } from "../skills/remote.js";
 import type { FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
 import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
+import { readSuperAgentPanel } from "./super-agent-panel.js";
 import { loadSuggestions } from "./suggestions.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
 
@@ -65,6 +66,11 @@ export type ServeOptions = {
   chooseFolder?: (start?: string) => Promise<string | null>;
   /** Chrome DevTools connection for the browser panel; defaults to the real one (tests inject a fake). */
   connectCdp?: (port: number) => Promise<Cdp>;
+  /**
+   * Super-agent persistDir (writes `panel.json`). When set, `GET /api/super-agent/panel` is enabled.
+   * Does not start a Super-agent or touch DefaultLoop.
+   */
+  superAgentPanelDir?: string;
 };
 
 class HttpError extends Error {
@@ -618,6 +624,15 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           return json(res, 200, { path: await (opts.chooseFolder ?? chooseFolder)(start) });
         } finally {
           choosing = false;
+        }
+      }
+      case "GET /api/super-agent/panel": {
+        const dir = opts.superAgentPanelDir;
+        if (!dir) throw new HttpError(404, "super-agent panel not enabled — pass --super-agent-panel <dir>");
+        try {
+          return json(res, 200, readSuperAgentPanel(dir));
+        } catch (err) {
+          throw new HttpError(404, err instanceof Error ? err.message : String(err));
         }
       }
     }

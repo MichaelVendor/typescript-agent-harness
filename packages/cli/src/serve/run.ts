@@ -53,6 +53,7 @@ export async function startServe(
   try {
     await host.open();
     workspaces = createWorkspaces({ cwd: flags.cwd, home, host, hub, createHost: hostFor, readSessions: readSavedSessions });
+    const panelDir = flags.superAgentPanel ? path.resolve(flags.superAgentPanel) : "";
     const handler = createServeHandler({
       workspaces,
       hub,
@@ -63,10 +64,12 @@ export async function startServe(
         version: pkg.version,
         vision: flags.vision,
         desktop: existsSync(path.join(home, "Desktop")) ? path.join(home, "Desktop") : home,
+        ...(panelDir ? { superAgentPanel: true as const } : {}),
       },
       webDir: fileURLToPath(new URL("../web/", import.meta.url)),
       persist: flags.persist,
       home,
+      ...(panelDir ? { superAgentPanelDir: panelDir } : {}),
     });
     closeAll = handler.closeAll;
     server = createServer(handler.handle);
