@@ -25,6 +25,41 @@ export {
   parseTurnOutput,
   type SessionTurnRunnerOptions,
 } from "./room-session.js";
+export {
+  SuperAgent,
+  createSuperAgent,
+  matchesTicketStatusSubsequence,
+  type CreateSuperAgentInput,
+  type Mandate,
+  type MandateId,
+  type ReviewPanelSnapshot,
+  type RouterAction,
+  type RouterDecideInput,
+  type SuperAgentEvent,
+  type SuperAgentMeta,
+  type SuperAgentStatus,
+  type Ticket,
+  type TicketId,
+  type TicketStatus,
+  type ThreadId,
+  type WorkerId,
+  type WorkerReport,
+  type WorkerRunInput,
+} from "./super-agent.js";
+export {
+  SUPER_AGENT_ROUTER_DENIED_TOOLS,
+  buildRouterPrompt,
+  buildWorkerPrompt,
+  createSessionSuperAgentRunners,
+  parseRouterAction,
+  parseWorkerReport,
+  type SessionSuperAgentRunnersOptions,
+} from "./super-agent-session.js";
+export {
+  createMockGitHubSource,
+  type MockGitHubComment,
+  type MockGitHubSource,
+} from "./super-agent-source.js";
 export type {
   AgentLoop,
   AgentLoopEvent,

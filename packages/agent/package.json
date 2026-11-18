@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/agent",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Session, DefaultLoop, and agent orchestration",
   "type": "module",
   "main": "./dist/index.js",
@@ -26,6 +26,7 @@
     "@typescript-agent-harness/tools": "workspace:*"
   },
   "devDependencies": {
+    "@typescript-agent-harness/permissions": "workspace:*",
     "@types/node": "^22.18.0",
     "typescript": "^5.9.2"
   },
