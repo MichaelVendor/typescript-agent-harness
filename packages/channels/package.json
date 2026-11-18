@@ -1,0 +1,42 @@
+{
+  "name": "@typescript-agent-harness/channels",
+  "version": "1.7.1",
+  "description": "IM channel adapters for Super-agent (Telegram / Slack / Feishu)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "typescript": "^5.9.2"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelVendor/typescript-agent-harness.git",
+    "directory": "packages/channels"
+  },
+  "homepage": "https://MichaelVendor.github.io/typescript-agent-harness/",
+  "bugs": {
+    "url": "https://github.com/MichaelVendor/typescript-agent-harness/issues"
+  }
+}
