@@ -50,6 +50,11 @@ export type CliFlags = {
    * Enables read-only `GET /api/super-agent/panel` + sidebar ticket card. Default off.
    */
   superAgentPanel: string;
+  /**
+   * `tah serve`: embed Super-agent and route web chat through it (local `web:` channel).
+   * Implies `--super-agent-panel` (default `.tah/super-agent` when panel unset). DefaultLoop unchanged when off.
+   */
+  superAgent: boolean;
   /** `tah channel-host`: use in-process mock IM instead of real bots. */
   mockChannel: boolean;
 };
@@ -89,6 +94,7 @@ export function parseArgv(argv: string[]): CliFlags {
     project: false,
     skillNames: [],
     superAgentPanel: "",
+    superAgent: false,
     mockChannel: false,
   };
   const rest: string[] = [];
@@ -144,6 +150,8 @@ export function parseArgv(argv: string[]): CliFlags {
       if (!next) throw new Error("--super-agent-panel requires a persist directory");
       flags.superAgentPanel = next;
       i += 1;
+    } else if (arg === "--super-agent") {
+      flags.superAgent = true;
     } else if (arg === "--mock-channel") {
       flags.mockChannel = true;
     } else if (arg === "--host") {
@@ -228,6 +236,7 @@ export function parseArgv(argv: string[]): CliFlags {
   flags.prompt = rest.slice(1).join(" ");
   if (flags.command === "agent-host" && !portSet) flags.port = 7800;
   if (flags.command === "channel-host" && !portSet) flags.port = 7430;
+  if (flags.superAgent && !flags.superAgentPanel) flags.superAgentPanel = ".tah/super-agent";
   return flags;
 }
 
@@ -274,6 +283,7 @@ Flags:
   --plain             tah chat: line mode instead of the terminal UI
   --port <n>          tah serve: port on 127.0.0.1 (default 7420; 0 = any free port)
                       tah agent-host: listen port (default 7800; 0 = any free port)
+  --super-agent       tah serve: chat via embedded Super-agent (web local channel); implies panel
   --super-agent-panel <dir>
                       tah serve: read-only Super-agent ticket panel from persistDir (panel.json)
   --mock-channel      tah channel-host: in-process mock IM (no real bot tokens)

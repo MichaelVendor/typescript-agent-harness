@@ -5,8 +5,42 @@ import path from "node:path";
 /** One OpenAI-compatible model; `baseURL` defaults from the model name (see `defaultBaseURL`); `vision`: it reads images. */
 export type ModelEntry = { id: string; model: string; apiKey: string; baseURL?: string; vision?: true };
 
+/** IM bot secrets (Settings → 即时消息); env vars still win when set. */
+export type ChannelSecrets = {
+  telegramBotToken?: string;
+  slackBotToken?: string;
+  slackSigningSecret?: string;
+  feishuAppId?: string;
+  feishuAppSecret?: string;
+  feishuVerificationToken?: string;
+};
+
 /** `<home>/.tah/settings.json`; the active model and the search key win over `.env`. */
-export type Settings = { models: ModelEntry[]; activeModel?: string; tavilyApiKey?: string };
+export type Settings = {
+  models: ModelEntry[];
+  activeModel?: string;
+  tavilyApiKey?: string;
+  channels?: ChannelSecrets;
+};
+
+function parseChannelSecrets(raw: unknown): ChannelSecrets | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const c = raw as Record<string, unknown>;
+  const out: ChannelSecrets = {};
+  const keys: (keyof ChannelSecrets)[] = [
+    "telegramBotToken",
+    "slackBotToken",
+    "slackSigningSecret",
+    "feishuAppId",
+    "feishuAppSecret",
+    "feishuVerificationToken",
+  ];
+  for (const k of keys) {
+    const v = c[k];
+    if (typeof v === "string" && v.trim()) out[k] = v.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 
 export function settingsPath(home: string): string {
   return path.join(home, ".tah", "settings.json");
@@ -16,7 +50,12 @@ export function loadSettings(home: string): Settings {
   const file = settingsPath(home);
   if (!existsSync(file)) return { models: [] };
   try {
-    const raw = JSON.parse(readFileSync(file, "utf8")) as { models?: unknown; activeModel?: unknown; tavilyApiKey?: unknown };
+    const raw = JSON.parse(readFileSync(file, "utf8")) as {
+      models?: unknown;
+      activeModel?: unknown;
+      tavilyApiKey?: unknown;
+      channels?: unknown;
+    };
     const models = (Array.isArray(raw?.models) ? raw.models : [])
       .filter(
         (m): m is ModelEntry =>
@@ -30,11 +69,21 @@ export function loadSettings(home: string): Settings {
         model,
         apiKey,
         ...(baseURL !== undefined ? { baseURL } : {}),
-        ...(vision === true ? { vision } : {}),
+        ...(vision === true ? { vision: true as const } : {}),
       }));
-    const active = typeof raw?.activeModel === "string" && models.some((m) => m.id === raw.activeModel) ? raw.activeModel : undefined;
-    const tavily = typeof raw?.tavilyApiKey === "string" && raw.tavilyApiKey ? { tavilyApiKey: raw.tavilyApiKey } : {};
-    return active ? { models, activeModel: active, ...tavily } : { models, ...tavily };
+    const active =
+      typeof raw?.activeModel === "string" && models.some((m) => m.id === raw.activeModel)
+        ? raw.activeModel
+        : undefined;
+    const tavily =
+      typeof raw?.tavilyApiKey === "string" && raw.tavilyApiKey ? { tavilyApiKey: raw.tavilyApiKey } : {};
+    const channels = parseChannelSecrets(raw.channels);
+    return {
+      models,
+      ...(active ? { activeModel: active } : {}),
+      ...tavily,
+      ...(channels ? { channels } : {}),
+    };
   } catch {
     // unreadable file: treat as no settings
     return { models: [] };

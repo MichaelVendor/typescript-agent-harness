@@ -21,6 +21,7 @@ export type {
   PermissionMode,
   ReviewPanelSnapshot,
   ServeError,
+  ChannelsSettingsView,
   ServeInfo,
   ServeRequest,
   SettingsView,

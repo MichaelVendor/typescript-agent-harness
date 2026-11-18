@@ -1,11 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { resolveChannelSecrets } from "../channels-settings.js";
 
 export type ChannelHostFileConfig = {
   persistDir?: string;
   port?: number;
   channels?: {
-    telegram?: { enabled?: boolean };
+    telegram?: { enabled?: boolean; mirrorChatId?: number | string | null };
     slack?: { enabled?: boolean };
     feishu?: { enabled?: boolean };
   };
@@ -24,7 +26,10 @@ export type ChannelHostResolved = {
   };
 };
 
-export function loadChannelHostConfig(cwd: string, opts?: { port?: number }): ChannelHostResolved {
+export function loadChannelHostConfig(
+  cwd: string,
+  opts?: { port?: number; homeDir?: string },
+): ChannelHostResolved {
   const filePath = path.join(cwd, "tah.channels.json");
   let file: ChannelHostFileConfig = {};
   if (existsSync(filePath)) {
@@ -33,23 +38,24 @@ export function loadChannelHostConfig(cwd: string, opts?: { port?: number }): Ch
   const persistDir = path.resolve(cwd, file.persistDir ?? ".tah/super-agent");
   const port = opts?.port && opts.port > 0 ? opts.port : (file.port ?? 7430);
   const ch = file.channels ?? {};
+  const secrets = resolveChannelSecrets(opts?.homeDir ?? os.homedir());
   return {
     persistDir,
     port,
     telegram: {
       enabled: ch.telegram?.enabled === true,
-      token: process.env.TELEGRAM_BOT_TOKEN ?? "",
+      token: secrets.telegramToken,
     },
     slack: {
       enabled: ch.slack?.enabled === true,
-      botToken: process.env.SLACK_BOT_TOKEN ?? "",
-      signingSecret: process.env.SLACK_SIGNING_SECRET ?? "",
+      botToken: secrets.slackBotToken,
+      signingSecret: secrets.slackSigningSecret,
     },
     feishu: {
       enabled: ch.feishu?.enabled === true,
-      appId: process.env.FEISHU_APP_ID ?? "",
-      appSecret: process.env.FEISHU_APP_SECRET ?? "",
-      verificationToken: process.env.FEISHU_VERIFICATION_TOKEN ?? "",
+      appId: secrets.feishuAppId,
+      appSecret: secrets.feishuAppSecret,
+      verificationToken: secrets.feishuVerificationToken,
     },
   };
 }

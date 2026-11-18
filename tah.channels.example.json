@@ -2,7 +2,10 @@
   "persistDir": ".tah/super-agent",
   "port": 7430,
   "channels": {
-    "telegram": { "enabled": false },
+    "telegram": {
+      "enabled": false,
+      "mirrorChatId": null
+    },
     "slack": { "enabled": false },
     "feishu": { "enabled": false }
   }

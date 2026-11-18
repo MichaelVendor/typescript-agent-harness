@@ -12,6 +12,11 @@ import { isPermissionMode } from "../permission-mode.js";
 import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
 import {
+  channelsSettingsView,
+  saveChannelsSettings,
+  type ChannelsSettingsPatch,
+} from "../channels-settings.js";
+import {
   activeModel,
   addModel,
   defaultBaseURL,
@@ -26,7 +31,7 @@ import {
 import { discoverSkills } from "../skills/discover.js";
 import { importSkills, removeSkill } from "../skills/install.js";
 import { addRemoteSkills } from "../skills/remote.js";
-import type { FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
+import type { ChannelsSettingsView, FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
 import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
 import { readSuperAgentPanel } from "./super-agent-panel.js";
 import { loadSuggestions } from "./suggestions.js";
@@ -71,6 +76,8 @@ export type ServeOptions = {
    * Does not start a Super-agent or touch DefaultLoop.
    */
   superAgentPanelDir?: string;
+  /** After IM settings are saved: hot-reload adapters (or bootstrap Super-agent). */
+  onChannelsApplied?: () => Promise<void>;
 };
 
 class HttpError extends Error {
@@ -201,6 +208,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         : searchKey(opts.home)
           ? { source: "env", keyHint: keyHint(searchKey(opts.home)!) }
           : null,
+      channels: channelsSettingsView(workspaces.cwd, opts.home),
     };
   };
   const skillsView = (): SkillsView => {
@@ -579,6 +587,19 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         setSearchKey(opts.home, body.apiKey);
         await host().reload();
         return json(res, 200, settingsView());
+      }
+      case "GET /api/settings/channels":
+        return json(res, 200, channelsSettingsView(workspaces.cwd, opts.home) satisfies ChannelsSettingsView);
+      case "POST /api/settings/channels": {
+        const body = (await readBody(req)) as ChannelsSettingsPatch;
+        hub.assertIdle();
+        try {
+          const channels = saveChannelsSettings(workspaces.cwd, opts.home, body);
+          if (opts.onChannelsApplied) await opts.onChannelsApplied();
+          return json(res, 200, { ...settingsView(), channels });
+        } catch (err) {
+          throw new HttpError(400, err instanceof Error ? err.message : String(err));
+        }
       }
       case "GET /api/suggestions":
         return json(res, 200, { suggestions: await loadSuggestions(workspaces.cwd) });

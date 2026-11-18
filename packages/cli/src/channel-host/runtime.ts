@@ -38,6 +38,10 @@ export type CreateChannelHostEngineInput = {
   mockLlm?: boolean;
   llm?: LLMService;
   homeDir?: string;
+  /** Observe inbound before Super-agent ingest (bridge / UI). */
+  onInbound?: (msg: InboundMessage) => void;
+  /** Observe outbound after adapter.send (bridge / UI). */
+  onOutbound?: (replyTo: ReplyHandle, text: string) => void | Promise<void>;
 };
 
 function stubLlm(): LLMService {
@@ -169,6 +173,7 @@ export async function createChannelHostEngine(
     const adapter = adapterByName.get(name) ?? [...adapterByName.values()][0];
     if (!adapter) return;
     await adapter.send(handle, text);
+    await input.onOutbound?.(handle, text);
   }
 
   let pumping: Promise<void> | undefined;
@@ -198,6 +203,7 @@ export async function createChannelHostEngine(
   }
 
   function handleInbound(msg: InboundMessage): void {
+    input.onInbound?.(msg);
     routes.set(msg.threadId, msg.replyTo);
     lastRoute = msg.replyTo;
     lastThreadId = msg.threadId;

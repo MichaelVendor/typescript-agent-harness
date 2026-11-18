@@ -21,6 +21,8 @@ export type Workspaces = {
   remove(dir: string): void;
   /** Opens `dir` and moves every tab to it; false when it already was current. On failure the current folder stays. */
   activate(dir: string): Promise<boolean>;
+  /** Swap the live host without closing the previous one (e.g. wrap with Super-agent). */
+  replaceHost(next: ChatHost): void;
   renameSession(cwd: string | undefined, id: string, title: string): Promise<string | undefined>;
   setSessionFlag(cwd: string | undefined, id: string, flag: SessionFlag, on: boolean): Promise<void>;
   close(): Promise<void>;
@@ -135,6 +137,11 @@ export function createWorkspaces(opts: {
       } finally {
         switching = false;
       }
+    },
+    replaceHost(next) {
+      opts.hub.assertIdle();
+      opts.hub.swap(next, []);
+      current = { cwd: current.cwd, host: next };
     },
     async renameSession(cwd, id, title) {
       const target = await other(cwd, id);

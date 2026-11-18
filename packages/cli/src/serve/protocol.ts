@@ -14,6 +14,8 @@ export type ServeInfo = {
   desktop: string;
   /** Present when `tah serve --super-agent-panel <dir>` — UI may poll `GET /api/super-agent/panel`. */
   superAgentPanel?: true;
+  /** Present when `tah serve --super-agent` — composer send goes to embedded Super-agent. */
+  superAgentChat?: true;
 };
 
 /** `GET /api/super-agent/panel` body (read-only Super-agent snapshot). */
@@ -47,6 +49,8 @@ export type ServeRequest = {
   activeModel: { id: string | null };
   /** Tavily API key; `null` removes it. */
   searchKey: { apiKey: string | null };
+  /** IM channels for the open folder (partial patch). */
+  channels: import("../channels-settings.js").ChannelsSettingsPatch;
   /** A skill folder, or a folder of skill folders (e.g. `~/.cursor/skills`), copied into `~/.tah/skills`. */
   importSkills: { path: string };
   /**
@@ -85,6 +89,9 @@ export type WorkspaceView = {
   sessions: SessionRow[];
 };
 
+/** `GET /api/settings` / `GET|POST /api/settings/channels` — IM toggles + key hints (never raw tokens). */
+export type { ChannelsSettingsView } from "../channels-settings.js";
+
 /** `GET /api/settings`; API keys only ever leave the server as `keyHint`. `baseURL` is the effective one. */
 export type SettingsView = {
   user: string;
@@ -94,6 +101,8 @@ export type SettingsView = {
   env: { model: string; key: "DEEPSEEK_API_KEY" | "OPENAI_API_KEY" } | null;
   /** Tavily key for `web_search`: from settings (removable here) or `TAVILY_API_KEY`; `null` = no key, search uses Exa, then Bing. */
   search: { source: "settings" | "env"; keyHint: string } | null;
+  /** Current folder's IM channels (`tah.channels.json` + secrets in ~/.tah/settings.json). */
+  channels: import("../channels-settings.js").ChannelsSettingsView;
 };
 
 /** `GET /api/skills`: what the open folder loads. `home` = `~/.tah/skills` (every folder); `folder` = inside the open folder. */
