@@ -1,6 +1,6 @@
 # Super-agent（从 Agent Room 演进）设计草稿
 
-状态：S1–S4 已实现（旁路 `createSuperAgent` … + serve 只读工单：`tah serve --super-agent-panel <persistDir>` → `GET /api/super-agent/panel` + 侧栏「工单」；默认 chat 不变）。真渠道适配仍 📐。对照 DeepSeek Super-agent；**不改 DefaultLoop**。  
+状态：S1–S4 已实现（旁路 `createSuperAgent` … + serve 只读工单：`tah serve --super-agent-panel <persistDir>` → `GET /api/super-agent/panel` + 侧栏「工单」；**`tah serve --super-agent`** 网页内嵌聊，本地 `web:` channel，默认 chat 不变）。渠道 P0 见 channel-host 设计。对照 DeepSeek Super-agent；**不改 DefaultLoop**。  
 前序：`docs/superpowers/specs/2026-11-06-agent-room-min-design.md`（P0 Room 已实现）。Room 并行保留。
 
 ## 背景
