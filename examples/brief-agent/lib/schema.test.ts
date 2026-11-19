@@ -1,0 +1,64 @@
+// examples/brief-agent/lib/schema.test.ts
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { validateBrief, type Brief } from "./schema.ts";
+
+describe("validateBrief", () => {
+  it("rejects invented rank when rank is null", () => {
+    const brief: Brief = {
+      market: "DE",
+      conclusion: "本批可继续观察",
+      rows: [
+        {
+          id: "B0",
+          title: "Tray",
+          priceEur: null,
+          rank: null,
+          bullets: ["不锈钢"],
+          reviewThemes: ["生锈"],
+          changes: [],
+          evidence: [
+            { claim: "标题含 Edelstahl", source: "mock", detail: "B0" },
+            { claim: "差评提到 Rost", source: "mock", detail: "B0" },
+            { claim: "无排名数据", source: "mock", detail: "rank=null" },
+          ],
+        },
+      ],
+      gaps: ["缺价格"],
+      failures: [],
+      truncated: false,
+      markdown: "x",
+    };
+    const problems = validateBrief(brief);
+    assert.equal(problems.length, 0);
+  });
+
+  it("flags markdown that invents a euro price when priceEur is null", () => {
+    const brief: Brief = {
+      market: "DE",
+      conclusion: "观察",
+      rows: [
+        {
+          id: "B0",
+          title: "Tray",
+          priceEur: null,
+          rank: null,
+          bullets: [],
+          reviewThemes: [],
+          changes: [],
+          evidence: [
+            { claim: "a", source: "m", detail: "1" },
+            { claim: "b", source: "m", detail: "2" },
+            { claim: "c", source: "m", detail: "3" },
+          ],
+        },
+      ],
+      gaps: ["缺价格"],
+      failures: [],
+      truncated: false,
+      markdown: "售价约 €19.99",
+    };
+    const problems = validateBrief(brief);
+    assert.ok(problems.some((p) => p.path === "markdown" && /臆造|缺价格/.test(p.message)));
+  });
+});
