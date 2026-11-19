@@ -1,5 +1,6 @@
 import type { WorkspaceView } from "@typescript-agent-harness/cli";
 import { useEffect, useRef, useState, type MouseEvent as ClickEvent } from "react";
+import { createPortal } from "react-dom";
 import { flatSessions, label, searchSessions, shownSessions, splitMatch, type Item } from "../sidebar-view";
 
 type Flag = "pinned" | "archived";
@@ -397,6 +398,86 @@ export function Sidebar(props: {
 
   const results = searchSessions(all, query ?? "");
 
+  const menuItems =
+    menu?.kind === "session" ? (
+      <>
+        <li>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={act(() => props.onFlag(menu.item.session.id, "pinned", !menu.item.session.pinned, menu.item.ws.path))}
+          >
+            {menu.item.session.pinned ? "Unpin" : "Pin"}
+          </button>
+        </li>
+        <li>
+          <button type="button" role="menuitem" disabled={props.busy} onClick={act(() => startEdit(menu.item))}>
+            Rename
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={props.busy}
+            onClick={act(() => props.onFork(menu.item.session.id, menu.item.ws.path))}
+          >
+            Fork
+          </button>
+        </li>
+        <li>
+          <button type="button" role="menuitem" onClick={act(() => void navigator.clipboard?.writeText(menu.item.session.id))}>
+            Copy ID
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={act(() => props.onFlag(menu.item.session.id, "archived", true, menu.item.ws.path))}
+          >
+            Archive
+          </button>
+        </li>
+      </>
+    ) : menu?.kind === "folder" ? (
+      <li>
+        <button type="button" role="menuitem" onClick={act(() => props.onRemoveFolder(menu.ws.path))}>
+          Remove from list
+        </button>
+      </li>
+    ) : menu?.kind === "add" ? (
+      <>
+        <li>
+          <button type="button" role="menuitem" onClick={act(props.onOpenProject)}>
+            Open project…
+          </button>
+        </li>
+        <li>
+          <button type="button" role="menuitem" onClick={act(props.onNewFolder)}>
+            New folder…
+          </button>
+        </li>
+      </>
+    ) : menu?.kind === "view" ? (
+      <>
+        <li className="menu-label">Group by</li>
+        {(
+          [
+            ["workspace", "Workspace"],
+            ["flat", "One list"],
+          ] as const
+        ).map(([g, text]) => (
+          <li key={g}>
+            <button type="button" role="menuitemradio" aria-checked={groupBy === g} onClick={act(() => pickGroup(g))}>
+              <span className="menu-check">{groupBy === g ? "✓" : ""}</span>
+              {text}
+            </button>
+          </li>
+        ))}
+      </>
+    ) : null;
+
   const footer =
     props.user !== undefined ? (
       <div className="sidebar-user">
@@ -535,89 +616,15 @@ export function Sidebar(props: {
           {footer}
         </>
       )}
-      {menu?.kind === "session" ? (
-        <ul ref={menuRef} className="context-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
-          <li>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={act(() => props.onFlag(menu.item.session.id, "pinned", !menu.item.session.pinned, menu.item.ws.path))}
-            >
-              {menu.item.session.pinned ? "Unpin" : "Pin"}
-            </button>
-          </li>
-          <li>
-            <button type="button" role="menuitem" disabled={props.busy} onClick={act(() => startEdit(menu.item))}>
-              Rename
-            </button>
-          </li>
-          <li>
-            <button
-              type="button"
-              role="menuitem"
-              disabled={props.busy}
-              onClick={act(() => props.onFork(menu.item.session.id, menu.item.ws.path))}
-            >
-              Fork
-            </button>
-          </li>
-          <li>
-            <button type="button" role="menuitem" onClick={act(() => void navigator.clipboard?.writeText(menu.item.session.id))}>
-              Copy ID
-            </button>
-          </li>
-          <li>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={act(() => props.onFlag(menu.item.session.id, "archived", true, menu.item.ws.path))}
-            >
-              Archive
-            </button>
-          </li>
-        </ul>
-      ) : null}
-      {menu?.kind === "folder" ? (
-        <ul ref={menuRef} className="context-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
-          <li>
-            <button type="button" role="menuitem" onClick={act(() => props.onRemoveFolder(menu.ws.path))}>
-              Remove from list
-            </button>
-          </li>
-        </ul>
-      ) : null}
-      {menu?.kind === "add" ? (
-        <ul ref={menuRef} className="context-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
-          <li>
-            <button type="button" role="menuitem" onClick={act(props.onOpenProject)}>
-              Open project…
-            </button>
-          </li>
-          <li>
-            <button type="button" role="menuitem" onClick={act(props.onNewFolder)}>
-              New folder…
-            </button>
-          </li>
-        </ul>
-      ) : null}
-      {menu?.kind === "view" ? (
-        <ul ref={menuRef} className="context-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
-          <li className="menu-label">Group by</li>
-          {(
-            [
-              ["workspace", "Workspace"],
-              ["flat", "One list"],
-            ] as const
-          ).map(([g, text]) => (
-            <li key={g}>
-              <button type="button" role="menuitemradio" aria-checked={groupBy === g} onClick={act(() => pickGroup(g))}>
-                <span className="menu-check">{groupBy === g ? "✓" : ""}</span>
-                {text}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {/* Portaled outside #root zoom so fixed left/top match getBoundingClientRect. */}
+      {menu && menuItems
+        ? createPortal(
+            <ul ref={menuRef} className="context-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
+              {menuItems}
+            </ul>,
+            document.body,
+          )
+        : null}
     </aside>
   );
 }

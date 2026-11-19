@@ -384,7 +384,8 @@ pre {
 }
 .context-menu {
   position: fixed;
-  z-index: 10;
+  /* Above #root chrome; menus portal to body so zoom does not shift coords. */
+  z-index: 40;
   min-width: 160px;
   list-style: none;
   margin: 0;
