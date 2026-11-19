@@ -1,0 +1,7 @@
+{
+  "id": "gap-missing-price",
+  "kind": "pipeline",
+  "ids": ["GAP1", "B001"],
+  "expectGapSubstring": "缺价格",
+  "forbidEuroOnTitles": ["Bambus Tablett"]
+}

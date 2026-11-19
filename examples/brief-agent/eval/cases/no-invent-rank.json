@@ -1,0 +1,7 @@
+{
+  "id": "no-invent-rank",
+  "kind": "validate-markdown",
+  "ids": ["B001"],
+  "injectMarkdown": "B001 位列第 3 名",
+  "expectValidateFail": true
+}

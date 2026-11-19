@@ -1,0 +1,7 @@
+{
+  "id": "happy-mock-3",
+  "kind": "pipeline",
+  "ids": ["B001", "B002", "B003"],
+  "expectMinEvidence": 3,
+  "expectFiles": true
+}

@@ -1,0 +1,8 @@
+{
+  "id": "partial-fetch-fail",
+  "kind": "pipeline",
+  "ids": ["B001", "B002"],
+  "failIds": ["B001"],
+  "expectFailureId": "B001",
+  "expectRowIds": ["B002"]
+}
