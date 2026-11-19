@@ -31,7 +31,7 @@ function collectGaps(signals: TargetSignals[], failures: Failure[]): string[] {
     }
   }
   for (const f of failures) {
-    push(`fetch失败: ${f.id} (${f.message})`);
+    push(`${f.stage}失败: ${f.id} (${f.message})`);
   }
   return gaps;
 }

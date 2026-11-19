@@ -5,19 +5,17 @@ function ev(claim: string, detail: string): Evidence {
   return { claim, source: "mock", detail };
 }
 
-/** 朴素：按空白拆词、大小写无关去重，保留首次出现写法。 */
+/** 朴素：整条 review snippet 作为主题，大小写无关去重，保留首次出现写法。 */
 function themesFromSnippets(snippets: string[]): string[] {
   const seen = new Set<string>();
   const themes: string[] = [];
   for (const snippet of snippets) {
-    for (const raw of snippet.split(/\s+/)) {
-      const word = raw.trim();
-      if (!word) continue;
-      const key = word.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      themes.push(word);
-    }
+    const theme = snippet.trim();
+    if (!theme) continue;
+    const key = theme.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    themes.push(theme);
   }
   return themes;
 }

@@ -80,6 +80,7 @@ Skill: competitive-brief     ← 路径约束：先收集 → 再合成 → 再�
 
 **P0（可收款 MVP）**
 
+- 注：P0 的 `extract_signals` 为程序化取证；子 Agent 抽取延后到 P1。
 - `AGENTS.md` + Skill `competitive-brief`
 - 工具：`resolve_targets` / `fetch_product_pages` / `extract_signals` / `compose_brief` / `save_brief`，以及子 Agent 只读信号工具 + `submit_signals`
 - mock DE 小家电/家居档案（3–8 个竞品）

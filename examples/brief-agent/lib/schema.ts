@@ -41,13 +41,14 @@ export type Brief = {
 export type Problem = { path: string; message: string };
 
 const EURO_PRICE = /€\s*\d|\d+[.,]\d{2}\s*€/;
-const RANK_TEXT = /第\s*\d+\s*名|\bBSR\b|\b#\d+/i;
+/** `#3` after `|` has no word boundary before `#`, so avoid `\b#\d+`. */
+const RANK_TEXT = /第\s*\d+\s*名|\bBSR\b|#\d+/i;
 
-/** Lines that mention `needle` — used so priced peers don't false-flag null-price rows. */
-function markdownScope(markdown: string, needle: string): string {
+/** Lines that mention any of `needles` — priced peers don't false-flag null-price rows. */
+function markdownScope(markdown: string, ...needles: string[]): string {
   return markdown
     .split("\n")
-    .filter((line) => line.includes(needle))
+    .filter((line) => needles.some((n) => n.length > 0 && line.includes(n)))
     .join("\n");
 }
 
@@ -58,15 +59,20 @@ export function validateBrief(brief: Brief): Problem[] {
     if (row.evidence.length < 3) {
       problems.push({ path: `rows.${row.id}.evidence`, message: "每竞品至少 3 条 evidence" });
     }
-    if (row.priceEur === null && EURO_PRICE.test(markdownScope(brief.markdown, row.title))) {
+    const scope = markdownScope(brief.markdown, row.id, row.title);
+    if (row.priceEur === null && EURO_PRICE.test(scope)) {
       const key = "markdown:缺价格时禁止臆造欧元价";
       if (!markdownProblemKeys.has(key)) {
         markdownProblemKeys.add(key);
         problems.push({ path: "markdown", message: "缺价格时禁止臆造欧元价" });
       }
     }
-    if (row.rank === null && RANK_TEXT.test(markdownScope(brief.markdown, row.id))) {
-      problems.push({ path: "markdown", message: "无排名时禁止出现具体名次" });
+    if (row.rank === null && RANK_TEXT.test(scope)) {
+      const key = "markdown:无排名时禁止出现具体名次";
+      if (!markdownProblemKeys.has(key)) {
+        markdownProblemKeys.add(key);
+        problems.push({ path: "markdown", message: "无排名时禁止出现具体名次" });
+      }
     }
   }
   return problems;

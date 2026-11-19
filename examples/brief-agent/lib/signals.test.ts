@@ -16,4 +16,12 @@ describe("extractSignalsFromPage", () => {
     assert.ok(all.length >= 3);
     assert.equal(sig.buckets.pricing.priceEur, null);
   });
+
+  it("uses whole review snippets as themes (not whitespace tokens)", () => {
+    const b001 = loadMockCatalog().find((p) => p.id === "B001")!;
+    const sig = extractSignalsFromPage(b001);
+    assert.deepEqual(sig.buckets.reviews.themes, b001.reviewSnippets);
+    assert.ok(sig.buckets.reviews.themes.includes("schön verarbeitet"));
+    assert.equal(sig.buckets.reviews.themes.includes("schön"), false);
+  });
 });

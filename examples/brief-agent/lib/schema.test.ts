@@ -61,4 +61,62 @@ describe("validateBrief", () => {
     const problems = validateBrief(brief);
     assert.ok(problems.some((p) => p.path === "markdown" && /臆造欧元价/.test(p.message)));
   });
+
+  it("flags invented € via row.id when table title is shorter than row.title", () => {
+    const brief: Brief = {
+      market: "DE",
+      conclusion: "观察",
+      rows: [
+        {
+          id: "GAP1",
+          title: "Bambus Tablett (缺价)",
+          priceEur: null,
+          rank: null,
+          bullets: [],
+          reviewThemes: [],
+          changes: [],
+          evidence: [
+            { claim: "a", source: "m", detail: "1" },
+            { claim: "b", source: "m", detail: "2" },
+            { claim: "c", source: "m", detail: "3" },
+          ],
+        },
+      ],
+      gaps: ["缺价格: GAP1"],
+      failures: [],
+      truncated: false,
+      markdown: "| GAP1 | Bambus Tablett | €9.99 | Bambus |",
+    };
+    const problems = validateBrief(brief);
+    assert.ok(problems.some((p) => p.path === "markdown" && /臆造欧元价/.test(p.message)));
+  });
+
+  it("flags | id | #3 | rank text when rank is null", () => {
+    const brief: Brief = {
+      market: "DE",
+      conclusion: "观察",
+      rows: [
+        {
+          id: "B001",
+          title: "Dekotablett Holz 30cm",
+          priceEur: 24.99,
+          rank: null,
+          bullets: [],
+          reviewThemes: [],
+          changes: [],
+          evidence: [
+            { claim: "a", source: "m", detail: "1" },
+            { claim: "b", source: "m", detail: "2" },
+            { claim: "c", source: "m", detail: "3" },
+          ],
+        },
+      ],
+      gaps: [],
+      failures: [],
+      truncated: false,
+      markdown: "| B001 | #3 | €24.99 | Akazie |",
+    };
+    const problems = validateBrief(brief);
+    assert.ok(problems.some((p) => p.path === "markdown" && /具体名次/.test(p.message)));
+  });
 });

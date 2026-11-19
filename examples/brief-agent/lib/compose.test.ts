@@ -40,5 +40,17 @@ describe("composeBrief", () => {
     assert.equal(brief.conclusion, "本次无可用证据");
     assert.equal(brief.rows.length, 0);
     assert.equal(validateBrief(brief).length, 0);
+    assert.ok(brief.gaps.some((g) => g.startsWith("fetch失败:")));
+  });
+
+  it("labels gaps with failure stage (not hard-coded fetch)", () => {
+    const brief = composeBrief({
+      market: "DE",
+      signals: [],
+      failures: [{ id: "Y", stage: "extract", message: "injected" }],
+      truncated: false,
+    });
+    assert.ok(brief.gaps.some((g) => g === "extract失败: Y (injected)"));
+    assert.equal(brief.gaps.some((g) => g.startsWith("fetch失败:")), false);
   });
 });
