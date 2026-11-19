@@ -3,7 +3,6 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { startChannelHost, type ChannelHost } from "./channel-host.js";
 import { readChannelsConfig } from "./channels-config.js";
 import { startServer, StartError, type Server } from "./server.js";
 import { loadShellEnv } from "./shell-env.js";
@@ -19,7 +18,6 @@ const preloadJs = path.join(here, "..", "welcome", "preload.cjs");
 
 let env: NodeJS.ProcessEnv = process.env;
 let server: Server | undefined;
-let channelHost: ChannelHost | undefined;
 let starting: Promise<Server | undefined> | undefined;
 let win: BrowserWindow | undefined;
 /** `welcome` while on the local welcome page; otherwise the serve origin. */
@@ -155,20 +153,12 @@ async function launch(folder: string): Promise<boolean> {
       }
       starting = undefined;
       server = started;
+      // serve auto-enables --super-agent when IM is on (web ↔ TG bridge). A second
+      // channel-host would also getUpdates → Telegram Conflict; inbound never reaches the UI.
       if (channels.anyEnabled) {
-        channelHost = startChannelHost({
-          node,
-          cli,
-          cwd: folder,
-          env,
-          onExit: (stderr) => {
-            log(`[desktop] channel-host exited:\n${stderr}`);
-            channelHost = undefined;
-          },
-        });
-        log(`[desktop] channel-host started (persist=${channels.persistDir})`);
+        log(`[desktop] IM via serve Super-agent (persist=${channels.persistDir}) — skip separate channel-host`);
       } else {
-        log("[desktop] no IM channels enabled in tah.channels.json — skip channel-host");
+        log("[desktop] no IM channels enabled in tah.channels.json");
       }
       if (quitting) return false;
       writeLastFolder(home, folder);
@@ -180,18 +170,11 @@ async function launch(folder: string): Promise<boolean> {
   }
 }
 
-async function stopChannelHost(): Promise<void> {
-  const running = channelHost;
-  channelHost = undefined;
-  if (running) await running.stop();
-}
-
 async function stopServer(): Promise<void> {
   const pendingStart = starting;
   const running = server ?? (pendingStart ? await pendingStart : undefined);
   server = undefined;
   starting = undefined;
-  await stopChannelHost();
   if (running) await running.stop();
 }
 
@@ -224,7 +207,6 @@ async function openPicked(kind: "open" | "new"): Promise<{ ok: boolean }> {
 
 async function crashed(folder: string, stderr: string): Promise<void> {
   server = undefined;
-  await stopChannelHost();
   if (quitting) return;
   const { response } = await dialog.showMessageBox(ensureWindow(), {
     type: "error",
@@ -323,7 +305,6 @@ if (!app.requestSingleInstanceLock()) {
           log(`[desktop] could not save the last folder: ${message(err)}`);
         }
       }
-      await stopChannelHost();
       if (running) await running.stop();
       stopped = true;
       app.quit();

@@ -30,7 +30,7 @@ export type ServerOptions = {
   stopTimeoutMs?: number;
   /**
    * Absolute path to Super-agent persistDir (`panel.json`).
-   * Passed as `tah serve --super-agent-panel` so the web sidebar shows IM tickets.
+   * Passed as `tah serve --super-agent-panel`. With IM enabled, serve also embeds Super-agent chat.
    */
   superAgentPanel?: string;
 };

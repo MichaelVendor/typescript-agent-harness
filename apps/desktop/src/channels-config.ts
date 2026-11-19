@@ -1,6 +1,6 @@
 /**
  * Read project `tah.channels.json` (same shape as CLI channel-host).
- * Desktop only spawns channel-host when at least one channel is enabled.
+ * `anyEnabled` means serve will auto-enable Super-agent IM (do not also spawn channel-host).
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
