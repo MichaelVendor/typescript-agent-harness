@@ -1,6 +1,6 @@
 # 竞品/市场简报 Agent（brief-agent）设计
 
-状态：设计已确认，待写实现计划。  
+状态：P0 已实现（见 examples/brief-agent；计划 docs/superpowers/plans/2026-11-19-brief-agent.md）。  
 定位：tah 上第一款**可对外收费的垂直 Agent 产品**（应用层）；不改 DefaultLoop / Super-agent Runtime。  
 对照：同构于 `examples/selection-agent`（Skill + 子 Agent 取证 + 规则落盘 + 无模型 Eval），交付物是简报而非选品排行榜。
 
