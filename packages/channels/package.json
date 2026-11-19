@@ -1,6 +1,6 @@
 {
   "name": "@typescript-agent-harness/channels",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "IM channel adapters for Super-agent (Telegram / Slack / Feishu)",
   "type": "module",
   "main": "./dist/index.js",

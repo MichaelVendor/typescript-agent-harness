@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.3 — 2026-11-19
+
+**Super-agent:** After `ask_human`, the next user/IM message resumes the router (no more stuck `needs_human` / “produced no reply”). Web chat waits up to ~2 minutes for a reply. Desktop no longer starts a second `channel-host` when IM is enabled — serve’s embedded Super-agent owns Telegram polling (avoids `getUpdates` Conflict).
+
+**Web:** Mirrored IM messages show a channel icon (Telegram / Slack / 飞书) instead of a `[telegram]` text prefix.
+
 ## 1.7.2 — 2026-11-18
 
 **Serve Super-agent:** `tah serve --super-agent` (or any enabled IM channel) embeds Super-agent so web chat works without Telegram. Web ↔ Telegram/Slack/飞书 mirror in one process; first TG message auto-saves `mirrorChatId`.
