@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { validateBrief, type Brief } from "./schema.ts";
 
 describe("validateBrief", () => {
-  it("rejects invented rank when rank is null", () => {
+  it("accepts brief with null rank and no invented rank text", () => {
     const brief: Brief = {
       market: "DE",
       conclusion: "本批可继续观察",
@@ -56,9 +56,9 @@ describe("validateBrief", () => {
       gaps: ["缺价格"],
       failures: [],
       truncated: false,
-      markdown: "售价约 €19.99",
+      markdown: "Tray 售价约 €19.99",
     };
     const problems = validateBrief(brief);
-    assert.ok(problems.some((p) => p.path === "markdown" && /臆造|缺价格/.test(p.message)));
+    assert.ok(problems.some((p) => p.path === "markdown" && /臆造欧元价/.test(p.message)));
   });
 });
