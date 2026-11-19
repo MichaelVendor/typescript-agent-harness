@@ -261,6 +261,35 @@ test("reviewPanel 人审只读形状", async () => {
   assert.equal(panel.agentId, sa.id);
 });
 
+test("ask_human 后用户再发消息应恢复 router 并回复", async () => {
+  const seen: string[] = [];
+  const sa = createSuperAgent({
+    defaultMandate: { scope: "demo", policyVersion: "s3" },
+    async routerDecide({ event }): Promise<RouterAction> {
+      if (event.kind === "user_message") seen.push(event.text);
+      if (event.kind === "user_message" && event.text === "3") {
+        return { type: "ask_human", text: "要做什么？" };
+      }
+      return { type: "reply", text: `收到：${event.kind === "user_message" ? event.text : "?"}` };
+    },
+    async workerRun(): Promise<WorkerReport> {
+      return { text: "n/a", done: true };
+    },
+  });
+  sa.ingest({ kind: "user_message", text: "3" });
+  await sa.step();
+  assert.equal(sa.meta.status, "needs_human");
+  assert.equal(await sa.step(), null);
+
+  sa.ingest({ kind: "user_message", text: "ttt" });
+  assert.equal(sa.meta.status, "router");
+  const out = await sa.step();
+  assert.equal(out?.phase, "router");
+  assert.deepEqual(seen, ["3", "ttt"]);
+  assert.match(sa.replies().join("\n"), /收到：ttt/);
+  assert.equal(sa.meta.status, "idle");
+});
+
 test("mock GitHub Source → 订阅直达", async () => {
   const gh = createMockGitHubSource();
   let sawComment = false;

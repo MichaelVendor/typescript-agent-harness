@@ -216,7 +216,8 @@ export class SuperAgent {
     this._inbox.push(event);
     this.persistEvent(event);
     this.record("ingest", event);
-    if (this._status === "idle") {
+    // ask_human / worker needs_human park here; the next user/source event is the answer — resume.
+    if (this._status === "idle" || this._status === "needs_human") {
       this._status = "router";
       this.writeSnapshots();
     }
