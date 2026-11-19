@@ -13,10 +13,11 @@ export default defineTool({
     additionalProperties: false,
   },
   async execute(input: { targets?: unknown[]; query?: string; market?: string }) {
-    return resolveTargets({
-      market: input.market,
-      query: input.query,
+    const args: Parameters<typeof resolveTargets>[0] = {
       targets: (input.targets ?? []) as Array<Record<string, string>>,
-    });
+    };
+    if (input.market !== undefined) args.market = input.market;
+    if (input.query !== undefined) args.query = input.query;
+    return resolveTargets(args);
   },
 });
