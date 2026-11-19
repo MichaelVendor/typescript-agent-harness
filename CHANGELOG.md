@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.4 — 2026-11-19
+
+**Web:** Sidebar context menus (⋯ / right-click) portal to `document.body` again so `#root` zoom no longer misplaces Pin / Remove from list / etc.
+
 ## 1.7.3 — 2026-11-19
 
 **Super-agent:** After `ask_human`, the next user/IM message resumes the router (no more stuck `needs_human` / “produced no reply”). Web chat waits up to ~2 minutes for a reply. Desktop no longer starts a second `channel-host` when IM is enabled — serve’s embedded Super-agent owns Telegram polling (avoids `getUpdates` Conflict).
