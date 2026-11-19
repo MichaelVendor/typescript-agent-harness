@@ -1,0 +1,41 @@
+{
+  "market": "DE",
+  "products": [
+    {
+      "id": "B001",
+      "title": "Dekotablett Holz 30cm",
+      "priceEur": 24.99,
+      "rank": null,
+      "bullets": ["Akazie", "30cm", "rutschfest"],
+      "reviewSnippets": ["schön verarbeitet", "etwas klein", "guter Preis"],
+      "changeNotes": ["listing title stable"]
+    },
+    {
+      "id": "B002",
+      "title": "Edelstahl Tablett",
+      "priceEur": 19.9,
+      "rank": null,
+      "bullets": ["Edelstahl", "spülmaschinenfest"],
+      "reviewSnippets": ["Rost an Kante", "schwer", "sieht edel aus"],
+      "changeNotes": []
+    },
+    {
+      "id": "B003",
+      "title": "Marmoroptik Tablett",
+      "priceEur": 29.5,
+      "rank": null,
+      "bullets": ["Marmoroptik", "Griff"],
+      "reviewSnippets": ["leicht zerkratzt", "stabil", "Farbe weicht ab"],
+      "changeNotes": ["bullet 2 wording changed in mock history"]
+    },
+    {
+      "id": "GAP1",
+      "title": "Bambus Tablett (缺价)",
+      "priceEur": null,
+      "rank": null,
+      "bullets": ["Bambus"],
+      "reviewSnippets": ["leicht", "Geruch am Anfang"],
+      "changeNotes": []
+    }
+  ]
+}
