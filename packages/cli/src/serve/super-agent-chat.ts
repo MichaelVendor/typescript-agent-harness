@@ -138,7 +138,7 @@ export async function createSuperAgentChat(input: CreateSuperAgentChatInput): Pr
       if (!emit) return;
       uiLock = uiLock
         .then(async () => {
-          emit({ type: "user", text: `[${msg.source}] ${msg.text}` });
+          emit({ type: "user", text: msg.text, channel: msg.source });
         })
         .catch(() => {});
     },

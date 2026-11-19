@@ -3,7 +3,7 @@ import type { AttachmentMeta, HistoryItem, HostEvent, Question, QueuedMessage, T
 type TokenUsage = NonNullable<Extract<HostEvent, { type: "turn.end" }>["sessionUsage"]>;
 
 export type Entry =
-  | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[] }
+  | { id: number; kind: "user"; text: string; attachments?: AttachmentMeta[]; channel?: string }
   | { id: number; kind: "assistant"; text: string }
   | {
       id: number;
@@ -133,6 +133,7 @@ export function applyEvent(state: State, action: Action): State {
         kind: "user",
         text: action.text,
         ...(action.attachments?.length ? { attachments: action.attachments } : {}),
+        ...(action.channel ? { channel: action.channel } : {}),
       });
     case "text": {
       const next = running(state);

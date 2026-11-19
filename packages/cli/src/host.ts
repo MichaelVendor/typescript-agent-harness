@@ -60,7 +60,7 @@ export type SessionEvent = {
 /** Every event is plain JSON, so `tah serve` can stream them unchanged. */
 export type HostEvent =
   | SessionEvent
-  | { type: "user"; text: string; attachments?: AttachmentMeta[] }
+  | { type: "user"; text: string; attachments?: AttachmentMeta[]; /** IM mirror source, e.g. telegram */ channel?: string }
   | { type: "text"; delta: string }
   | { type: "tool.start"; callId: string; tool: string; summary: string; path?: string; input?: unknown }
   | { type: "tool.end"; callId: string; tool: string; summary: string; ok: boolean; result: string; path?: string; imageText?: string }

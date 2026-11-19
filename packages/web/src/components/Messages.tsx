@@ -8,6 +8,7 @@ import { codePath, linkPath, markdownImagePath, replyImages, type FileTarget } f
 import type { Entry } from "../state";
 import { groupToolRuns } from "../tool-runs";
 import { CopyButton } from "./CopyButton";
+import { ChannelIcon } from "./icons";
 import { ToolSteps } from "./ToolSteps";
 
 type Open = (target: FileTarget) => void;
@@ -178,7 +179,16 @@ const Row = memo(function Row({
               ))}
             </div>
           ) : null}
-          {entry.text ? <div className="user-bar">{entry.text}</div> : null}
+          {entry.text ? (
+            <div className="user-bar">
+              {entry.channel ? (
+                <span className="user-channel" title={entry.channel}>
+                  <ChannelIcon channel={entry.channel} />
+                </span>
+              ) : null}
+              <span className="user-bar-text">{entry.text}</span>
+            </div>
+          ) : null}
           {!entry.text && attachments.length === 0 ? <div className="user-attach-fallback">(empty)</div> : null}
         </div>
       );
