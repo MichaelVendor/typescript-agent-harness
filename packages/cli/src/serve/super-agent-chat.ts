@@ -243,7 +243,8 @@ export async function createSuperAgentChat(input: CreateSuperAgentChatInput): Pr
         isNewThread: true,
         replyTo: { kind: "web", id: String(++seq) },
       });
-      for (let i = 0; i < 200; i += 1) {
+      // Real LLM can take well over 5s; park until reply, cancel, or ~2min.
+      for (let i = 0; i < 4800; i += 1) {
         if (cancelled) {
           emit({ type: "turn.error", cancelled: true, message: "cancelled" });
           return;
