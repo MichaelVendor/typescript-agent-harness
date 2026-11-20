@@ -40,7 +40,10 @@ function collectGaps(signals: TargetSignals[], failures: Failure[]): string[] {
     if (sig.buckets.positioning.bullets.length === 0) {
       push(`缺卖点: ${sig.id}`);
     }
-    if (sig.buckets.reviews.themes.length === 0) {
+    if (
+      sig.buckets.reviews.themes.length === 0 &&
+      sig.buckets.reviews.pros.length === 0
+    ) {
       push(`缺评论摘录: ${sig.id}`);
     }
     if (sig.buckets.changes.notes.length === 0) {
@@ -68,6 +71,7 @@ function rowFromSignals(sig: TargetSignals): BriefRow {
     rank: null,
     bullets: [...positioning.bullets],
     reviewThemes: [...reviews.themes],
+    ...(reviews.pros.length > 0 ? { reviewPros: [...reviews.pros] } : {}),
     changes: [...changes.notes],
     evidence,
   };
@@ -106,6 +110,17 @@ function renderOpsMarkdown(
     lines.push("- 无可用差评主题");
   }
   lines.push("");
+
+  const anyPros = brief.rows.some((r) => (r.reviewPros?.length ?? 0) > 0);
+  if (anyPros) {
+    lines.push("### 好评要点");
+    for (const row of brief.rows) {
+      const pros = row.reviewPros ?? [];
+      if (pros.length === 0) continue;
+      lines.push(`- ${row.id} ${row.title}: ${pros.join("、")}`);
+    }
+    lines.push("");
+  }
 
   if (changeLines) {
     lines.push(renderChangesSection(changeLines).trimEnd());

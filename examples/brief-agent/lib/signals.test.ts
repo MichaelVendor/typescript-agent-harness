@@ -17,11 +17,20 @@ describe("extractSignalsFromPage", () => {
     assert.equal(sig.buckets.pricing.priceEur, null);
   });
 
-  it("uses whole review snippets as themes (not whitespace tokens)", () => {
+  it("puts Rost in themes and edel in pros", () => {
+    const b002 = loadMockCatalog().find((p) => p.id === "B002")!;
+    const sig = extractSignalsFromPage(b002);
+    assert.ok(sig.buckets.reviews.themes.includes("Rost an Kante"));
+    assert.ok(sig.buckets.reviews.themes.includes("schwer"));
+    assert.equal(sig.buckets.reviews.themes.includes("sieht edel aus"), false);
+    assert.ok(sig.buckets.reviews.pros.includes("sieht edel aus"));
+  });
+
+  it("does not treat guter Preis as a cons theme", () => {
     const b001 = loadMockCatalog().find((p) => p.id === "B001")!;
     const sig = extractSignalsFromPage(b001);
-    assert.deepEqual(sig.buckets.reviews.themes, b001.reviewSnippets);
-    assert.ok(sig.buckets.reviews.themes.includes("schön verarbeitet"));
-    assert.equal(sig.buckets.reviews.themes.includes("schön"), false);
+    assert.equal(sig.buckets.reviews.themes.includes("guter Preis"), false);
+    assert.ok(sig.buckets.reviews.pros.includes("guter Preis"));
+    assert.deepEqual(sig.buckets.reviews.themes, ["etwas klein"]);
   });
 });

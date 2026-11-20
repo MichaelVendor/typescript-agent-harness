@@ -14,6 +14,8 @@
 
 **任务记录：** `save_brief` 成功后追加一行 `out/tasks.jsonl`（ts / template / rowIds / 路径 / source），作按次计费底。
 
+**差评清洗：** 评论摘录按 DE/EN 词表拆正负；「差评主题」只出负面，正面进「好评要点」。
+
 **数据源：** 环境变量 `BRIEF_SOURCE`：
 
 | 值 | 行为 |

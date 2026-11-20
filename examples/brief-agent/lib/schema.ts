@@ -5,7 +5,7 @@ export type Evidence = { claim: string; source: string; detail: string };
 export type SignalBucket = {
   pricing: { priceEur: number | null; currency: "EUR"; evidence: Evidence[] };
   positioning: { bullets: string[]; evidence: Evidence[] };
-  reviews: { themes: string[]; evidence: Evidence[] };
+  reviews: { themes: string[]; pros: string[]; evidence: Evidence[] };
   changes: { notes: string[]; evidence: Evidence[] };
 };
 
@@ -21,7 +21,10 @@ export type BriefRow = {
   priceEur: number | null;
   rank: number | null;
   bullets: string[];
+  /** 差评/风险向主题（清洗后）。 */
   reviewThemes: string[];
+  /** 好评要点；旧 brief 可缺。 */
+  reviewPros?: string[];
   changes: string[];
   evidence: Evidence[];
 };

@@ -93,7 +93,7 @@ Skill: competitive-brief     ← 路径约束：先收集 → 再合成 → 再�
 - **B** ✅ 相对上次 brief 的变更 diff（见 `2026-11-20-brief-agent-p1b-diff-design.md`）
 - **C** ✅ 简报模板 `ops|exec`（见 `2026-11-20-brief-agent-p1c-template-design.md`）
 - **D** ✅ 本地任务记录 `out/tasks.jsonl`（见 `2026-11-20-brief-agent-p1d-task-log-design.md`）
-- **E** 差评主题清洗（正负分离）
+- **E** ✅ 差评主题清洗正负分离（见 `2026-11-20-brief-agent-p1e-review-polarity-design.md`）
 
 **P2（长期，不挡 P0）**
 

@@ -1,23 +1,9 @@
 import type { Evidence, TargetSignals } from "./schema.ts";
 import type { ProductPage } from "./fetch.ts";
+import { splitReviewSnippets } from "./review-polarity.ts";
 
 function ev(claim: string, detail: string): Evidence {
   return { claim, source: "mock", detail };
-}
-
-/** 朴素：整条 review snippet 作为主题，大小写无关去重，保留首次出现写法。 */
-function themesFromSnippets(snippets: string[]): string[] {
-  const seen = new Set<string>();
-  const themes: string[] = [];
-  for (const snippet of snippets) {
-    const theme = snippet.trim();
-    if (!theme) continue;
-    const key = theme.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    themes.push(theme);
-  }
-  return themes;
 }
 
 export function extractSignalsFromPage(page: ProductPage): TargetSignals {
@@ -33,11 +19,14 @@ export function extractSignalsFromPage(page: ProductPage): TargetSignals {
       ? bullets.map((b) => ev(`卖点: ${b}`, detail))
       : [ev("无卖点 bullets", detail)];
 
-  const themes = themesFromSnippets(page.reviewSnippets);
-  const reviewsEvidence: Evidence[] =
-    themes.length > 0
-      ? themes.map((t) => ev(`评论主题: ${t}`, detail))
-      : [ev("无评论 snippets", detail)];
+  const { cons, pros } = splitReviewSnippets(page.reviewSnippets);
+  const reviewsEvidence: Evidence[] = [];
+  if (cons.length === 0 && pros.length === 0) {
+    reviewsEvidence.push(ev("无评论 snippets", detail));
+  } else {
+    for (const t of cons) reviewsEvidence.push(ev(`差评主题: ${t}`, detail));
+    for (const t of pros) reviewsEvidence.push(ev(`好评要点: ${t}`, detail));
+  }
 
   const notes = [...page.changeNotes];
   const changesEvidence: Evidence[] =
@@ -59,7 +48,8 @@ export function extractSignalsFromPage(page: ProductPage): TargetSignals {
         evidence: positioningEvidence,
       },
       reviews: {
-        themes,
+        themes: cons,
+        pros,
         evidence: reviewsEvidence,
       },
       changes: {

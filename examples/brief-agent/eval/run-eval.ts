@@ -87,6 +87,8 @@ type TemplateUnitCase = CaseBase & {
   forbidHeading?: string;
   requireHeading?: string;
   maxTableRows?: number;
+  /** 不得出现在「### 差评主题」与下一节之间。 */
+  forbidInConsSection?: string;
 };
 
 type EvalCase =
@@ -258,6 +260,17 @@ async function runTemplateUnit(c: TemplateUnitCase): Promise<CaseResult> {
   }
   if (c.forbidHeading && brief.markdown.includes(c.forbidHeading)) {
     return { id: c.id, ok: false, detail: `不应出现 ${c.forbidHeading}；trace→${file}` };
+  }
+  if (c.forbidInConsSection) {
+    const after = brief.markdown.split("### 差评主题")[1] ?? "";
+    const consOnly = after.split("\n### ")[0] ?? after;
+    if (consOnly.includes(c.forbidInConsSection)) {
+      return {
+        id: c.id,
+        ok: false,
+        detail: `差评栏含「${c.forbidInConsSection}」；trace→${file}`,
+      };
+    }
   }
   if (typeof c.maxTableRows === "number") {
     const tableRows = brief.markdown.split("\n").filter((l) => /^\\| [A-Z0-9]/.test(l) && !l.includes("---"));

@@ -1,0 +1,8 @@
+{
+  "id": "review-polarity",
+  "kind": "template-unit",
+  "ids": ["B001", "B002"],
+  "template": "ops",
+  "requireHeading": "### 好评要点",
+  "forbidInConsSection": "guter Preis"
+}

@@ -27,6 +27,10 @@ describe("composeBrief", () => {
     assert.ok(brief.markdown.includes("### 结论"));
     assert.ok(brief.markdown.includes("### 对照表"));
     assert.ok(brief.markdown.includes("### 差评主题"));
+    assert.ok(brief.markdown.includes("### 好评要点"));
+    assert.equal(brief.markdown.includes("guter Preis"), true);
+    const consBlock = brief.markdown.split("### 好评要点")[0]!;
+    assert.equal(consBlock.includes("guter Preis"), false);
     assert.ok(brief.markdown.includes("### 缺口"));
     assert.ok(brief.markdown.includes("缺数据"));
   });
