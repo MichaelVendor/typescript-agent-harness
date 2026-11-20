@@ -14,6 +14,7 @@ describe("composeBrief", () => {
       signals,
       failures: [],
       truncated: false,
+      skipDiff: true,
     });
     assert.ok(brief.gaps.some((g) => /缺价格/.test(g)));
     assert.equal(validateBrief(brief).length, 0);
@@ -36,6 +37,7 @@ describe("composeBrief", () => {
       signals: [],
       failures: [{ id: "X", stage: "fetch", message: "boom" }],
       truncated: false,
+      skipDiff: true,
     });
     assert.equal(brief.conclusion, "本次无可用证据");
     assert.equal(brief.rows.length, 0);
@@ -49,8 +51,33 @@ describe("composeBrief", () => {
       signals: [],
       failures: [{ id: "Y", stage: "extract", message: "injected" }],
       truncated: false,
+      skipDiff: true,
     });
     assert.ok(brief.gaps.some((g) => g === "extract失败: Y (injected)"));
     assert.equal(brief.gaps.some((g) => g.startsWith("fetch失败:")), false);
+  });
+
+  it("adds 变更 section with price arrow vs previous", () => {
+    const pages = loadMockCatalog().filter((p) => p.id === "B001");
+    const signals = pages.map(extractSignalsFromPage);
+    const previous = composeBrief({
+      market: "DE",
+      signals,
+      failures: [],
+      truncated: false,
+      skipDiff: true,
+    });
+    // mutate previous price for a visible diff
+    previous.rows[0]!.priceEur = 99.99;
+    const brief = composeBrief({
+      market: "DE",
+      signals,
+      failures: [],
+      truncated: false,
+      previous,
+    });
+    assert.ok(brief.markdown.includes("### 变更"));
+    assert.ok(brief.markdown.includes("→"));
+    assert.ok(brief.changesFromPrevious?.some((l) => /价格/.test(l)));
   });
 });

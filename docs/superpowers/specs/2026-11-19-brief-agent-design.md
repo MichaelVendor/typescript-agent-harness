@@ -90,7 +90,7 @@ Skill: competitive-brief     ← 路径约束：先收集 → 再合成 → 再�
 **P1**（依次 A→B→C→D→E）
 
 - **A** ✅ 真抓：DE 搜索 HTML + `BRIEF_SOURCE=mock|live`（见 `2026-11-20-brief-agent-p1a-live-fetch-design.md`）；浏览器/`/dp` 另开
-- **B** 相对上次 brief 的变更 diff
+- **B** ✅ 相对上次 brief 的变更 diff（见 `2026-11-20-brief-agent-p1b-diff-design.md`）
 - **C** 简报模板可选（老板一页纸 / 运营细表）
 - **D** 按次计费所需的最小本地任务记录
 - **E** 差评主题清洗（正负分离）

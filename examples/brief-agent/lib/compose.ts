@@ -1,4 +1,7 @@
+import { diffBriefRows, findPreviousBrief, renderChangesSection } from "./diff-brief.ts";
+import { PROJECT_ROOT } from "./save.ts";
 import type { Brief, BriefRow, Evidence, Failure, TargetSignals } from "./schema.ts";
+import path from "node:path";
 
 export type ComposeBriefInput = {
   market: "DE";
@@ -6,6 +9,12 @@ export type ComposeBriefInput = {
   failures: Failure[];
   truncated: boolean;
   conclusion?: string;
+  /** 显式传入上次 brief；优先于自动查找。 */
+  previous?: Brief | null;
+  /** 查找历史的目录；默认 PROJECT_ROOT/out/briefs。 */
+  briefsDir?: string;
+  /** true 时不写「### 变更」（eval 隔离用）。 */
+  skipDiff?: boolean;
 };
 
 function formatPrice(priceEur: number | null): string {
@@ -62,7 +71,10 @@ function rowFromSignals(sig: TargetSignals): BriefRow {
   };
 }
 
-function renderMarkdown(brief: Omit<Brief, "markdown">): string {
+function renderMarkdown(
+  brief: Omit<Brief, "markdown">,
+  changeLines: string[] | null,
+): string {
   const lines: string[] = [];
 
   lines.push("### 结论");
@@ -93,6 +105,11 @@ function renderMarkdown(brief: Omit<Brief, "markdown">): string {
   }
   lines.push("");
 
+  if (changeLines) {
+    lines.push(renderChangesSection(changeLines).trimEnd());
+    lines.push("");
+  }
+
   lines.push("### 缺口");
   if (brief.gaps.length === 0) {
     lines.push("- （无）");
@@ -113,6 +130,18 @@ export function composeBrief(input: ComposeBriefInput): Brief {
     input.conclusion ??
     (rows.length > 0 ? "本批可对照观察" : "本次无可用证据");
 
+  let changeLines: string[] | null = null;
+  if (!input.skipDiff) {
+    const previous =
+      input.previous !== undefined
+        ? input.previous
+        : findPreviousBrief(
+            input.briefsDir ?? path.join(PROJECT_ROOT, "out", "briefs"),
+            rows.map((r) => r.id),
+          );
+    changeLines = diffBriefRows(previous, rows);
+  }
+
   const base: Omit<Brief, "markdown"> = {
     market: input.market,
     conclusion,
@@ -120,7 +149,8 @@ export function composeBrief(input: ComposeBriefInput): Brief {
     gaps,
     failures: [...input.failures],
     truncated: input.truncated,
+    ...(changeLines ? { changesFromPrevious: changeLines } : {}),
   };
 
-  return { ...base, markdown: renderMarkdown(base) };
+  return { ...base, markdown: renderMarkdown(base, changeLines) };
 }

@@ -36,6 +36,8 @@ export type Brief = {
   failures: Failure[];
   truncated: boolean;
   markdown: string;
+  /** 相对上次同 id 集合简报的变更行（不含「### 变更」标题）。 */
+  changesFromPrevious?: string[];
 };
 
 export type Problem = { path: string; message: string };

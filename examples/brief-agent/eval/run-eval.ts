@@ -22,10 +22,11 @@ import {
   type AssertResult,
 } from "./assert-brief.ts";
 import { composeBrief } from "../lib/compose.ts";
+import { diffBriefRows } from "../lib/diff-brief.ts";
 import { extractSignalsForPages } from "../lib/extract.ts";
 import { fetchProductPages } from "../lib/fetch.ts";
 import { PROJECT_ROOT, saveBrief } from "../lib/save.ts";
-import { validateBrief } from "../lib/schema.ts";
+import { validateBrief, type Brief, type BriefRow } from "../lib/schema.ts";
 import { liveDeSearchSource } from "../lib/sources/live-de-search.ts";
 import { resolveTargets, type TargetRef } from "../lib/targets.ts";
 
@@ -73,7 +74,18 @@ type LiveFetchCase = CaseBase & {
   expectBlocked?: boolean;
 };
 
-type EvalCase = PipelineCase | ResolveOnlyCase | ValidateMarkdownCase | LiveFetchCase;
+type DiffUnitCase = CaseBase & {
+  kind: "diff-unit";
+  expectArrow?: boolean;
+  expectNoPrevious?: boolean;
+};
+
+type EvalCase =
+  | PipelineCase
+  | ResolveOnlyCase
+  | ValidateMarkdownCase
+  | LiveFetchCase
+  | DiffUnitCase;
 
 type CaseResult = { id: string; ok: boolean; detail: string };
 
@@ -162,6 +174,7 @@ async function runPipeline(c: PipelineCase): Promise<CaseResult> {
       signals: extracted.signals,
       failures: [...fetched.failures, ...extracted.failures],
       truncated: resolved.truncated,
+      skipDiff: true,
     }),
   );
 
@@ -206,6 +219,68 @@ function runResolveOnly(c: ResolveOnlyCase): CaseResult {
     ok: true,
     detail: `PASS count=${resolved.targets.length} truncated=${resolved.truncated} trace→${file}`,
   };
+}
+
+function runDiffUnit(c: DiffUnitCase): CaseResult {
+  const trace: TraceEntry[] = [{ tool: "diff_brief_rows", ok: true }];
+  const file = writeTrace(c.id, trace);
+
+  if (c.expectNoPrevious) {
+    const lines = diffBriefRows(null, [
+      {
+        id: "B001",
+        title: "x",
+        priceEur: 1,
+        rank: null,
+        bullets: [],
+        reviewThemes: [],
+        changes: [],
+        evidence: [
+          { claim: "a", source: "t", detail: "1" },
+          { claim: "b", source: "t", detail: "2" },
+          { claim: "c", source: "t", detail: "3" },
+        ],
+      },
+    ]);
+    if (!lines.includes("无上次简报可对比")) {
+      return { id: c.id, ok: false, detail: `got ${JSON.stringify(lines)}；trace→${file}` };
+    }
+    return { id: c.id, ok: true, detail: `PASS no-previous trace→${file}` };
+  }
+
+  if (c.expectArrow) {
+    const prevRow: BriefRow = {
+      id: "B001",
+      title: "Tray",
+      priceEur: 24.99,
+      rank: null,
+      bullets: ["a"],
+      reviewThemes: [],
+      changes: [],
+      evidence: [
+        { claim: "a", source: "t", detail: "1" },
+        { claim: "b", source: "t", detail: "2" },
+        { claim: "c", source: "t", detail: "3" },
+      ],
+    };
+    const prev: Brief = {
+      market: "DE",
+      conclusion: "x",
+      rows: [prevRow],
+      gaps: [],
+      failures: [],
+      truncated: false,
+      markdown: "x",
+    };
+    const curr = [{ ...prevRow, priceEur: 22.0 }];
+    const lines = diffBriefRows(prev, curr);
+    if (!lines.some((l) => l.includes("→") && /价格/.test(l))) {
+      return { id: c.id, ok: false, detail: `got ${JSON.stringify(lines)}；trace→${file}` };
+    }
+    return { id: c.id, ok: true, detail: `PASS price-arrow trace→${file}` };
+  }
+
+  return { id: c.id, ok: false, detail: `未识别断言；trace→${file}` };
 }
 
 async function runLiveFetch(c: LiveFetchCase): Promise<CaseResult> {
@@ -266,6 +341,7 @@ async function runValidateMarkdown(c: ValidateMarkdownCase): Promise<CaseResult>
       signals: extracted.signals,
       failures: [...fetched.failures, ...extracted.failures],
       truncated: resolved.truncated,
+      skipDiff: true,
     }),
   );
 
@@ -296,6 +372,7 @@ async function main(): Promise<void> {
       else if (item.kind === "resolve-only") result = runResolveOnly(item);
       else if (item.kind === "validate-markdown") result = await runValidateMarkdown(item);
       else if (item.kind === "live-fetch") result = await runLiveFetch(item);
+      else if (item.kind === "diff-unit") result = runDiffUnit(item);
       else result = { id: (item as CaseBase).id, ok: false, detail: "未知 kind" };
     } catch (error) {
       result = {

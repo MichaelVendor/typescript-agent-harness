@@ -20,9 +20,9 @@
 1. `resolve_targets`：规范化目标列表。`market` 固定 DE。超过 8 个会被截断，`truncated` 原样往下传。
 2. `fetch_product_pages`：把上一步的 `targets[].id` 原样放进 `ids`。优先本地 mock 档案。单条失败进 `failures`，不要停整批。
 3. `extract_signals`：`pages` 原样传入。P0 程序化取证（定价 / 卖点 / 差评 / 变更四桶）；不要自己补价格或排名。
-4. `compose_brief`：`signals` + `failures`（fetch 与 extract 合并）+ `truncated` 原样传入。不要改字段，不要分批后自己拼表。
+4. `compose_brief`：`signals` + `failures`（fetch 与 extract 合并）+ `truncated` 原样传入。不要改字段，不要分批后自己拼表。工具会自动对比 `out/briefs/` 里同目标 id 集合的最近一份，并在 markdown 加「### 变更」。
 5. `save_brief`：`brief` 原样传入。写 `out/briefs/<时间戳>.{json,md}`。
-6. 按下面的「回复格式」回复。四块内容用 `save_brief` / `compose_brief` 返回的 `markdown`，不要重画、不要改数字。
+6. 按下面的「回复格式」回复。内容用 `save_brief` / `compose_brief` 返回的 `markdown`，不要重画、不要改数字。
 
 ### 用抽取结果的规矩
 
@@ -32,7 +32,7 @@
 
 ## 回复格式
 
-最终回复只用下面四块，按这个顺序。不要加别的标题。不要贴 JSON 或工具字段名。
+最终回复按工具 markdown 的章节顺序贴出（结论 → 对照表 → 差评主题 → **变更** → 缺口）。不要加别的标题。不要贴 JSON 或工具字段名。
 
 ### 结论
 一句话。来自工具 markdown 里的结论，不要另写散文。
@@ -42,6 +42,9 @@
 
 ### 差评主题
 原样贴差评主题段。没有就写工具给出的「缺数据 / 无可用」。
+
+### 变更
+原样贴「### 变更」段（相对上次同目标集合简报）。没有历史时工具会写「无上次简报可对比」。
 
 ### 缺口
 原样贴缺口清单。截断声明与 fetch 失败也在这里，不要拆到每条商品下面重复写。

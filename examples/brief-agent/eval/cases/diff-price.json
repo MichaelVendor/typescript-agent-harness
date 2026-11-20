@@ -1,0 +1,5 @@
+{
+  "id": "diff-price",
+  "kind": "diff-unit",
+  "expectArrow": true
+}

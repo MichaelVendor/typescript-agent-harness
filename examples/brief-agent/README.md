@@ -6,7 +6,9 @@
 
 骨架同构于 `examples/selection-agent`（Skill + 工具取证 + 规则落盘 + 无模型 Eval），交付物是简报而非选品排行榜；独立目录与 `AGENTS.md`，不揉成一个巨 Agent。
 
-无模型回归：`pnpm eval`（含 mock 5 条 + live fixture 2 条）。
+无模型回归：`pnpm eval`（mock + live fixture + diff 单元）。
+
+**变更 diff：** `compose_brief` 会在 `out/briefs/*.json` 里找同组 `rows[].id` 的最近一份，在 markdown 增加「### 变更」（价/卖点/差评主题/增减行）。
 
 **数据源：** 环境变量 `BRIEF_SOURCE`：
 

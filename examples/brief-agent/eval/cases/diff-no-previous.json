@@ -1,0 +1,5 @@
+{
+  "id": "diff-no-previous",
+  "kind": "diff-unit",
+  "expectNoPrevious": true
+}
