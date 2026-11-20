@@ -87,11 +87,13 @@ Skill: competitive-brief     ← 路径约束：先收集 → 再合成 → 再�
 - `eval/` 五条用例全绿
 - 交付物：`out/briefs/*.md` + `*.json`
 
-**P1**
+**P1**（依次 A→B→C→D→E）
 
-- 真抓 / 浏览器补页；相对上次 brief 的变更 diff
-- 简报模板可选（老板一页纸 / 运营细表）
-- 按次计费所需的最小本地任务记录
+- **A** 真抓：DE 搜索 HTML + `BRIEF_SOURCE=mock|live`（设计见 `2026-11-20-brief-agent-p1a-live-fetch-design.md`）；浏览器/`/dp` 另开
+- **B** 相对上次 brief 的变更 diff
+- **C** 简报模板可选（老板一页纸 / 运营细表）
+- **D** 按次计费所需的最小本地任务记录
+- **E** 差评主题清洗（正负分离）
 
 **P2（长期，不挡 P0）**
 
