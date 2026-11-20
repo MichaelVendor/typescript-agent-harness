@@ -39,33 +39,33 @@
 
 **Files:** Create `lib/sources/amazon-de-html.ts`, `lib/sources/amazon-de-html.test.ts`, fixture snippet in test or `data/fixtures/de-search-ok.html`
 
-- [ ] 从 selection 拷贝 `parseDeSearchHtml` / `DeSearchHit`；导出 `isBlocked(html)`（captcha / api-services-support / length < 1000）
-- [ ] 测试：最小 HTML 含一个 `B0XXXXXXXX` 卡片 → 解析出 title+price；blocked HTML → `isBlocked` true
-- [ ] Commit: `feat(brief-agent): 接入 DE 搜索 HTML 解析`
+- [x] 从 selection 拷贝 `parseDeSearchHtml` / `DeSearchHit`；导出 `isBlocked(html)`（captcha / api-services-support / length < 1000）
+- [x] 测试：最小 HTML 含一个 `B0XXXXXXXX` 卡片 → 解析出 title+price；blocked HTML → `isBlocked` true
+- [x] Commit: `feat(brief-agent): 接入 DE 搜索 HTML 解析`
 
 ### Task 2: PageSource mock + activeSource
 
 **Files:** `types.ts`, `mock.ts`, `index.ts`；改 `fetch.ts` 委托 mock；保持 `fetchProductPages({ ids, failIds })` API
 
-- [ ] `activeSource()`：仅 `process.env.BRIEF_SOURCE === "live"` 时 live，否则 mock
-- [ ] mock 行为与现网一致；`pnpm test` 全绿
-- [ ] Commit: `refactor(brief-agent): fetch 走 PageSource/mock`
+- [x] `activeSource()`：仅 `process.env.BRIEF_SOURCE === "live"` 时 live，否则 mock
+- [x] mock 行为与现网一致；`pnpm test` 全绿
+- [x] Commit: `refactor(brief-agent): fetch 走 PageSource/mock`
 
 ### Task 3: live-de-search + fixture eval
 
 **Files:** `live-de-search.ts`, fixtures, eval cases, extend `run-eval.ts`, compose gaps, tool targets, README
 
-- [ ] `liveFetchPages({ targets, fetchHtml?, failIds? })`：按 asin/query/title 匹配；无命中 failure；blocked failure
-- [ ] eval `live-fixture-asin` / `live-blocked`；mock 原 5 条仍绿（共 ≥7）
-- [ ] compose：empty bullets → gap `缺卖点`；empty reviews → `缺评论摘录`
-- [ ] tool：可传 `targets`；仅 `ids` 仍兼容
-- [ ] Commit: `feat(brief-agent): BRIEF_SOURCE=live 与 fixture eval`
+- [x] `liveFetchPages({ targets, fetchHtml?, failIds? })`：按 asin/query/title 匹配；无命中 failure；blocked failure
+- [x] eval `live-fixture-asin` / `live-blocked`；mock 原 5 条仍绿（共 ≥7）
+- [x] compose：empty bullets → gap `缺卖点`；empty reviews → `缺评论摘录`
+- [x] tool：可传 `targets`；仅 `ids` 仍兼容
+- [x] Commit: `feat(brief-agent): BRIEF_SOURCE=live 与 fixture eval`
 
 ### Task 4: 收尾
 
-- [ ] `pnpm test && pnpm smoke && pnpm eval` 全绿
-- [ ] 更新 p1a design 状态为已实现；P0 design P1-A 勾选
-- [ ] Commit: `docs(brief-agent): 标记 P1-A 已实现`
+- [x] `pnpm test && pnpm smoke && pnpm eval` 全绿
+- [x] 更新 p1a design 状态为已实现；P0 design P1-A 勾选
+- [x] Commit: `docs(brief-agent): 标记 P1-A 已实现`
 
 ---
 

@@ -1,0 +1,7 @@
+{
+  "id": "live-blocked",
+  "kind": "live-fetch",
+  "fixture": "de-search-blocked.html",
+  "targets": [{ "id": "t1", "asin": "B0GX89NY9G" }],
+  "expectBlocked": true
+}

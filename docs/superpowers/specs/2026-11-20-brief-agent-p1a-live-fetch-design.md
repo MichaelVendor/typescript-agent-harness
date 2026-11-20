@@ -1,6 +1,6 @@
 # brief-agent P1-A：DE 搜索真抓（live fetch）设计
 
-状态：设计已确认，待写实现计划。  
+状态：P1-A 已实现（`examples/brief-agent`；计划 `docs/superpowers/plans/2026-11-20-brief-agent-p1a-live-fetch.md`）。  
 前序：`docs/superpowers/specs/2026-11-19-brief-agent-design.md`（P0 已实现）。  
 顺序：P1 按 A→B→C→D→E 依次落地；本稿只覆盖 **A**。
 

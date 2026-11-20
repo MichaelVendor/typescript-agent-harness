@@ -26,6 +26,12 @@ function collectGaps(signals: TargetSignals[], failures: Failure[]): string[] {
     if (sig.buckets.pricing.priceEur === null) {
       push(`缺价格: ${sig.id}`);
     }
+    if (sig.buckets.positioning.bullets.length === 0) {
+      push(`缺卖点: ${sig.id}`);
+    }
+    if (sig.buckets.reviews.themes.length === 0) {
+      push(`缺评论摘录: ${sig.id}`);
+    }
     if (sig.buckets.changes.notes.length === 0) {
       push(`无变更: ${sig.id}`);
     }

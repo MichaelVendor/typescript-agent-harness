@@ -1,46 +1,23 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Failure } from "./schema.ts";
+import type { TargetRef } from "./targets.ts";
+import { activeSource, loadMockCatalog, type ProductPage } from "./sources/index.ts";
 
-const ROOT = path.join(fileURLToPath(new URL(".", import.meta.url)), "..");
-
-export type ProductPage = {
-  id: string;
-  title: string;
-  priceEur: number | null;
-  rank: number | null;
-  bullets: string[];
-  reviewSnippets: string[];
-  changeNotes: string[];
-};
-
-type MockFile = { products: ProductPage[] };
-
-export function loadMockCatalog(): ProductPage[] {
-  const raw = JSON.parse(readFileSync(path.join(ROOT, "data", "mock-de.json"), "utf8")) as MockFile;
-  return raw.products;
-}
+export type { ProductPage };
+export { loadMockCatalog };
 
 export async function fetchProductPages(input: {
-  ids: string[];
+  ids?: string[];
+  targets?: TargetRef[];
   failIds?: string[];
+  fetchHtml?: (query: string) => Promise<string>;
 }): Promise<{ pages: ProductPage[]; failures: Failure[] }> {
-  const catalog = new Map(loadMockCatalog().map((p) => [p.id, p]));
-  const failSet = new Set(input.failIds ?? []);
-  const pages: ProductPage[] = [];
-  const failures: Failure[] = [];
-  for (const id of input.ids) {
-    if (failSet.has(id)) {
-      failures.push({ id, stage: "fetch", message: "injected fetch failure" });
-      continue;
-    }
-    const page = catalog.get(id);
-    if (!page) {
-      failures.push({ id, stage: "fetch", message: "not found in mock catalog" });
-      continue;
-    }
-    pages.push(page);
+  const targets: TargetRef[] =
+    input.targets ??
+    (input.ids ?? []).map((id) => ({ id }));
+  const args: Parameters<ReturnType<typeof activeSource>["fetchPages"]>[0] = { targets };
+  if (input.failIds !== undefined && activeSource().name === "mock") {
+    args.failIds = input.failIds;
   }
-  return { pages, failures };
+  if (input.fetchHtml !== undefined) args.fetchHtml = input.fetchHtml;
+  return activeSource().fetchPages(args);
 }

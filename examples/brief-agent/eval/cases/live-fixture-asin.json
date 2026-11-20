@@ -1,0 +1,8 @@
+{
+  "id": "live-fixture-asin",
+  "kind": "live-fetch",
+  "fixture": "de-search-ok.html",
+  "targets": [{ "id": "t1", "asin": "B0GX89NY9G" }],
+  "expectPrice": true,
+  "expectTitleSubstring": "Badezimmer"
+}

@@ -26,7 +26,9 @@ import { extractSignalsForPages } from "../lib/extract.ts";
 import { fetchProductPages } from "../lib/fetch.ts";
 import { PROJECT_ROOT, saveBrief } from "../lib/save.ts";
 import { validateBrief } from "../lib/schema.ts";
-import { resolveTargets } from "../lib/targets.ts";
+import { liveDeSearchSource } from "../lib/sources/live-de-search.ts";
+import { resolveTargets, type TargetRef } from "../lib/targets.ts";
+
 
 const ROOT = path.join(fileURLToPath(new URL(".", import.meta.url)), "..");
 const CASES_DIR = path.join(ROOT, "eval", "cases");
@@ -62,7 +64,16 @@ type ValidateMarkdownCase = CaseBase & {
   expectValidateFail: boolean;
 };
 
-type EvalCase = PipelineCase | ResolveOnlyCase | ValidateMarkdownCase;
+type LiveFetchCase = CaseBase & {
+  kind: "live-fetch";
+  fixture: string;
+  targets: TargetRef[];
+  expectPrice?: boolean;
+  expectTitleSubstring?: string;
+  expectBlocked?: boolean;
+};
+
+type EvalCase = PipelineCase | ResolveOnlyCase | ValidateMarkdownCase | LiveFetchCase;
 
 type CaseResult = { id: string; ok: boolean; detail: string };
 
@@ -197,6 +208,46 @@ function runResolveOnly(c: ResolveOnlyCase): CaseResult {
   };
 }
 
+async function runLiveFetch(c: LiveFetchCase): Promise<CaseResult> {
+  const trace: TraceEntry[] = [];
+  const html = readFileSync(path.join(ROOT, "data", "fixtures", c.fixture), "utf8");
+  const out = await record(trace, "fetch_product_pages", () =>
+    liveDeSearchSource.fetchPages({
+      targets: c.targets,
+      fetchHtml: async () => html,
+    }),
+  );
+  const file = writeTrace(c.id, trace);
+
+  if (c.expectBlocked) {
+    const blocked = out.failures.some((f) => /blocked/i.test(f.message));
+    if (!blocked || out.pages.length > 0) {
+      return {
+        id: c.id,
+        ok: false,
+        detail: `期望 blocked；pages=${out.pages.length} failures=${JSON.stringify(out.failures)}；trace→${file}`,
+      };
+    }
+    return { id: c.id, ok: true, detail: `PASS blocked trace→${file}` };
+  }
+
+  const page = out.pages[0];
+  if (!page) {
+    return { id: c.id, ok: false, detail: `无 page；failures=${JSON.stringify(out.failures)}；trace→${file}` };
+  }
+  if (c.expectPrice && !(typeof page.priceEur === "number" && Number.isFinite(page.priceEur))) {
+    return { id: c.id, ok: false, detail: `缺价格；trace→${file}` };
+  }
+  if (c.expectTitleSubstring && !page.title.includes(c.expectTitleSubstring)) {
+    return { id: c.id, ok: false, detail: `title=${page.title}；trace→${file}` };
+  }
+  return {
+    id: c.id,
+    ok: true,
+    detail: `PASS price=${page.priceEur} title=${page.title} trace→${file}`,
+  };
+}
+
 async function runValidateMarkdown(c: ValidateMarkdownCase): Promise<CaseResult> {
   const trace: TraceEntry[] = [];
 
@@ -244,6 +295,7 @@ async function main(): Promise<void> {
       if (item.kind === "pipeline") result = await runPipeline(item);
       else if (item.kind === "resolve-only") result = runResolveOnly(item);
       else if (item.kind === "validate-markdown") result = await runValidateMarkdown(item);
+      else if (item.kind === "live-fetch") result = await runLiveFetch(item);
       else result = { id: (item as CaseBase).id, ok: false, detail: "未知 kind" };
     } catch (error) {
       result = {

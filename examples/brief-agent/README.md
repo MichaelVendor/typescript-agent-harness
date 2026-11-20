@@ -6,7 +6,18 @@
 
 骨架同构于 `examples/selection-agent`（Skill + 工具取证 + 规则落盘 + 无模型 Eval），交付物是简报而非选品排行榜；独立目录与 `AGENTS.md`，不揉成一个巨 Agent。
 
-无模型回归：`pnpm eval`（用例齐备后进 CI）。
+无模型回归：`pnpm eval`（含 mock 5 条 + live fixture 2 条）。
+
+**数据源：** 环境变量 `BRIEF_SOURCE`：
+
+| 值 | 行为 |
+| --- | --- |
+| 缺省 / `mock` | 读 `data/mock-de.json`（默认，eval 主路径） |
+| `live` | curl 拉 `amazon.de` 搜索页（标题/欧元价）；bullets/评论摘录可能为空。Eval 用 `data/fixtures/*.html`，不打外网 |
+
+```bash
+BRIEF_SOURCE=live pnpm start   # 真抓演示（可能被挡）
+```
 
 ## 跑起来
 
@@ -22,7 +33,7 @@ pnpm build --filter @typescript-agent-harness/cli...
 ```bash
 pnpm start    # tah chat
 pnpm smoke    # 不起模型跑完整链路并落盘
-pnpm eval     # 无模型黄金路径（需 eval/ 就绪）
+pnpm eval     # 无模型黄金路径（7/7）
 pnpm test
 pnpm typecheck
 ```
@@ -34,9 +45,11 @@ pnpm typecheck
 ```
 AGENTS.md                 角色、铁律、流程、回复四块
 skills/competitive-brief/ 路径约束：resolve → fetch → extract → compose → save
+lib/sources/              mock | live（DE 搜索 HTML）
+data/fixtures/            live eval 用 HTML
 tools/
   resolve-targets.ts      → resolve_targets
-  fetch-product-pages.ts  → fetch_product_pages
+  fetch-product-pages.ts  → fetch_product_pages（可传 targets）
   extract-signals.ts      → extract_signals
   compose-brief.ts        → compose_brief
   save-brief.ts           → save_brief
