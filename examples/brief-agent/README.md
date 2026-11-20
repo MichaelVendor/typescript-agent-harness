@@ -10,6 +10,8 @@
 
 **变更 diff：** `compose_brief` 会在 `out/briefs/*.json` 里找同组 `rows[].id` 的最近一份，在 markdown 增加「### 变更」（价/卖点/差评主题/增减行）。
 
+**模板：** `compose_brief` 参数 `template`：`ops`（默认细表）或 `exec`（老板一页纸：结论 + 对照≤3 + 要事）。
+
 **数据源：** 环境变量 `BRIEF_SOURCE`：
 
 | 值 | 行为 |

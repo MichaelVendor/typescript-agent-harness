@@ -57,6 +57,25 @@ describe("composeBrief", () => {
     assert.equal(brief.gaps.some((g) => g.startsWith("fetch失败:")), false);
   });
 
+  it("exec template is one-pager without 差评主题", () => {
+    const pages = loadMockCatalog().filter((p) => ["B001", "B002", "B003", "GAP1"].includes(p.id));
+    const signals = pages.map(extractSignalsFromPage);
+    const brief = composeBrief({
+      market: "DE",
+      signals,
+      failures: [],
+      truncated: false,
+      skipDiff: true,
+      template: "exec",
+    });
+    assert.ok(brief.markdown.includes("### 对照"));
+    assert.ok(brief.markdown.includes("### 要事"));
+    assert.equal(brief.markdown.includes("### 差评主题"), false);
+    assert.equal(brief.markdown.includes("### 缺口"), false);
+    const tableRows = brief.markdown.split("\n").filter((l) => l.startsWith("| B") || l.startsWith("| G"));
+    assert.ok(tableRows.length <= 3);
+  });
+
   it("adds 变更 section with price arrow vs previous", () => {
     const pages = loadMockCatalog().filter((p) => p.id === "B001");
     const signals = pages.map(extractSignalsFromPage);

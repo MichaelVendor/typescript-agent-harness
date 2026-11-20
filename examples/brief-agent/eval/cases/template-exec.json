@@ -1,0 +1,9 @@
+{
+  "id": "template-exec",
+  "kind": "template-unit",
+  "ids": ["B001", "B002", "B003", "GAP1"],
+  "template": "exec",
+  "forbidHeading": "### 差评主题",
+  "requireHeading": "### 对照",
+  "maxTableRows": 3
+}

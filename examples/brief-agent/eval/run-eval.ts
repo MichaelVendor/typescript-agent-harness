@@ -80,12 +80,22 @@ type DiffUnitCase = CaseBase & {
   expectNoPrevious?: boolean;
 };
 
+type TemplateUnitCase = CaseBase & {
+  kind: "template-unit";
+  ids: string[];
+  template: "exec" | "ops";
+  forbidHeading?: string;
+  requireHeading?: string;
+  maxTableRows?: number;
+};
+
 type EvalCase =
   | PipelineCase
   | ResolveOnlyCase
   | ValidateMarkdownCase
   | LiveFetchCase
-  | DiffUnitCase;
+  | DiffUnitCase
+  | TemplateUnitCase;
 
 type CaseResult = { id: string; ok: boolean; detail: string };
 
@@ -219,6 +229,50 @@ function runResolveOnly(c: ResolveOnlyCase): CaseResult {
     ok: true,
     detail: `PASS count=${resolved.targets.length} truncated=${resolved.truncated} trace→${file}`,
   };
+}
+
+async function runTemplateUnit(c: TemplateUnitCase): Promise<CaseResult> {
+  const trace: TraceEntry[] = [];
+  const resolved = await record(trace, "resolve_targets", () =>
+    resolveTargets({ targets: c.ids.map((id) => ({ id })) }),
+  );
+  const fetched = await record(trace, "fetch_product_pages", () =>
+    fetchProductPages({ ids: resolved.targets.map((t) => t.id) }),
+  );
+  const extracted = await record(trace, "extract_signals", () =>
+    extractSignalsForPages(fetched.pages),
+  );
+  const brief = await record(trace, "compose_brief", () =>
+    composeBrief({
+      market: "DE",
+      signals: extracted.signals,
+      failures: [...fetched.failures, ...extracted.failures],
+      truncated: resolved.truncated,
+      skipDiff: true,
+      template: c.template,
+    }),
+  );
+  const file = writeTrace(c.id, trace);
+  if (c.requireHeading && !brief.markdown.includes(c.requireHeading)) {
+    return { id: c.id, ok: false, detail: `缺 ${c.requireHeading}；trace→${file}` };
+  }
+  if (c.forbidHeading && brief.markdown.includes(c.forbidHeading)) {
+    return { id: c.id, ok: false, detail: `不应出现 ${c.forbidHeading}；trace→${file}` };
+  }
+  if (typeof c.maxTableRows === "number") {
+    const tableRows = brief.markdown.split("\n").filter((l) => /^\\| [A-Z0-9]/.test(l) && !l.includes("---"));
+    // rows like "| B001 |"
+    const dataRows = brief.markdown.split("\n").filter((l) => /^\| (B|G|t)/.test(l));
+    if (dataRows.length > c.maxTableRows) {
+      return {
+        id: c.id,
+        ok: false,
+        detail: `对照行 ${dataRows.length} > ${c.maxTableRows}；trace→${file}`,
+      };
+    }
+    void tableRows;
+  }
+  return { id: c.id, ok: true, detail: `PASS template=${c.template} trace→${file}` };
 }
 
 function runDiffUnit(c: DiffUnitCase): CaseResult {
@@ -373,6 +427,7 @@ async function main(): Promise<void> {
       else if (item.kind === "validate-markdown") result = await runValidateMarkdown(item);
       else if (item.kind === "live-fetch") result = await runLiveFetch(item);
       else if (item.kind === "diff-unit") result = runDiffUnit(item);
+      else if (item.kind === "template-unit") result = await runTemplateUnit(item);
       else result = { id: (item as CaseBase).id, ok: false, detail: "未知 kind" };
     } catch (error) {
       result = {

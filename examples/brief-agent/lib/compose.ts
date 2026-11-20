@@ -15,6 +15,8 @@ export type ComposeBriefInput = {
   briefsDir?: string;
   /** true 时不写「### 变更」（eval 隔离用）。 */
   skipDiff?: boolean;
+  /** ops=运营细表（默认）；exec=老板一页纸。 */
+  template?: "ops" | "exec";
 };
 
 function formatPrice(priceEur: number | null): string {
@@ -71,7 +73,7 @@ function rowFromSignals(sig: TargetSignals): BriefRow {
   };
 }
 
-function renderMarkdown(
+function renderOpsMarkdown(
   brief: Omit<Brief, "markdown">,
   changeLines: string[] | null,
 ): string {
@@ -123,6 +125,39 @@ function renderMarkdown(
   return lines.join("\n");
 }
 
+/** 老板一页纸：结论 + 对照≤3 + 要事（变更前 3 条）。 */
+function renderExecMarkdown(
+  brief: Omit<Brief, "markdown">,
+  changeLines: string[] | null,
+): string {
+  const lines: string[] = [];
+
+  lines.push("### 结论");
+  lines.push(brief.conclusion);
+  lines.push("");
+
+  lines.push("### 对照");
+  lines.push("| id | 标题 | 价格 |");
+  lines.push("| --- | --- | --- |");
+  const top = brief.rows.slice(0, 3);
+  for (const row of top) {
+    lines.push(`| ${row.id} | ${row.title} | ${formatPrice(row.priceEur)} |`);
+  }
+  if (top.length === 0) {
+    lines.push("| — | — | 缺数据 |");
+  }
+  lines.push("");
+
+  const highlights = (changeLines ?? ["无上次简报可对比"]).slice(0, 3);
+  lines.push("### 要事");
+  for (const h of highlights) {
+    lines.push(`- ${h}`);
+  }
+  lines.push("");
+
+  return lines.join("\n");
+}
+
 export function composeBrief(input: ComposeBriefInput): Brief {
   const rows = input.signals.map(rowFromSignals);
   const gaps = collectGaps(input.signals, input.failures);
@@ -152,5 +187,11 @@ export function composeBrief(input: ComposeBriefInput): Brief {
     ...(changeLines ? { changesFromPrevious: changeLines } : {}),
   };
 
-  return { ...base, markdown: renderMarkdown(base, changeLines) };
+  const template = input.template === "exec" ? "exec" : "ops";
+  const markdown =
+    template === "exec"
+      ? renderExecMarkdown(base, changeLines)
+      : renderOpsMarkdown(base, changeLines);
+
+  return { ...base, markdown };
 }
