@@ -193,5 +193,5 @@ export function composeBrief(input: ComposeBriefInput): Brief {
       ? renderExecMarkdown(base, changeLines)
       : renderOpsMarkdown(base, changeLines);
 
-  return { ...base, markdown };
+  return { ...base, template, markdown };
 }

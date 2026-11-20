@@ -8,7 +8,7 @@ import type { Brief } from "../lib/schema.ts";
  */
 export default defineTool({
   description:
-    "校验 Brief 后写入 out/briefs/<时间戳>.json 与 .md。入参为完整 brief（含 markdown）。返回路径。",
+    "校验 Brief 后写入 out/briefs/<时间戳>.json 与 .md，并追加一行 out/tasks.jsonl（计费底）。入参为完整 brief（含 markdown）。返回路径。",
   inputSchema: {
     type: "object",
     properties: {
@@ -25,6 +25,8 @@ export default defineTool({
       jsonPath: out.jsonPath,
       mdPath: out.mdPath,
       markdown: out.markdown,
+      tasksPath: out.tasksPath,
+      taskLogged: out.taskLogged,
     };
   },
 });

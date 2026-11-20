@@ -36,6 +36,8 @@ export type Brief = {
   failures: Failure[];
   truncated: boolean;
   markdown: string;
+  /** ops=细表；exec=老板一页纸。缺省按 ops。 */
+  template?: "ops" | "exec";
   /** 相对上次同 id 集合简报的变更行（不含「### 变更」标题）。 */
   changesFromPrevious?: string[];
 };

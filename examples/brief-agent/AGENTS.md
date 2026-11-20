@@ -21,7 +21,7 @@
 2. `fetch_product_pages`：把上一步的 `targets[].id` 原样放进 `ids`。优先本地 mock 档案。单条失败进 `failures`，不要停整批。
 3. `extract_signals`：`pages` 原样传入。P0 程序化取证（定价 / 卖点 / 差评 / 变更四桶）；不要自己补价格或排名。
 4. `compose_brief`：`signals` + `failures`（fetch 与 extract 合并）+ `truncated` 原样传入。不要改字段，不要分批后自己拼表。工具会自动对比 `out/briefs/` 里同目标 id 集合的最近一份，并在 markdown 加「### 变更」。
-5. `save_brief`：`brief` 原样传入。写 `out/briefs/<时间戳>.{json,md}`。
+5. `save_brief`：`brief` 原样传入。写 `out/briefs/<时间戳>.{json,md}`，并追加一行 `out/tasks.jsonl`（计费底）。
 6. 按下面的「回复格式」回复。内容用 `save_brief` / `compose_brief` 返回的 `markdown`，不要重画、不要改数字。
 
 ### 用抽取结果的规矩

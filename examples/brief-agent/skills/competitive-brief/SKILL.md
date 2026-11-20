@@ -13,5 +13,5 @@ description: 用户给出竞品 URL、ASIN、品牌或类目关键词，需要�
 2. `fetch_product_pages`。优先把上一步的 `targets` **原样**传入（含 asin/query，live 源要靠它们匹配）；也可以只传 `ids`。不要自己编 id。单条失败进 `failures`，其余继续。`BRIEF_SOURCE=live` 时可能缺卖点/评论摘录，不要编造。
 3. `extract_signals`。`pages` 原样传入。不要自己补价格、卖点或差评主题。
 4. `compose_brief`。`signals` + `failures`（把 fetch 与 extract 的 failures 合并）+ `truncated` 原样传入。不要改字段。用户要「一页纸/给老板」时传 `template: "exec"`，否则默认 `ops`。
-5. `save_brief`。`brief` 原样传入。返回的 `mdPath` / `markdown` 用于回复。
+5. `save_brief`。`brief` 原样传入。落盘 brief 并追加 `out/tasks.jsonl`。返回的 `mdPath` / `markdown` 用于回复。
 6. 按 `AGENTS.md` 回复格式写出四块：结论、对照表、差评主题、缺口。四块内容只贴工具 markdown，不要另起散文报告。

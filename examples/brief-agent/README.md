@@ -12,6 +12,8 @@
 
 **模板：** `compose_brief` 参数 `template`：`ops`（默认细表）或 `exec`（老板一页纸：结论 + 对照≤3 + 要事）。
 
+**任务记录：** `save_brief` 成功后追加一行 `out/tasks.jsonl`（ts / template / rowIds / 路径 / source），作按次计费底。
+
 **数据源：** 环境变量 `BRIEF_SOURCE`：
 
 | 值 | 行为 |

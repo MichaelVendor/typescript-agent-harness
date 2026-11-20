@@ -68,6 +68,7 @@ describe("composeBrief", () => {
       skipDiff: true,
       template: "exec",
     });
+    assert.equal(brief.template, "exec");
     assert.ok(brief.markdown.includes("### 对照"));
     assert.ok(brief.markdown.includes("### 要事"));
     assert.equal(brief.markdown.includes("### 差评主题"), false);
