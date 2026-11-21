@@ -21,7 +21,7 @@
 | 值 | 行为 |
 | --- | --- |
 | 缺省 / `mock` | 读 `data/mock-de.json`（默认，eval 主路径） |
-| `live` | curl 拉 `amazon.de` 搜索页（标题/欧元价）；bullets/评论摘录可能为空。Eval 用 `data/fixtures/*.html`，不打外网 |
+| `live` | curl 搜索页（标题/欧元价）后补 `/dp`（卖点/评论）；挡了且未设 `BRIEF_BROWSER=0` 时用 Playwright 升档（可选依赖 `playwright`）。Eval 用 fixture，不打外网 |
 
 ```bash
 BRIEF_SOURCE=live pnpm start   # 真抓演示（可能被挡）

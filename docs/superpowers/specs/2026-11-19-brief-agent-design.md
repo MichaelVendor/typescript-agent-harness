@@ -95,8 +95,9 @@ Skill: competitive-brief     ← 路径约束：先收集 → 再合成 → 再�
 - **D** ✅ 本地任务记录 `out/tasks.jsonl`（见 `2026-11-20-brief-agent-p1d-task-log-design.md`）
 - **E** ✅ 差评主题清洗正负分离（见 `2026-11-20-brief-agent-p1e-review-polarity-design.md`）
 
-**P2（长期，不挡 P0）**
+**P2**
 
+- **1** ✅ DE `/dp` 补页：curl + Playwright 升档（见 `2026-11-21-brief-agent-p2-dp-enrich-design.md`）
 - 多站点；订阅式每周自动 brief
 - Super-agent + 飞书/TG：异步工单「盯这 5 个竞品」
 - 与 selection-agent 同构产品线：简报 → 选品 → 上架（两个项目、两个 Skill）

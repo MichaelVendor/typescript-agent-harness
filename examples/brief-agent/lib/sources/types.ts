@@ -18,6 +18,12 @@ export type FetchPagesInput = {
   failIds?: string[];
   /** Eval / 测试注入：返回该 query 的 HTML，不打外网。 */
   fetchHtml?: (query: string) => Promise<string>;
+  /** 注入 `/dp` curl HTML。 */
+  fetchDpHtml?: (asin: string) => Promise<string>;
+  /** 注入 `/dp` 浏览器 HTML。 */
+  fetchDpBrowserHtml?: (asin: string) => Promise<string>;
+  /** 默认跟 BRIEF_BROWSER（≠0 为开）。 */
+  browserEnabled?: boolean;
 };
 
 export type PageSource = {

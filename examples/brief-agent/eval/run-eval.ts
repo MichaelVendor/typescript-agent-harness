@@ -72,6 +72,9 @@ type LiveFetchCase = CaseBase & {
   expectPrice?: boolean;
   expectTitleSubstring?: string;
   expectBlocked?: boolean;
+  dpFixture?: string;
+  expectMinBullets?: number;
+  expectMinReviews?: number;
 };
 
 type DiffUnitCase = CaseBase & {
@@ -353,10 +356,15 @@ function runDiffUnit(c: DiffUnitCase): CaseResult {
 async function runLiveFetch(c: LiveFetchCase): Promise<CaseResult> {
   const trace: TraceEntry[] = [];
   const html = readFileSync(path.join(ROOT, "data", "fixtures", c.fixture), "utf8");
+  const dpHtml = c.dpFixture
+    ? readFileSync(path.join(ROOT, "data", "fixtures", c.dpFixture), "utf8")
+    : "";
   const out = await record(trace, "fetch_product_pages", () =>
     liveDeSearchSource.fetchPages({
       targets: c.targets,
       fetchHtml: async () => html,
+      fetchDpHtml: async () => dpHtml,
+      browserEnabled: false,
     }),
   );
   const file = writeTrace(c.id, trace);
@@ -383,10 +391,24 @@ async function runLiveFetch(c: LiveFetchCase): Promise<CaseResult> {
   if (c.expectTitleSubstring && !page.title.includes(c.expectTitleSubstring)) {
     return { id: c.id, ok: false, detail: `title=${page.title}；trace→${file}` };
   }
+  if (typeof c.expectMinBullets === "number" && page.bullets.length < c.expectMinBullets) {
+    return {
+      id: c.id,
+      ok: false,
+      detail: `bullets=${page.bullets.length} < ${c.expectMinBullets}；trace→${file}`,
+    };
+  }
+  if (typeof c.expectMinReviews === "number" && page.reviewSnippets.length < c.expectMinReviews) {
+    return {
+      id: c.id,
+      ok: false,
+      detail: `reviews=${page.reviewSnippets.length} < ${c.expectMinReviews}；trace→${file}`,
+    };
+  }
   return {
     id: c.id,
     ok: true,
-    detail: `PASS price=${page.priceEur} title=${page.title} trace→${file}`,
+    detail: `PASS price=${page.priceEur} title=${page.title} bullets=${page.bullets.length} trace→${file}`,
   };
 }
 

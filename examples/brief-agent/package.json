@@ -15,5 +15,8 @@
     "@typescript-agent-harness/cli": "workspace:*",
     "@typescript-agent-harness/core": "workspace:*",
     "typescript": "^5.9.2"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.49.0"
   }
 }

@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import type { Failure } from "../schema.ts";
 import { isBlocked, parseDeSearchHtml, type DeSearchHit } from "./amazon-de-html.ts";
+import { enrichFromDp } from "./enrich-dp.ts";
 import type { FetchPagesInput, PageSource, ProductPage, SourceTarget } from "./types.ts";
 
 const exec = promisify(execFile);
@@ -99,7 +100,19 @@ export const liveDeSearchSource: PageSource = {
         });
         continue;
       }
-      pages.push(hitToPage(target, hit));
+      const page = hitToPage(target, hit);
+      const asin = target.asin?.trim() || hit.asin;
+      if (asin) {
+        const enriched = await enrichFromDp({
+          asin,
+          ...(input.fetchDpHtml ? { fetchDpHtml: input.fetchDpHtml } : {}),
+          ...(input.fetchDpBrowserHtml ? { fetchDpBrowserHtml: input.fetchDpBrowserHtml } : {}),
+          ...(input.browserEnabled !== undefined ? { browserEnabled: input.browserEnabled } : {}),
+        });
+        page.bullets = enriched.bullets;
+        page.reviewSnippets = enriched.reviewSnippets;
+      }
+      pages.push(page);
     }
     return { pages, failures };
   },
