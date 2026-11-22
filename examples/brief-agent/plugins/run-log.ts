@@ -2,14 +2,11 @@ import type { Plugin } from "@typescript-agent-harness/core";
 import path from "node:path";
 import { appendFile, mkdir } from "node:fs/promises";
 import { BRIEF_SAVED, briefSaved } from "../lib/events.ts";
+import { REPORT_SAVED, reportSaved } from "../lib/selection/events.ts";
 import { PROJECT_ROOT } from "../lib/save.ts";
 
 /**
- * 复盘日志：每次工具调用结束时，把"模型查了哪个工具、查的是哪个 id"
- * 追加到 <项目根>/out/run-log.jsonl。
- *
- * 为什么需要：简报结论必须能复盘——三个月后回看"这份对照表当时怎么来的"时，
- * 要知道查过哪些工具、有没有漏查一步就下了结论。
+ * 复盘日志：工具结束写入 out/run-log.jsonl；简报/选品落盘打 stderr。
  */
 type ToolFinished = {
   call?: { name?: string };
@@ -22,6 +19,12 @@ function extractId(output: unknown): string | undefined {
   if (typeof output !== "object" || output === null) return undefined;
   const id = (output as { id?: unknown }).id;
   return typeof id === "string" ? id : undefined;
+}
+
+function extractAsin(output: unknown): string | undefined {
+  if (typeof output !== "object" || output === null) return undefined;
+  const asin = (output as { asin?: unknown }).asin;
+  return typeof asin === "string" ? asin : undefined;
 }
 
 async function appendLine(file: string, line: string): Promise<void> {
@@ -40,8 +43,8 @@ export default {
         at: new Date().toISOString(),
         tool: name,
         ok: e.ok ?? true,
-        // 只记 id 这类可关联字段，避免把整块 mock 数据写进日志。
         id: extractId(e.output),
+        asin: extractAsin(e.output),
       };
       await appendLine(path.join(PROJECT_ROOT, "out", "run-log.jsonl"), JSON.stringify(entry));
     });
@@ -49,9 +52,16 @@ export default {
     ctx.on(BRIEF_SAVED, (event: unknown) => {
       const payload = briefSaved(event);
       if (!payload) return;
-      // 简报路径写 stderr，不污染助手回复。
       process.stderr.write(
         `[brief-agent] brief saved → ${payload.mdPath}（json: ${payload.jsonPath}）\n`,
+      );
+    });
+
+    ctx.on(REPORT_SAVED, (event: unknown) => {
+      const payload = reportSaved(event);
+      if (!payload) return;
+      process.stderr.write(
+        `[brief-agent] report saved → ${payload.file}（${payload.candidates} 个候选）\n`,
       );
     });
   },

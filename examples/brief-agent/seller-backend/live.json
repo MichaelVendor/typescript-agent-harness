@@ -1,0 +1,20 @@
+{
+  "status": "已上架",
+  "marketplace": "US",
+  "currency": "USD",
+  "sku": "B0USDEC003",
+  "title": "Wooden Decorative Tray Round Oak Finish, 10 in Centerpiece Tray",
+  "priceEur": 22.99,
+  "category": "decorative tray",
+  "ship": "FBA",
+  "bullets": [],
+  "image": "https://m.media-amazon.com/images/I/61dC5-RberL._AC_UL320_.jpg",
+  "imageNote": "演示图，不是商品照片",
+  "germanTitle": "Wooden Decorative Tray Round Oak Finish, 10 in Centerpiece Tray",
+  "germanNote": "标题用搜索页原文，没有另写卖点",
+  "gtin": "DEMO-B0USDEC003",
+  "gtinNote": "演示编码，不是 GS1 GTIN",
+  "vatNote": "演示店铺，未登记真实美国销售税号",
+  "inboundNote": "演示已建单，件数未填，不会发往亚马逊仓库",
+  "adsNote": "未投放。没有预算，不创建广告"
+}

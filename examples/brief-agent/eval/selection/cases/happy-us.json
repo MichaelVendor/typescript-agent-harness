@@ -1,0 +1,9 @@
+{
+  "id": "happy-us",
+  "kind": "pipeline",
+  "title": "美国站黄金路径",
+  "marketplace": "US",
+  "query": "bathroom tray",
+  "expectOrder": ["set_marketplace", "search_products", "research_candidates", "score_and_save"],
+  "expectCurrency": "USD"
+}

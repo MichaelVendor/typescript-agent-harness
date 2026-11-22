@@ -1,0 +1,22 @@
+{
+  "fetchedAt": "2026-10-27T00:00:00.000Z",
+  "note": "演示用美国站关键词。bathroom tray / decorative tray / silicone soap dish 抬高以便多数候选可上架。under sink organizer 故意偏低。",
+  "keywords": {
+    "bathroom tray": {
+      "monthlySearchVolume": 22000,
+      "trend3m": 0.28
+    },
+    "decorative tray": {
+      "monthlySearchVolume": 28000,
+      "trend3m": 0.32
+    },
+    "silicone soap dish": {
+      "monthlySearchVolume": 18000,
+      "trend3m": 0.22
+    },
+    "under sink organizer": {
+      "monthlySearchVolume": 9000,
+      "trend3m": 0.05
+    }
+  }
+}

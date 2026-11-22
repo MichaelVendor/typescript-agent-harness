@@ -1,0 +1,6 @@
+{
+  "id": "score-no-invent",
+  "kind": "score-gaps",
+  "title": "缺利润指标时报告缺口，不臆造采购价",
+  "expectGap": "利润（无采购成本）"
+}

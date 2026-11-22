@@ -1,0 +1,8 @@
+{
+  "id": "gate-order",
+  "kind": "trace-unit",
+  "title": "错误序 search→set 必须被 assert-trace 判失败",
+  "badTrace": ["search_products", "set_marketplace"],
+  "expectOrder": ["set_marketplace", "search_products"],
+  "expectMatch": false
+}

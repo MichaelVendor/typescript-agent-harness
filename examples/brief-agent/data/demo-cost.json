@@ -1,0 +1,350 @@
+{
+  "note": "演示报价。汇率 7.8、佣金 0.15 与案子相同。档案三件套用案子里的 ¥28 / 模费 ¥8000 / 起订量 500 / 头程 €1.2 / 尾程 €2.8。其余每条商品各自不同。售价和费用里的欧元不要当成美元。waschbecken organizer 没有报价。",
+  "cnyPerEur": 7.8,
+  "referralRate": 0.15,
+  "items": {
+    "B0F5WB8P35": {
+      "purchaseCny": 89,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 2.35,
+      "fbaEur": 5.38
+    },
+    "B0FW4BFJWT": {
+      "purchaseCny": 61,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 1.82,
+      "fbaEur": 4.17
+    },
+    "B0GST7MBPT": {
+      "purchaseCny": 28,
+      "moldCny": 8000,
+      "moq": 500,
+      "freightEur": 1.2,
+      "fbaEur": 2.8
+    },
+    "B0G5PWZN97": {
+      "purchaseCny": 26,
+      "moldCny": 12000,
+      "moq": 800,
+      "freightEur": 1.06,
+      "fbaEur": 2.42
+    },
+    "B0CTMS3Q2B": {
+      "purchaseCny": 20,
+      "moldCny": 15000,
+      "moq": 1000,
+      "freightEur": 1,
+      "fbaEur": 2.28
+    },
+    "B08VNF3QG5": {
+      "purchaseCny": 31,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 0.82,
+      "fbaEur": 1.88
+    },
+    "B0GX85Y6Z5": {
+      "purchaseCny": 28,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 0.82,
+      "fbaEur": 1.88
+    },
+    "B0HCZ3P6B9": {
+      "purchaseCny": 28,
+      "moldCny": 8000,
+      "moq": 500,
+      "freightEur": 1.2,
+      "fbaEur": 2.8
+    },
+    "B0GX89NY9G": {
+      "purchaseCny": 17,
+      "moldCny": 12000,
+      "moq": 800,
+      "freightEur": 0.7,
+      "fbaEur": 1.61
+    },
+    "B0FPGDZXQ1": {
+      "purchaseCny": 12,
+      "moldCny": 15000,
+      "moq": 1000,
+      "freightEur": 0.59,
+      "fbaEur": 1.34
+    },
+    "B07RHLSJPK": {
+      "purchaseCny": 22,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 0.59,
+      "fbaEur": 1.34
+    },
+    "B0DXKLLC61": {
+      "purchaseCny": 20,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 0.59,
+      "fbaEur": 1.34
+    },
+    "B0CWP4P1LF": {
+      "purchaseCny": 17,
+      "moldCny": 9000,
+      "moq": 600,
+      "freightEur": 0.58,
+      "fbaEur": 1.33
+    },
+    "B0FLW7VPTN": {
+      "purchaseCny": 28,
+      "moldCny": 8000,
+      "moq": 500,
+      "freightEur": 1.2,
+      "fbaEur": 2.8
+    },
+    "B0F8B8T2F5": {
+      "purchaseCny": 66,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 1.76,
+      "fbaEur": 4.01
+    },
+    "B0HBPR7GK1": {
+      "purchaseCny": 39,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 1.18,
+      "fbaEur": 2.69
+    },
+    "B0F37ZWJZL": {
+      "purchaseCny": 34,
+      "moldCny": 9000,
+      "moq": 600,
+      "freightEur": 1.18,
+      "fbaEur": 2.69
+    },
+    "B0H7WRMCPF": {
+      "purchaseCny": 23,
+      "moldCny": 12000,
+      "moq": 800,
+      "freightEur": 0.94,
+      "fbaEur": 2.15
+    },
+    "B0GJZ1JPYS": {
+      "purchaseCny": 18,
+      "moldCny": 15000,
+      "moq": 1000,
+      "freightEur": 0.92,
+      "fbaEur": 2.1
+    },
+    "B0H6ZM1GMY": {
+      "purchaseCny": 30,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 0.79,
+      "fbaEur": 1.8
+    },
+    "B0GCDFHXWJ": {
+      "purchaseCny": 26,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 0.76,
+      "fbaEur": 1.75
+    },
+    "B0H54NMLVH": {
+      "purchaseCny": 17,
+      "moldCny": 9000,
+      "moq": 600,
+      "freightEur": 0.59,
+      "fbaEur": 1.34
+    },
+    "B0H6FK7V39": {
+      "purchaseCny": 13,
+      "moldCny": 12000,
+      "moq": 800,
+      "freightEur": 0.53,
+      "fbaEur": 1.21
+    },
+    "B01JFZU6Z4": {
+      "purchaseCny": 8,
+      "moldCny": 15000,
+      "moq": 1000,
+      "freightEur": 0.41,
+      "fbaEur": 0.94
+    },
+    "B098BJ14BB": {
+      "purchaseCny": 27,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 0.71,
+      "fbaEur": 1.61
+    },
+    "B0D873S2NS": {
+      "purchaseCny": 18,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 0.53,
+      "fbaEur": 1.21
+    },
+    "B0FVXKD3VM": {
+      "purchaseCny": 14,
+      "moldCny": 9000,
+      "moq": 600,
+      "freightEur": 0.47,
+      "fbaEur": 1.07
+    },
+    "B0FPFT3HJ6": {
+      "purchaseCny": 10,
+      "moldCny": 12000,
+      "moq": 800,
+      "freightEur": 0.41,
+      "fbaEur": 0.93
+    },
+    "B09N143RVF": {
+      "purchaseCny": 8,
+      "moldCny": 15000,
+      "moq": 1000,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0DF59Z78F": {
+      "purchaseCny": 12,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0DF59LSLG": {
+      "purchaseCny": 11,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0H7CF9ZPP": {
+      "purchaseCny": 9,
+      "moldCny": 9000,
+      "moq": 600,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0H4V6JJ63": {
+      "purchaseCny": 8,
+      "moldCny": 12000,
+      "moq": 800,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0DQ79P4NP": {
+      "purchaseCny": 8,
+      "moldCny": 15000,
+      "moq": 1000,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0C5RHJ49B": {
+      "purchaseCny": 8,
+      "moldCny": 4000,
+      "moq": 300,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0H6FJBDCP": {
+      "purchaseCny": 8,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 0.4,
+      "fbaEur": 0.9
+    },
+    "B0USBTR001": {
+      "purchaseCny": 28,
+      "moldCny": 8000,
+      "moq": 500,
+      "freightEur": 1.4,
+      "fbaEur": 3.2
+    },
+    "B0USBTR002": {
+      "purchaseCny": 32,
+      "moldCny": 8000,
+      "moq": 500,
+      "freightEur": 1.5,
+      "fbaEur": 3.4
+    },
+    "B0USBTR003": {
+      "purchaseCny": 24,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 1.3,
+      "fbaEur": 3.0
+    },
+    "B0USBTR004": {
+      "purchaseCny": 22,
+      "moldCny": 6000,
+      "moq": 400,
+      "freightEur": 1.2,
+      "fbaEur": 2.8
+    },
+    "B0USBTR005": {
+      "purchaseCny": 26,
+      "moldCny": 7000,
+      "moq": 500,
+      "freightEur": 1.3,
+      "fbaEur": 3.0
+    },
+    "B0USDEC001": {
+      "purchaseCny": 30,
+      "moldCny": 8000,
+      "moq": 500,
+      "freightEur": 1.5,
+      "fbaEur": 3.3
+    },
+    "B0USDEC002": {
+      "purchaseCny": 36,
+      "moldCny": 9000,
+      "moq": 500,
+      "freightEur": 1.6,
+      "fbaEur": 3.5
+    },
+    "B0USDEC003": {
+      "purchaseCny": 42,
+      "moldCny": 5000,
+      "moq": 300,
+      "freightEur": 1.8,
+      "fbaEur": 4.0
+    },
+    "B0USDEC004": {
+      "purchaseCny": 34,
+      "moldCny": 8000,
+      "moq": 500,
+      "freightEur": 1.5,
+      "fbaEur": 3.4
+    },
+    "B0USSOA001": {
+      "purchaseCny": 12,
+      "moldCny": 5000,
+      "moq": 800,
+      "freightEur": 0.8,
+      "fbaEur": 2.2
+    },
+    "B0USSOA002": {
+      "purchaseCny": 10,
+      "moldCny": 5000,
+      "moq": 800,
+      "freightEur": 0.7,
+      "fbaEur": 2.0
+    },
+    "B0USSOA003": {
+      "purchaseCny": 14,
+      "moldCny": 6000,
+      "moq": 600,
+      "freightEur": 0.9,
+      "fbaEur": 2.3
+    },
+    "B0USSOA004": {
+      "purchaseCny": 9,
+      "moldCny": 4000,
+      "moq": 1000,
+      "freightEur": 0.6,
+      "fbaEur": 1.8
+    }
+  }
+}

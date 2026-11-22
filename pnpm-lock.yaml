@@ -90,6 +90,9 @@ importers:
       '@types/node':
         specifier: ^22.18.0
         version: 22.20.5
+      '@typescript-agent-harness/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@typescript-agent-harness/cli':
         specifier: workspace:*
         version: link:../../packages/cli

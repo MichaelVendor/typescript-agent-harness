@@ -1,0 +1,39 @@
+{
+  "listingConfirmed": true,
+  "quote": {
+    "purchasePrice": 28,
+    "moldFee": 8000,
+    "moq": 500,
+    "cnyPerEur": 7.8,
+    "freightEur": 1.2,
+    "fbaFeeEur": 2.8,
+    "referralRate": 0.15
+  },
+  "sample": {
+    "1": "可",
+    "2": "可",
+    "3": "可",
+    "4": "可",
+    "5": "可",
+    "6": "可"
+  },
+  "shelf": {
+    "sku": "B0USDEC003",
+    "title": "Wooden Decorative Tray Round Oak Finish, 10 in Centerpiece Tray",
+    "priceEur": 22.99,
+    "category": "decorative tray"
+  },
+  "inquiry": {
+    "asin": "B0H7WRMCPF",
+    "title": "Rayher 62689000 Holz-Tablett 45×13,5 cm",
+    "items": [
+      "硅胶净重",
+      "成型与后处理",
+      "检验",
+      "包材",
+      "起订量",
+      "模费与摊销"
+    ]
+  },
+  "marketplace": "US"
+}

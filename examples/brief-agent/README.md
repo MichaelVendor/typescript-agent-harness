@@ -1,12 +1,10 @@
-# brief-agent — 竞品/市场简报 Agent
+# brief-agent — 竞品简报 + 选品上架（已合并）
 
-竞品对照与证据简报 Agent。默认档案是 `data/mock-de.json`（亚马逊德国站小家电/家居：含 B001–B003 与缺价样例 GAP1）。售价是欧元。排名多数为缺数据，工具会标成 `null` /「缺数据」。
+同一约定式项目：`competitive-brief` 出简报，`select-to-shelf` 做选品打分与模拟上架。选品实现在 `lib/selection/`；原 `examples/selection-agent` 已归档指向此处。
 
-**它出简报和证据，不做决策、不下单。**
+简报默认档案 `data/mock-de.json`（DE 小家电/家居）。**不做自动决策、不下单给真客户。**
 
-骨架同构于 `examples/selection-agent`（Skill + 工具取证 + 规则落盘 + 无模型 Eval），交付物是简报而非选品排行榜；独立目录与 `AGENTS.md`，不揉成一个巨 Agent。
-
-无模型回归：`pnpm eval`（mock + live fixture + diff 单元）。
+无模型回归：`pnpm eval`（简报）+ `pnpm eval:selection`（选品）。
 
 **变更 diff：** `compose_brief` 会在 `out/briefs/*.json` 里找同组 `rows[].id` 的最近一份，在 markdown 增加「### 变更」（价/卖点/差评主题/增减行）。
 

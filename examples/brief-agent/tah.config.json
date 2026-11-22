@@ -1,0 +1,7 @@
+{
+  "capabilities": {
+    "coding": false,
+    "web": false,
+    "browser": true
+  }
+}
