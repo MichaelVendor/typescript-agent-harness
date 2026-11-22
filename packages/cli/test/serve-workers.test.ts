@@ -178,7 +178,7 @@ async function fakeWorkersServer() {
             type: "session",
             id: `sess-${wCwd}`,
             resumed: false,
-            history: [],
+            history: [{ role: "user", text: `history-${wCwd}` }],
             hiddenTurns: 0,
           }),
         );
@@ -249,6 +249,12 @@ async function fakeWorkersServer() {
 test("GET /api/workers lists main; parallel two sends both complete", async () => {
   const h = await fakeWorkersServer();
   try {
+    let parallelOpts: { name?: string; cwd?: string; deferUntilSend?: boolean } | undefined;
+    const parallel = h.orch.parallel.bind(h.orch);
+    h.orch.parallel = async (opts) => {
+      parallelOpts = opts;
+      return parallel(opts);
+    };
     const listed = await h.api.get("/api/workers");
     assert.equal(listed.status, 200);
     const body = JSON.parse(listed.body) as { workers: { id: string }[]; focusId: string };
@@ -256,10 +262,17 @@ test("GET /api/workers lists main; parallel two sends both complete", async () =
     assert.equal(body.workers.length, 1);
     assert.equal(body.workers[0]?.id, "main");
 
-    const a = JSON.parse((await h.api.post("/api/workers/parallel", { cwd: "/tmp/wa" })).body) as { id: string };
+    const a = JSON.parse(
+      (await h.api.post("/api/workers/parallel", { cwd: "/tmp/wa", deferUntilSend: true })).body,
+    ) as { id: string };
+    assert.equal(parallelOpts?.deferUntilSend, true);
+    assert.equal((await h.api.post("/api/workers/parallel", { deferUntilSend: "yes" })).status, 400);
     const b = JSON.parse((await h.api.post("/api/workers/parallel", { cwd: "/tmp/wb" })).body) as { id: string };
     assert.notEqual(a.id, b.id);
 
+    const attachments = await h.api.post("/api/send", { text: "a", attachmentIds: ["att1"], workerId: a.id });
+    assert.equal(attachments.status, 400);
+    assert.match(JSON.parse(attachments.body).error, /attachments.*main worker/i);
     assert.equal((await h.api.post("/api/send", { text: "a", workerId: a.id })).status, 202);
     assert.equal((await h.api.post("/api/send", { text: "b", workerId: b.id })).status, 202);
     assert.ok(h.workers[0]?.calls.some((c) => c.route === "/send" && c.body.text === "a"));
@@ -300,6 +313,9 @@ test("background approval → attention; answer without focus 409; focus then ok
 
     assert.equal((await h.api.post("/api/workers/focus", { id: created.id })).status, 204);
     assert.equal(h.orch.focusId, created.id);
+    const replay = await sse.until((e) => e.type === "session" && e.workerId === created.id);
+    assert.equal(replay.type, "session");
+    if (replay.type === "session") assert.equal(replay.history[0]?.role, "user");
 
     const ok = await h.api.post("/api/answer", { id: "ap1", answer: "yes", workerId: created.id });
     assert.equal(ok.status, 204);

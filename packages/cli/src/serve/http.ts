@@ -631,9 +631,14 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         try {
           const name = optStr(body, "name");
           const cwd = optStr(body, "cwd");
+          const deferUntilSend = body.deferUntilSend;
+          if (deferUntilSend !== undefined && typeof deferUntilSend !== "boolean") {
+            throw new HttpError(400, '"deferUntilSend" must be a boolean');
+          }
           const info = await orch.parallel({
             ...(name !== undefined ? { name } : {}),
             ...(cwd !== undefined ? { cwd } : {}),
+            ...(deferUntilSend !== undefined ? { deferUntilSend } : {}),
           });
           focusHub?.notifyWorkersChanged();
           return json(res, 200, info);

@@ -1107,9 +1107,14 @@ test("browser panel over HTTP: open, stream frames, type; a browser tool event r
     assert.deepEqual(conns[0]!.sent.at(-1), { method: "Input.insertText", params: { text: "hi" }, sessionId: "S-T1" });
     assert.equal((await api.post("/api/browser/nav", { action: "reload" })).status, 204);
     assert.equal((await api.post("/api/browser/viewport", { width: 640, height: 900, scale: 2 })).status, 204);
-    assert.deepEqual(conns[0]!.sent.at(-1), {
+    assert.deepEqual(conns[0]!.sent.filter((m) => m.method === "Emulation.setDeviceMetricsOverride").at(-1), {
       method: "Emulation.setDeviceMetricsOverride",
       params: { width: 640, height: 900, deviceScaleFactor: 2, mobile: false },
+      sessionId: "S-T1",
+    });
+    assert.deepEqual(conns[0]!.sent.at(-1), {
+      method: "Page.startScreencast",
+      params: { format: "jpeg", quality: 95, everyNthFrame: 1, maxWidth: 1280, maxHeight: 1800 },
       sessionId: "S-T1",
     });
     assert.equal((await api.post("/api/browser/viewport", { width: "x" })).status, 400);

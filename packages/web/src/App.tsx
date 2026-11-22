@@ -589,7 +589,7 @@ export function App() {
           onFocusWorker={(id) => run(api.workersFocus({ id }))}
           onParallel={
             connection === "open" && state.workers.length > 0
-              ? () => run(api.workersParallel({}))
+              ? () => run(api.workersParallel({ deferUntilSend: true }))
               : undefined
           }
           statusKey={`${state.turnsEnded}:${state.busy}:${state.approval?.id ?? ""}:${state.question?.id ?? ""}:${state.focusId}:${state.workers.length}`}

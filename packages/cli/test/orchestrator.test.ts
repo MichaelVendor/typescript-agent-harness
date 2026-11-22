@@ -209,9 +209,10 @@ test("send proxies to worker with bearer and to main host", async () => {
   const h = harness();
   try {
     const a = await h.orch.parallel({ cwd: "/tmp/wa" });
-    await h.orch.send(a.id, "hello", ["att1"]);
+    await assert.rejects(h.orch.send(a.id, "hello", ["att1"]), /attachments are only supported on the main worker/);
+    await h.orch.send(a.id, "hello");
     const call = h.workers[0]?.calls.find((c) => c.route === "/send");
-    assert.deepEqual(call?.body, { text: "hello", attachmentIds: ["att1"] });
+    assert.deepEqual(call?.body, { text: "hello", attachmentIds: [] });
     assert.equal(call?.auth, `Bearer ${h.workers[0]?.token}`);
 
     await h.orch.send("main", "to-main");
@@ -278,6 +279,8 @@ test("stop / restart / remove manage worker lifecycle", async () => {
     assert.equal(h.workers.length, 2);
     assert.equal(h.workers[1]?.cwd, "/tmp/wa");
     assert.notEqual(h.workers[1]?.token, h.workers[0]?.token);
+    assert.equal(h.orch.list().find((w) => w.id === a.id)?.dead, undefined);
+    await new Promise((r) => setTimeout(r, 50));
     assert.equal(h.orch.list().find((w) => w.id === a.id)?.dead, undefined);
 
     h.orch.focus(a.id);

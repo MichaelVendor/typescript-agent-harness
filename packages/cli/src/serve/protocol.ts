@@ -41,7 +41,7 @@ export type ServeRequest = {
   question: { id: string; answers: string[][]; workerId?: string } | { id: string; skip: true; workerId?: string };
   /** Sends a held queued message now (between turns), or removes one. */
   queue: { id: string; send: true; workerId?: string } | { id: string; remove: true; workerId?: string };
-  workersParallel: { name?: string; cwd?: string };
+  workersParallel: { name?: string; cwd?: string; deferUntilSend?: boolean };
   workersFocus: { id: string };
   workersStop: { id: string };
   workersRestart: { id: string };

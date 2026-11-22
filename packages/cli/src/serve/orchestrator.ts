@@ -83,6 +83,7 @@ function realSpawn(flags: CliFlags, homeDir: string): SpawnWorker {
   return ({ id, cwd, token }) =>
     new Promise((resolve, reject) => {
       const args = [cli, "agent-worker", "--cwd", cwd, "--port", "0"];
+      // TODO: Forward the remaining compatible serve flags once agent-worker supports them.
       if (flags.mock) args.push("--mock");
       if (flags.yes) args.push("--yes");
       if (flags.execSet) args.push(flags.exec ? "--exec" : "--no-exec");
@@ -199,7 +200,7 @@ export function createOrchestrator(opts: {
     });
     if (snapRes.ok) {
       const snap = (await snapRes.json()) as SessionEvent;
-      if (snap.type === "session" && snap.id) entry.info.sessionId = snap.id;
+      if (snap.type === "session" && snap.id && workers.get(id) === entry) handle(id, snap);
     }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -238,14 +239,15 @@ export function createOrchestrator(opts: {
     const token = randomBytes(24).toString("hex");
     const spawned = await spawnWorker({ id, cwd, token });
     const existing = workers.get(id);
-    const entry = (existing ?? {
-      info: { id, cwd, sessionId: "", busy: false, needsAttention: false },
-    }) as Entry;
-    entry.token = token;
-    entry.url = spawned.url;
-    entry.kill = spawned.kill;
-    entry.abort = new AbortController();
-    entry.stopping = false;
+    const entry: Entry = {
+      info: existing?.info ?? { id, cwd, sessionId: "", busy: false, needsAttention: false },
+      token,
+      url: spawned.url,
+      kill: spawned.kill,
+      abort: new AbortController(),
+      stopping: false,
+      ...(existing?.pendingWorktree ? { pendingWorktree: existing.pendingWorktree } : {}),
+    };
     workers.set(id, entry);
     try {
       await subscribe(id, entry);
@@ -401,6 +403,7 @@ export function createOrchestrator(opts: {
     },
     async send(id, text, attachmentIds = []) {
       if (id === MAIN) return startsTurn(id, () => mainHost.send(text, attachmentIds));
+      if (attachmentIds.length > 0) throw new Error("attachments are only supported on the main worker");
       entryOf(id);
       return startsTurn(id, () => post(id, "/send", { text, attachmentIds }));
     },
