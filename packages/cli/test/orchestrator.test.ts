@@ -9,6 +9,7 @@ import { test } from "node:test";
 import { parseArgv } from "../dist/args.js";
 import type { ChatHost, HostEvent } from "../dist/host.js";
 import { createOrchestrator, type Orchestrator } from "../dist/serve/orchestrator.js";
+import { loadWorkspaceEntries } from "../dist/workspaces.js";
 
 type FakeWorker = {
   cwd: string;
@@ -38,7 +39,7 @@ function fakeMain(sessionId = "main-session") {
   return { host, sent, emit: (e: HostEvent) => listeners.forEach((l) => l(e)), snap };
 }
 
-function harness(extra: { maxBusy?: number; mainCwd?: string } = {}) {
+function harness(extra: { maxBusy?: number; mainCwd?: string; homeDir?: string } = {}) {
   const main = fakeMain();
   const workers: FakeWorker[] = [];
   const servers: Server[] = [];
@@ -102,7 +103,7 @@ function harness(extra: { maxBusy?: number; mainCwd?: string } = {}) {
     main: main.host,
     mainCwd: extra.mainCwd ?? "/tmp/main-cwd",
     flags: parseArgv(["--mock"]),
-    homeDir: "/tmp/home",
+    homeDir: extra.homeDir ?? "/tmp/home",
     spawnWorker,
     ...(extra.maxBusy ? { maxBusy: extra.maxBusy } : {}),
   });
@@ -308,15 +309,17 @@ test("worker whose event stream ends is marked dead and not busy", async () => {
 
 test("parallel with name creates a git worktree; remove cleans it up", async () => {
   const repo = await realpath(await mkdtemp(path.join(tmpdir(), "tah-orch-repo-")));
+  const home = await mkdtemp(path.join(tmpdir(), "tah-orch-home-"));
   const git = (...args: string[]) => execFileSync("git", args, { cwd: repo, stdio: "ignore" });
   git("init");
   git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-m", "init");
-  const h = harness({ mainCwd: repo });
+  const h = harness({ mainCwd: repo, homeDir: home });
   const orch = h.orch;
   try {
     const w = await orch.parallel({ name: "feat-x" });
     assert.equal(w.cwd, path.join(repo, ".tah", "worktrees", "feat-x"));
     assert.deepEqual(w.worktree, { name: "feat-x", parent: repo });
+    assert.deepEqual(loadWorkspaceEntries(home), [{ path: w.cwd, kind: "worktree", parent: repo }]);
     assert.deepEqual(h.workers.map((x) => x.cwd), [w.cwd]);
     assert.match(execFileSync("git", ["branch", "--list", "tah/feat-x"], { cwd: repo }).toString(), /tah\/feat-x/);
 

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import type { CliFlags } from "../args.js";
 import type { ChatHost, HostEvent, SessionEvent } from "../host.js";
+import { addWorkspace } from "../workspaces.js";
 import { addWorktree, removeWorktree } from "./worktree.js";
 
 export type WorkerInfo = {
@@ -295,7 +296,15 @@ export function createOrchestrator(opts: {
       const id = `w${++counter}-${randomBytes(3).toString("hex")}`;
       try {
         const entry = await start(id, dir);
-        if (wtName) entry.info.worktree = { name: wtName, parent: path.resolve(mainCwd) };
+        if (wtName) {
+          const parent = path.resolve(mainCwd);
+          entry.info.worktree = { name: wtName, parent };
+          try {
+            addWorkspace(opts.homeDir, dir, { kind: "worktree", parent });
+          } catch (err) {
+            console.error(`[tah] could not save worktree workspace: ${err instanceof Error ? err.message : err}`);
+          }
+        }
         entry.info.cwd = dir;
         return { ...entry.info };
       } catch (err) {
