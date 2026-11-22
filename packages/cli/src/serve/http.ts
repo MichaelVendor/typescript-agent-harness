@@ -264,7 +264,9 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const enter = async (cwd: string | undefined): Promise<boolean> => {
     if (cwd === undefined) return false;
     needPersist();
-    return workspaces.activate(cwd);
+    const switched = await workspaces.activate(cwd);
+    if (switched && orch) orch.setMain(workspaces.host, workspaces.cwd);
+    return switched;
   };
 
   const events = (req: IncomingMessage, res: ServerResponse) => {

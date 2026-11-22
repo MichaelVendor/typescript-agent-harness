@@ -19,11 +19,13 @@ type FakeWorker = {
   crash(): void;
 };
 
-function fakeMain() {
+function fakeMain(sessionId = "main-session") {
   const listeners = new Set<(e: HostEvent) => void>();
   const sent: string[] = [];
+  const snap = { type: "session" as const, id: sessionId, resumed: false, history: [], hiddenTurns: 0 };
   const host = {
-    sessionId: "main-session",
+    sessionId,
+    snapshot: () => snap,
     on(l: (e: HostEvent) => void) {
       listeners.add(l);
       return () => listeners.delete(l);
@@ -33,7 +35,7 @@ function fakeMain() {
     },
     cancel() {},
   } as unknown as ChatHost;
-  return { host, sent, emit: (e: HostEvent) => listeners.forEach((l) => l(e)) };
+  return { host, sent, emit: (e: HostEvent) => listeners.forEach((l) => l(e)), snap };
 }
 
 function harness(extra: { maxBusy?: number; mainCwd?: string } = {}) {
@@ -333,4 +335,32 @@ test("dispose kills every worker", async () => {
   await h.orch.parallel({ cwd: "/tmp/wb" });
   await h.close();
   assert.ok(h.workers.every((w) => w.killed));
+});
+
+test("setMain rebinds cwd, session, busy, and event source after workspace swap", async () => {
+  const h = harness({ mainCwd: "/tmp/cwd-a" });
+  try {
+    h.main.emit({ type: "user", text: "busy" });
+    assert.equal(h.orch.busyCount(), 1);
+
+    const next = fakeMain("sess-b");
+    next.snap.id = "sess-b";
+    h.orch.setMain(next.host, "/tmp/cwd-b");
+    const main = h.orch.list().find((w) => w.id === "main");
+    assert.equal(main?.cwd, "/tmp/cwd-b");
+    assert.equal(main?.sessionId, "sess-b");
+    assert.equal(main?.busy, false);
+    assert.equal(h.orch.busyCount(), 0);
+
+    h.main.emit({ type: "user", text: "stale" });
+    assert.equal(h.orch.busyCount(), 0);
+
+    next.emit({ type: "user", text: "new main busy" });
+    await until(() => h.orch.busyCount() === 1);
+
+    await h.orch.send("main", "after-swap");
+    assert.deepEqual(next.sent, ["after-swap"]);
+  } finally {
+    await h.close();
+  }
 });

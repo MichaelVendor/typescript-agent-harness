@@ -41,6 +41,8 @@ export type Orchestrator = {
   compact(id: string): Promise<void>;
   queue(id: string, op: { id: string; send?: boolean; remove?: boolean }): Promise<void>;
   onEvent(listener: (workerId: string, event: HostEvent) => void): () => void;
+  /** Rebind main after workspace host swap (unsubscribes the closed host). */
+  setMain(host: ChatHost, cwd: string): void;
   /** Kills every child worker. */
   dispose(): Promise<void>;
 };
@@ -120,6 +122,9 @@ export function createOrchestrator(opts: {
   const listeners = new Set<(id: string, event: HostEvent) => void>();
   let focusId = MAIN;
   let counter = 0;
+  let mainHost = opts.main;
+  let mainCwd = opts.mainCwd;
+  let mainOff: () => void;
 
   const info = (id: string): WorkerInfo => {
     if (id === MAIN) return mainInfo;
@@ -155,7 +160,7 @@ export function createOrchestrator(opts: {
     for (const l of listeners) l(id, event);
   };
 
-  opts.main.on((event) => handle(MAIN, event));
+  mainOff = mainHost.on((event) => handle(MAIN, event));
 
   /** Connects to the worker's `/events`; resolves once subscribed, then reads in the background. */
   const subscribe = async (id: string, entry: Entry): Promise<void> => {
@@ -285,16 +290,16 @@ export function createOrchestrator(opts: {
       let dir = cwd;
       if (!dir) {
         wtName = name ?? `w${Date.now().toString(36)}${counter}`;
-        dir = addWorktree(opts.mainCwd, wtName).path;
+        dir = addWorktree(mainCwd, wtName).path;
       }
       const id = `w${++counter}-${randomBytes(3).toString("hex")}`;
       try {
         const entry = await start(id, dir);
-        if (wtName) entry.info.worktree = { name: wtName, parent: path.resolve(opts.mainCwd) };
+        if (wtName) entry.info.worktree = { name: wtName, parent: path.resolve(mainCwd) };
         entry.info.cwd = dir;
         return { ...entry.info };
       } catch (err) {
-        if (wtName) removeWorktree(opts.mainCwd, wtName);
+        if (wtName) removeWorktree(mainCwd, wtName);
         throw err;
       }
     },
@@ -320,40 +325,40 @@ export function createOrchestrator(opts: {
       if (wt) removeWorktree(wt.parent, wt.name);
     },
     async send(id, text, attachmentIds = []) {
-      if (id === MAIN) return startsTurn(id, () => opts.main.send(text, attachmentIds));
+      if (id === MAIN) return startsTurn(id, () => mainHost.send(text, attachmentIds));
       entryOf(id);
       return startsTurn(id, () => post(id, "/send", { text, attachmentIds }));
     },
     async cancel(id) {
-      if (id === MAIN) return opts.main.cancel();
+      if (id === MAIN) return mainHost.cancel();
       await post(id, "/cancel");
     },
     async answer(id, approvalId, answer) {
-      if (id === MAIN) return opts.main.answer(approvalId, answer);
+      if (id === MAIN) return mainHost.answer(approvalId, answer);
       await post(id, "/answer", { id: approvalId, answer });
     },
     async answerQuestion(id, questionId, answers) {
-      if (id === MAIN) return opts.main.answerQuestion(questionId, answers);
+      if (id === MAIN) return mainHost.answerQuestion(questionId, answers);
       await post(id, "/question", { id: questionId, answers });
     },
     async skipQuestion(id, questionId) {
-      if (id === MAIN) return opts.main.skipQuestion(questionId);
+      if (id === MAIN) return mainHost.skipQuestion(questionId);
       await post(id, "/question", { id: questionId, skip: true });
     },
     async continueTurn(id) {
-      if (id === MAIN) return startsTurn(id, () => opts.main.continueTurn());
+      if (id === MAIN) return startsTurn(id, () => mainHost.continueTurn());
       entryOf(id);
       return startsTurn(id, () => post(id, "/continue"));
     },
     async compact(id) {
-      if (id === MAIN) return startsTurn(id, () => opts.main.compact());
+      if (id === MAIN) return startsTurn(id, () => mainHost.compact());
       entryOf(id);
       return startsTurn(id, () => post(id, "/compact"));
     },
     async queue(id, op) {
       if (id === MAIN) {
-        if (op.remove) return opts.main.removeQueued(op.id);
-        if (op.send) return startsTurn(id, () => opts.main.sendQueued(op.id));
+        if (op.remove) return mainHost.removeQueued(op.id);
+        if (op.send) return startsTurn(id, () => mainHost.sendQueued(op.id));
         throw new Error('pass "send": true or "remove": true');
       }
       entryOf(id);
@@ -364,7 +369,19 @@ export function createOrchestrator(opts: {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    setMain(host, cwd) {
+      mainOff();
+      mainHost = host;
+      mainCwd = cwd;
+      mainOff = host.on((event) => handle(MAIN, event));
+      const snap = host.snapshot();
+      mainInfo.cwd = cwd;
+      mainInfo.sessionId = snap.id;
+      mainInfo.busy = false;
+      mainInfo.needsAttention = false;
+    },
     async dispose() {
+      mainOff();
       for (const entry of workers.values()) halt(entry);
       workers.clear();
       listeners.clear();
