@@ -91,12 +91,14 @@ test("defer worktree: no directory until first send", async () => {
   try {
     const wtDir = worktreePath(repo, "feat");
     const w = await h.orch.parallel({ name: "feat", deferUntilSend: true });
+    assert.equal(w.pendingWorktree, true);
     assert.equal(existsSync(wtDir), false);
     assert.equal(w.cwd, wtDir);
     assert.equal(execFileSync("git", ["branch", "--list", "tah/feat"], { cwd: repo }).toString().trim(), "");
     assert.equal(h.workers[0]?.cwd, repo);
 
     await h.orch.send(w.id, "hello");
+    assert.equal(h.orch.list().find((x) => x.id === w.id)?.pendingWorktree, undefined);
     assert.equal(existsSync(wtDir), true);
     assert.match(execFileSync("git", ["branch", "--list", "tah/feat"], { cwd: repo }).toString(), /tah\/feat/);
     assert.equal(h.workers[h.workers.length - 1]?.cwd, wtDir);

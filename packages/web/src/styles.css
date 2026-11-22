@@ -957,6 +957,16 @@ main {
   margin: 0;
   padding: 0;
 }
+.worker-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 2px;
+}
+.worker-item > .worker-row {
+  flex: 1;
+  margin: 0;
+}
 .worker-row {
   display: flex;
   align-items: center;
@@ -999,6 +1009,10 @@ main {
 .worker-chip.dead {
   color: var(--muted);
   background: var(--bar);
+}
+.worker-chip.pending {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
 }
 .worker-row .spinner {
   width: 10px;

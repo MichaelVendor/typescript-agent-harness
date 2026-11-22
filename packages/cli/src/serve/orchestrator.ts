@@ -17,6 +17,8 @@ export type WorkerInfo = {
   /** Pending approval/question on a non-focused worker (for snapshot / UI). */
   attention?: "approval" | "question";
   worktree?: { name: string; parent: string };
+  /** Worktree path reserved but `git worktree add` not run until first send. */
+  pendingWorktree?: boolean;
   dead?: boolean;
 };
 
@@ -26,6 +28,7 @@ export type WorkerSnapshot = {
   busy: boolean;
   attention?: "approval" | "question";
   worktree?: { name: string; branch: string };
+  pendingWorktree?: boolean;
 };
 
 export type SpawnWorker = (args: { id: string; cwd: string; token: string }) => Promise<{ url: string; kill(): void }>;
@@ -288,6 +291,7 @@ export function createOrchestrator(opts: {
     if (!pending || pending.materialized) return;
     const { path: wtPath } = addWorktree(pending.parent, pending.name);
     pending.materialized = true;
+    delete entry.info.pendingWorktree;
     entry.info.cwd = wtPath;
     halt(entry);
     await start(id, wtPath);
@@ -303,6 +307,7 @@ export function createOrchestrator(opts: {
     const snap: WorkerSnapshot = { workerId: w.id, cwd: w.cwd, busy: w.busy };
     if (w.needsAttention && w.attention) snap.attention = w.attention;
     if (w.worktree) snap.worktree = { name: w.worktree.name, branch: `tah/${w.worktree.name}` };
+    if (w.pendingWorktree) snap.pendingWorktree = true;
     return snap;
   };
 
@@ -364,6 +369,7 @@ export function createOrchestrator(opts: {
           entry.info.cwd = dir!;
           if (deferred) {
             entry.pendingWorktree = { name: wtName, parent, materialized: false };
+            entry.info.pendingWorktree = true;
           } else {
             try {
               addWorkspace(opts.homeDir, dir!, { kind: "worktree", parent });

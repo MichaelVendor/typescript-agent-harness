@@ -94,7 +94,7 @@ function SessionRail(props: {
               const att = attentionOf(w.id) ?? (w.needsAttention ? { kind: "approval" as const, summary: "needs attention" } : undefined);
               const focused = w.id === props.focusId;
               return (
-                <li key={w.id}>
+                <li key={w.id} className="worker-item">
                   <button
                     type="button"
                     className={focused ? "worker-row on" : "worker-row"}
@@ -102,12 +102,12 @@ function SessionRail(props: {
                     onClick={() => props.onFocusWorker(w.id)}
                   >
                     <span className="worker-name">{workerLabel(w)}</span>
-                    {w.dead ? <span className="worker-chip dead">dead</span> : null}
-                    {w.dead ? (
-                      <button type="button" className="link" onClick={(e) => { e.stopPropagation(); props.onRemoveWorker(w.id); }}>
-                        Remove
-                      </button>
+                    {w.pendingWorktree ? (
+                      <span className="worker-chip pending" title="首条消息后再创建 worktree">
+                        pending
+                      </span>
                     ) : null}
+                    {w.dead ? <span className="worker-chip dead">dead</span> : null}
                     {w.busy && !att ? <span className="spinner" aria-label="busy" /> : null}
                     {att ? (
                       <span className="worker-chip attention" title={att.summary}>
@@ -115,13 +115,23 @@ function SessionRail(props: {
                       </span>
                     ) : null}
                   </button>
+                  {w.dead ? (
+                    <button type="button" className="link" onClick={() => props.onRemoveWorker(w.id)}>
+                      Remove
+                    </button>
+                  ) : null}
                 </li>
               );
             })}
           </ul>
           {props.onParallel ? (
-            <button type="button" className="link" onClick={props.onParallel}>
-              新建并行
+            <button
+              type="button"
+              className="link"
+              title="Creates a worktree on first send"
+              onClick={props.onParallel}
+            >
+              新建 worktree 并行
             </button>
           ) : null}
         </div>
