@@ -414,6 +414,7 @@ export async function bootRuntime(
         mcpPlugin({
           ...(caps.mcp.length > 1 ? { name: `mcp:${i + 1}` } : {}),
           backend,
+          toolExposure: caps.mcpToolExposure,
         }),
       );
     }

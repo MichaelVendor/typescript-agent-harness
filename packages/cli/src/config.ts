@@ -22,6 +22,8 @@ export type TahConfig = {
   extensions?: {
     /** One server, or several. A single object in the file is stored as a one-element list. */
     mcp?: TahMcpExtension[];
+    /** When set on a single `mcp` object, may also appear as `toolExposure` on that object. */
+    mcpToolExposure?: "eager" | "lazy";
   };
   permissions?: TahPermissions;
 };
@@ -34,6 +36,7 @@ export type ResolvedCapabilities = {
   vision: boolean;
   /** Empty when MCP is off. */
   mcp: TahMcpExtension[];
+  mcpToolExposure: "eager" | "lazy";
   /** Empty when no allowlist is set (every tool not denied is allowed). */
   allow: string[];
   /** Empty when nothing is denied. Wins over `allow`. */
@@ -46,7 +49,7 @@ export type ResolvedCapabilities = {
 
 const TOP_KEYS = new Set(["capabilities", "extensions", "permissions"]);
 const CAP_KEYS = new Set(["coding", "web", "browser", "vision"]);
-const EXT_KEYS = new Set(["mcp"]);
+const EXT_KEYS = new Set(["mcp", "mcpToolExposure"]);
 const PERM_KEYS = new Set(["allow", "deny"]);
 const CODING_OBJ_KEYS = new Set(["exec", "sandbox"]);
 
@@ -101,6 +104,13 @@ function parseMcpServer(mcp: unknown, rel: string, label: string): TahMcpExtensi
     args = mcp.args as string[];
   }
   return { transport: "stdio", command: mcp.command as string, args };
+}
+
+export type McpToolExposure = "eager" | "lazy";
+
+function parseMcpToolExposure(value: unknown, rel: string, label: string): McpToolExposure {
+  if (value !== "eager" && value !== "lazy") bad(rel, `${label} must be "eager" or "lazy"`);
+  return value;
 }
 
 function parseToolList(value: unknown, rel: string, label: string): string[] {
@@ -170,13 +180,35 @@ export function parseTahConfig(raw: unknown, rel = "tah.config.json"): TahConfig
       if (!EXT_KEYS.has(key)) bad(rel, `unknown extension "${key}"`);
     }
     const exts: NonNullable<TahConfig["extensions"]> = {};
+    let mcpToolExposure: McpToolExposure | undefined;
+    if ("mcpToolExposure" in raw.extensions) {
+      mcpToolExposure = parseMcpToolExposure(
+        raw.extensions.mcpToolExposure,
+        rel,
+        "extensions.mcpToolExposure",
+      );
+      exts.mcpToolExposure = mcpToolExposure;
+    }
     if ("mcp" in raw.extensions) {
       const mcp = raw.extensions.mcp;
       if (Array.isArray(mcp)) {
         if (mcp.length === 0) bad(rel, "extensions.mcp must list at least one server");
         exts.mcp = mcp.map((server, i) => parseMcpServer(server, rel, `extensions.mcp[${i}]`));
+      } else if (isObject(mcp)) {
+        let server: Record<string, unknown> = mcp;
+        if ("toolExposure" in mcp) {
+          const fromServer = parseMcpToolExposure(mcp.toolExposure, rel, "extensions.mcp.toolExposure");
+          if (mcpToolExposure !== undefined) {
+            bad(rel, "extensions.mcpToolExposure and extensions.mcp.toolExposure cannot both be set");
+          }
+          mcpToolExposure = fromServer;
+          exts.mcpToolExposure = fromServer;
+          const { toolExposure: _drop, ...rest } = mcp;
+          server = rest;
+        }
+        exts.mcp = [parseMcpServer(server, rel, "extensions.mcp")];
       } else {
-        exts.mcp = [parseMcpServer(mcp, rel, "extensions.mcp")];
+        bad(rel, "extensions.mcp must be an object or an array of servers");
       }
     }
     out.extensions = exts;
@@ -237,6 +269,7 @@ export function resolveCapabilities(
   let browser: boolean | undefined;
   let vision = false;
   let mcp: TahMcpExtension[] = [];
+  let mcpToolExposure: McpToolExposure = "eager";
   let allow: string[] = [];
   let deny: string[] = [];
   let sandbox: boolean | undefined;
@@ -264,6 +297,9 @@ export function resolveCapabilities(
         : { transport: "http", url: server.url, headers: { ...server.headers } },
     );
   }
+  if (config?.extensions?.mcpToolExposure) {
+    mcpToolExposure = config.extensions.mcpToolExposure;
+  }
   if (config?.permissions?.allow) allow = [...config.permissions.allow];
   if (config?.permissions?.deny) deny = [...config.permissions.deny];
 
@@ -284,6 +320,7 @@ export function resolveCapabilities(
     browser: browser ?? webOn,
     vision,
     mcp,
+    mcpToolExposure,
     allow,
     deny,
     sandbox,

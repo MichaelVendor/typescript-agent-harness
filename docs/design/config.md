@@ -62,6 +62,7 @@
 | `capabilities.browser` | 内置浏览器（Playwright MCP）：先只挂 `browser_open`，调用并经用户批准后才启动 Chrome、挂上 18 个浏览器工具。省略时跟随 `web`；写 `false` 关掉；`--mock` 时不挂（v0.31，见 [内置浏览器](/design/browser)） |
 | `capabilities.vision` | `tah serve` 图片多模态投影（同 `--vision` / `TAH_VISION=1`） |
 | `extensions.mcp` | 一个服务项，或这样的数组。每项只能是 stdio `{ "command": string, "args"?: string[] }`（`args` 缺省 `[]`，元素须为字符串），或远程 `{ "url": string, "headers"?: Record<string, string> }`（`headers` 为 HTTP 请求头，值须为字符串；缺省为无额外请求头）。`command` 与 `url` 只能出现一个，也不能两个都没有；其它键报配置错误。远程先走 Streamable HTTP，失败则同一组 `headers` 再试一次 SSE。启动时某个服务连不上，整个进程起不来（远程两次都失败时错误里含两种方式各自原因；`headers` 不写入错误文本）。连上后单次工具调用失败只让该次失败。两个服务给出同名工具时启动失败，错误里带工具名。`--mcp` / `--mcp-arg` 盖掉整份列表，变成一个 stdio 服务，不往后面追加 |
+| `extensions.mcpToolExposure` | `"eager"`（默认）启动时把所有 MCP 远程工具注册进会话；`"lazy"` 只注册 `mcp_list_tools` / `mcp_enable_tools`，按需再挂上远程工具。可与单服务形式的 `extensions.mcp.toolExposure` 二选一 |
 | `permissions.allow` | 工具名数组。写了就只有这些工具可见、可跑。命令行 `--allow`（可重复）盖掉这一项；没写 `--allow` 时用配置 |
 | `permissions.deny` | 工具名数组。这些工具不可见、不可跑，并且压过 `allow`。命令行 `--deny` 盖掉这一项 |
 
