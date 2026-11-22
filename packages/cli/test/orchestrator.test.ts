@@ -43,7 +43,7 @@ function harness(extra: { maxBusy?: number; mainCwd?: string; homeDir?: string }
   const main = fakeMain();
   const workers: FakeWorker[] = [];
   const servers: Server[] = [];
-  const spawnWorker = async ({ cwd, token }: { cwd: string; token: string }) => {
+  const spawnWorker = async ({ cwd, token }: { id: string; cwd: string; token: string }) => {
     const sse = new Set<ServerResponse>();
     const w: FakeWorker = {
       cwd,

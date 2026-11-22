@@ -18,7 +18,7 @@ export type WorkerInfo = {
   dead?: boolean;
 };
 
-export type SpawnWorker = (args: { cwd: string; token: string }) => Promise<{ url: string; kill(): void }>;
+export type SpawnWorker = (args: { id: string; cwd: string; token: string }) => Promise<{ url: string; kill(): void }>;
 
 export type Orchestrator = {
   readonly focusId: string;
@@ -42,6 +42,8 @@ export type Orchestrator = {
   compact(id: string): Promise<void>;
   queue(id: string, op: { id: string; send?: boolean; remove?: boolean }): Promise<void>;
   onEvent(listener: (workerId: string, event: HostEvent) => void): () => void;
+  /** Authenticated HTTP to a spawned worker (`"main"` is not allowed). */
+  fetchWorker(id: string, route: string, init?: RequestInit): Promise<Response>;
   /** Rebind main after workspace host swap (unsubscribes the closed host). */
   setMain(host: ChatHost, cwd: string): void;
   /** Kills every child worker. */
@@ -65,7 +67,7 @@ type Entry = {
 /** Real worker: `tah agent-worker --port 0`, ready line on stdout. */
 function realSpawn(flags: CliFlags, homeDir: string): SpawnWorker {
   const cli = fileURLToPath(new URL("../cli.js", import.meta.url));
-  return ({ cwd, token }) =>
+  return ({ id, cwd, token }) =>
     new Promise((resolve, reject) => {
       const args = [cli, "agent-worker", "--cwd", cwd, "--port", "0"];
       if (flags.mock) args.push("--mock");
@@ -74,7 +76,7 @@ function realSpawn(flags: CliFlags, homeDir: string): SpawnWorker {
       if (flags.sandboxSet) args.push(flags.sandbox ? "--sandbox" : "--no-sandbox");
       const child = spawn(process.execPath, args, {
         cwd,
-        env: { ...process.env, TAH_WORKER_TOKEN: token, HOME: homeDir },
+        env: { ...process.env, TAH_WORKER_TOKEN: token, TAH_BROWSER_PROFILE_ID: id, HOME: homeDir },
         stdio: ["ignore", "pipe", "inherit"],
       });
       let buf = "";
@@ -213,7 +215,7 @@ export function createOrchestrator(opts: {
 
   const start = async (id: string, cwd: string): Promise<Entry> => {
     const token = randomBytes(24).toString("hex");
-    const spawned = await spawnWorker({ cwd, token });
+    const spawned = await spawnWorker({ id, cwd, token });
     const existing = workers.get(id);
     const entry = (existing ?? {
       info: { id, cwd, sessionId: "", busy: false, needsAttention: false },
@@ -377,6 +379,14 @@ export function createOrchestrator(opts: {
     onEvent(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    fetchWorker(id, route, init) {
+      const entry = entryOf(id);
+      if (entry.info.dead) throw new Error(`worker is stopped: ${id}`);
+      return fetch(`${entry.url}${route}`, {
+        ...init,
+        headers: { authorization: `Bearer ${entry.token}`, ...(init?.headers as Record<string, string> | undefined) },
+      });
     },
     setMain(host, cwd) {
       mainOff();

@@ -162,6 +162,22 @@ export function createAgentWorkerHandler(opts: AgentWorkerHandlerOptions): Reque
         else throw new HttpError(400, 'pass "send": true or "remove": true');
         return json(res, 204);
       }
+      case "GET /browser": {
+        const b = host.browser;
+        return json(res, 200, {
+          available: b !== undefined,
+          running: b?.running() ?? false,
+          agent: b?.agentAttached() ?? false,
+          ...(b?.cdpPort() === undefined ? {} : { cdpPort: b.cdpPort() }),
+        });
+      }
+      case "POST /browser/launch":
+        if (!host.browser) throw new HttpError(409, "the built-in browser is off in this folder");
+        await host.browser.launch();
+        return json(res, 204);
+      case "POST /browser/close":
+        await host.browser?.close();
+        return json(res, 204);
       default:
         return json(res, 404, { error: "not found" });
     }

@@ -163,6 +163,7 @@ export async function bootRuntime(
     print?: boolean;
     project?: Project | undefined;
     homeDir?: string;
+    browserProfileId?: string;
     browserServer?: BrowserServer;
   } = {},
 ): Promise<{
@@ -203,6 +204,7 @@ export async function bootRuntime(
           cwd: flags.cwd,
           homeDir: opts.homeDir ?? os.homedir(),
           headless: flags.command !== "chat",
+          ...(opts.browserProfileId ? { profileId: opts.browserProfileId } : {}),
           ...(opts.browserServer ? { server: opts.browserServer } : {}),
         })
       : undefined;

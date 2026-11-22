@@ -34,7 +34,9 @@ import { importSkills, removeSkill } from "../skills/install.js";
 import { addRemoteSkills } from "../skills/remote.js";
 import type { Orchestrator } from "./orchestrator.js";
 import type { ChannelsSettingsView, FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
+import type { Browser } from "../browser.js";
 import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
+import { createWorkerBrowser, workerBrowserClient } from "./worker-browser.js";
 import { readSuperAgentPanel } from "./super-agent-panel.js";
 import { loadSuggestions } from "./suggestions.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
@@ -175,13 +177,37 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const webDir = path.resolve(opts.webDir);
   let choosing = false;
   const previewToken = randomBytes(32).toString("base64url");
+  const workerBrowsers = new Map<string, Browser>();
+  const focusedBrowser = (): Browser | undefined => {
+    const main = host().browser;
+    if (!main) return undefined;
+    if (!orch || orch.focusId === "main") return main;
+    let remote = workerBrowsers.get(orch.focusId);
+    if (!remote) {
+      const focusId = orch.focusId;
+      remote = createWorkerBrowser(
+        workerBrowserClient((route, init) => orch.fetchWorker(focusId, route, init)),
+      );
+      workerBrowsers.set(focusId, remote);
+    }
+    return remote;
+  };
   const screen = createScreen({
-    browser: () => host().browser,
+    browser: focusedBrowser,
     ...(opts.connectCdp ? { connect: opts.connectCdp } : {}),
   });
   // The agent's browser tools and folder switches change the browser behind the panel.
   const unsubscribeScreen = hub.subscribe((event) => {
+    if (orch && orch.focusId !== "main") return;
     if (event.type === "session" || (event.type === "tool.end" && event.tool.startsWith("browser_"))) void screen.sync();
+  });
+  const unsubscribeOrchScreen = orch?.onEvent((workerId, event) => {
+    if (
+      workerId === orch.focusId &&
+      (event.type === "session" || (event.type === "tool.end" && event.tool.startsWith("browser_")))
+    ) {
+      void screen.sync();
+    }
   });
 
   const mapOrchError = (err: unknown): never => {
@@ -567,6 +593,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           mapOrchError(err);
         }
         focusHub?.notifyFocusChanged();
+        void screen.sync();
         return json(res, 204);
       }
       case "POST /api/workers/stop": {
@@ -915,6 +942,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     handle,
     closeAll() {
       unsubscribeScreen();
+      unsubscribeOrchScreen?.();
       focusHub?.dispose();
       screen.dispose();
       for (const res of streams) res.end();
