@@ -1222,3 +1222,63 @@ test("GET /api/super-agent/panel is 404 when disabled", async () => {
     await s.close();
   }
 });
+
+test("GET /api/session-status returns cwd snapshot", async () => {
+  const s = await fakeServer();
+  try {
+    const res = await client(s.base, s.cookie).get("/api/session-status");
+    assert.equal(res.status, 200);
+    const body = JSON.parse(res.body) as {
+      cwd: string;
+      busy: boolean;
+      pending: null | { kind: string; id: string };
+      workers: unknown[];
+    };
+    assert.equal(body.cwd, s.cwd);
+    assert.equal(body.busy, false);
+    assert.equal(body.pending, null);
+    assert.deepEqual(body.workers, []);
+  } finally {
+    await s.close();
+  }
+});
+
+test("GET /api/session-status includes superAgent ticketCount when panel enabled", async () => {
+  const panelDir = mkdtempSync(path.join(tmpdir(), "tah-sa-status-"));
+  writeFileSync(
+    path.join(panelDir, "panel.json"),
+    JSON.stringify({
+      agentId: "sa1",
+      status: "running",
+      needsHuman: [
+        {
+          id: "t1",
+          mandateId: "m1",
+          goal: "review",
+          status: "needs_human",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      running: [
+        {
+          id: "t2",
+          mandateId: "m1",
+          goal: "fix",
+          status: "running",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      recentReplies: [],
+      subscriptions: [],
+    }),
+  );
+  const s = await fakeServer(undefined, undefined, undefined, panelDir);
+  try {
+    const body = JSON.parse((await client(s.base, s.cookie).get("/api/session-status")).body) as {
+      superAgent?: { ticketCount: number };
+    };
+    assert.deepEqual(body.superAgent, { ticketCount: 2 });
+  } finally {
+    await s.close();
+  }
+});

@@ -37,6 +37,7 @@ import type { ChannelsSettingsView, FileStat, ServeInfo, SettingsView, SkillsVie
 import type { Browser } from "../browser.js";
 import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
 import { createWorkerBrowser, workerBrowserClient } from "./worker-browser.js";
+import { buildSessionStatus, type SessionStatusDto } from "./session-status.js";
 import { readSuperAgentPanel } from "./super-agent-panel.js";
 import { loadSuggestions } from "./suggestions.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
@@ -209,6 +210,29 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       void screen.sync();
     }
   });
+
+  /** Focus-worker pending approval/question ids for `GET /api/session-status`. */
+  const pendingByWorker = new Map<string, NonNullable<SessionStatusDto["pending"]>>();
+  const trackPending = (workerId: string, event: { type: string; id?: string }) => {
+    if (event.type === "approval" && typeof event.id === "string") {
+      pendingByWorker.set(workerId, { kind: "approval", id: event.id });
+      return;
+    }
+    if (event.type === "question" && typeof event.id === "string") {
+      pendingByWorker.set(workerId, { kind: "question", id: event.id });
+      return;
+    }
+    if (event.type === "approval.end" || event.type === "question.end") {
+      const cur = pendingByWorker.get(workerId);
+      if (cur && cur.id === event.id) pendingByWorker.delete(workerId);
+      return;
+    }
+    if (event.type === "session" || event.type === "turn.end" || event.type === "turn.error") {
+      pendingByWorker.delete(workerId);
+    }
+  };
+  const unsubPendingMain = hub.subscribe((event) => trackPending("main", event));
+  const unsubPendingOrch = orch?.onEvent((workerId, event) => trackPending(workerId, event));
 
   const mapOrchError = (err: unknown): never => {
     const msg = err instanceof Error ? err.message : String(err);
@@ -563,6 +587,39 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         }
         host().answerQuestion(str(body, "id"), answers as string[][]);
         return json(res, 204);
+      }
+      case "GET /api/session-status": {
+        const snap = orch?.snapshot();
+        const focusId = snap?.focusId ?? "main";
+        const focus = snap?.workers.find((w) => w.workerId === focusId);
+        let ticketCount: number | undefined;
+        if (opts.superAgentPanelDir) {
+          try {
+            const panel = readSuperAgentPanel(opts.superAgentPanelDir);
+            ticketCount = panel.needsHuman.length + panel.running.length;
+          } catch {
+            // Panel file optional at status time; omit superAgent when unreadable.
+          }
+        }
+        return json(
+          res,
+          200,
+          buildSessionStatus({
+            cwd: focus?.cwd ?? workspaces.cwd,
+            busy: focus?.busy ?? hub.busy,
+            pending: pendingByWorker.get(focusId) ?? null,
+            ...(snap
+              ? {
+                  workers: snap.workers.map((w) => ({
+                    workerId: w.workerId,
+                    busy: w.busy,
+                    ...(w.attention ? { attention: w.attention } : {}),
+                  })),
+                }
+              : {}),
+            ...(ticketCount !== undefined ? { ticketCount } : {}),
+          }),
+        );
       }
       case "GET /api/workers": {
         if (!orch) throw new HttpError(404, "workers not enabled");
@@ -943,6 +1000,8 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     closeAll() {
       unsubscribeScreen();
       unsubscribeOrchScreen?.();
+      unsubPendingMain();
+      unsubPendingOrch?.();
       focusHub?.dispose();
       screen.dispose();
       for (const res of streams) res.end();

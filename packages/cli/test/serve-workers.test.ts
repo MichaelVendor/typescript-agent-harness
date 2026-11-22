@@ -341,3 +341,27 @@ test("5th busy worker send returns 409", async () => {
     await h.close();
   }
 });
+
+test("GET /api/session-status fills workers from orch.snapshot", async () => {
+  const h = await fakeWorkersServer();
+  try {
+    const res = await h.api.get("/api/session-status");
+    assert.equal(res.status, 200);
+    const body = JSON.parse(res.body) as {
+      cwd: string;
+      workers: Array<{ workerId: string; busy: boolean }>;
+    };
+    assert.ok(body.workers.some((w) => w.workerId === "main"));
+    assert.equal(body.cwd, h.orch.snapshot().workers.find((w) => w.workerId === "main")?.cwd);
+
+    const a = JSON.parse((await h.api.post("/api/workers/parallel", { cwd: "/tmp/wa-status" })).body) as {
+      id: string;
+    };
+    const after = JSON.parse((await h.api.get("/api/session-status")).body) as {
+      workers: Array<{ workerId: string }>;
+    };
+    assert.ok(after.workers.some((w) => w.workerId === a.id));
+  } finally {
+    await h.close();
+  }
+});
