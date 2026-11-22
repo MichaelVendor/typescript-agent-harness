@@ -35,6 +35,8 @@ export function Composer(props: {
   children?: ReactNode;
   /** Short chips above the box. Clicking one sends `send`. */
   suggestions?: { label: string; send: string; detail?: string }[];
+  /** When false, file pick / drop / paste uploads are disabled (non-main worker). */
+  allowAttachments?: boolean;
 }) {
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -46,6 +48,7 @@ export function Composer(props: {
   const [hideSuggestion, setHideSuggestion] = useState(false);
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const allowAttachments = props.allowAttachments !== false;
   const ghost = !text && props.suggestion && !hideSuggestion ? props.suggestion : undefined;
   const slashQuery = text.trim();
   const slashOpen = !props.busy && !slashLocked && /^\/\S*$/.test(slashQuery);
@@ -146,11 +149,20 @@ export function Composer(props: {
     });
   }, [props.cwd]);
 
+  useEffect(() => {
+    if (allowAttachments) return;
+    setDrafts((d) => {
+      for (const x of d) if (x.preview) URL.revokeObjectURL(x.preview);
+      return [];
+    });
+  }, [allowAttachments]);
+
   const uploading = drafts.some((d) => d.status === "uploading");
   const readyIds = drafts.filter((d) => d.status === "ready").map((d) => d.id);
   const canSend = !props.disabled && !uploading && (Boolean(text.trim()) || readyIds.length > 0);
 
   const uploadFiles = async (files: FileList | File[]) => {
+    if (!allowAttachments) return;
     for (const file of [...files]) {
       const localId = `local_${Math.random().toString(36).slice(2)}`;
       const isImage = file.type.startsWith("image/");
@@ -254,11 +266,11 @@ export function Composer(props: {
       className="composer-wrap"
       onDragOver={(e) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = "copy";
+        e.dataTransfer.dropEffect = allowAttachments && !props.disabled ? "copy" : "none";
       }}
       onDrop={(e) => {
         e.preventDefault();
-        if (props.disabled) return;
+        if (props.disabled || !allowAttachments) return;
         if (e.dataTransfer.files.length) void uploadFiles(e.dataTransfer.files);
       }}
     >
@@ -371,7 +383,7 @@ export function Composer(props: {
             }}
             onPaste={(e) => {
               const files = [...e.clipboardData.files];
-              if (files.length === 0 || props.disabled) return;
+              if (files.length === 0 || props.disabled || !allowAttachments) return;
               e.preventDefault();
               void uploadFiles(files);
             }}
@@ -452,13 +464,19 @@ export function Composer(props: {
             }}
           />
         </div>
+        {!allowAttachments ? (
+          <p className="suggest-note">Attachments only on main worker</p>
+        ) : null}
         <div className="composer-bar">
           <button
             type="button"
             className="attach-btn"
-            disabled={props.disabled}
-            title="Attach files"
-            onClick={() => fileRef.current?.click()}
+            disabled={props.disabled || !allowAttachments}
+            title={allowAttachments ? "Attach files" : "Attachments only on main worker"}
+            onClick={() => {
+              if (!allowAttachments) return;
+              fileRef.current?.click();
+            }}
           >
             +
           </button>

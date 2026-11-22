@@ -546,6 +546,7 @@ export function App() {
           suggestions={suggestions}
           busy={state.busy}
           disabled={connection !== "open" || state.stepLimit}
+          allowAttachments={!(state.focusId && state.focusId !== "main")}
           onSend={(text, attachmentIds) => run(api.send(withWorker({ text, attachmentIds })))}
           onStop={() => run(api.cancel(withWorker({})))}
           onCommand={(cmd) => {
