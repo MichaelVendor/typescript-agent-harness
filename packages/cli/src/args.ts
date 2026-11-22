@@ -235,6 +235,7 @@ export function parseArgv(argv: string[]): CliFlags {
   flags.command = rest[0] ?? "help";
   flags.prompt = rest.slice(1).join(" ");
   if (flags.command === "agent-host" && !portSet) flags.port = 7800;
+  if (flags.command === "agent-worker" && !portSet) flags.port = 0;
   if (flags.command === "channel-host" && !portSet) flags.port = 7430;
   if (flags.superAgent && !flags.superAgentPanel) flags.superAgentPanel = ".tah/super-agent";
   return flags;
@@ -250,6 +251,7 @@ Usage:
                        /exit /reset /sessions /resume <id|n> /fork [turns]
   tah serve            web UI on 127.0.0.1 for this machine's agent; prints a one-time login link
   tah agent-host       headless /v1 HTTP (Bearer); default 0.0.0.0:7800
+  tah agent-worker     local HostEvent HTTP on 127.0.0.1 (Bearer TAH_WORKER_TOKEN); prints "[tah-worker] ready <url>"
   tah channel-host     Super-agent IM bridge (Telegram/Slack/飞书); default hooks 127.0.0.1:7430
   tah sessions         list saved sessions (newest first; numbers work with --session)
   tah init             scaffold a project (AGENTS.md, tools/, package.json) and install it
@@ -283,6 +285,7 @@ Flags:
   --plain             tah chat: line mode instead of the terminal UI
   --port <n>          tah serve: port on 127.0.0.1 (default 7420; 0 = any free port)
                       tah agent-host: listen port (default 7800; 0 = any free port)
+                      tah agent-worker: listen port on 127.0.0.1 (default 0 = any free port)
   --super-agent       tah serve: chat via embedded Super-agent (web local channel); implies panel
   --super-agent-panel <dir>
                       tah serve: read-only Super-agent ticket panel from persistDir (panel.json)
