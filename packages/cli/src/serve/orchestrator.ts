@@ -6,7 +6,7 @@ import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import type { CliFlags } from "../args.js";
 import type { ChatHost, HostEvent, SessionEvent } from "../host.js";
 import { addWorkspace } from "../workspaces.js";
-import { addWorktree, removeWorktree } from "./worktree.js";
+import { addWorktree, removeWorktree, validateWorktreeName, worktreePath } from "./worktree.js";
 
 export type WorkerInfo = {
   id: string; // "main" or generated
@@ -27,7 +27,7 @@ export type Orchestrator = {
   busyCount(): number;
   focus(id: string): void;
   /** Create worktree (unless cwd given) and spawn worker. Rejects with a message usable as a 409/400 body. */
-  parallel(opts: { name?: string; cwd?: string }): Promise<WorkerInfo>;
+  parallel(opts: { name?: string; cwd?: string; deferUntilSend?: boolean }): Promise<WorkerInfo>;
   stop(id: string): Promise<void>;
   restart(id: string): Promise<void>;
   /** Stop, drop from the list, and remove the worktree if we created it. */
@@ -62,6 +62,8 @@ type Entry = {
   abort: AbortController;
   /** Set by stop/remove so a closing event stream is not reported as a crash. */
   stopping: boolean;
+  /** Worktree registered at parallel() but not yet `git worktree add` until first turn. */
+  pendingWorktree?: { name: string; parent: string; materialized: boolean };
 };
 
 /** Real worker: `tah agent-worker --port 0`, ready line on stdout. */
@@ -259,6 +261,22 @@ export function createOrchestrator(opts: {
     }
   };
 
+  const materializeWorktree = async (id: string): Promise<void> => {
+    const entry = entryOf(id);
+    const pending = entry.pendingWorktree;
+    if (!pending || pending.materialized) return;
+    const { path: wtPath } = addWorktree(pending.parent, pending.name);
+    pending.materialized = true;
+    entry.info.cwd = wtPath;
+    halt(entry);
+    await start(id, wtPath);
+    try {
+      addWorkspace(opts.homeDir, wtPath, { kind: "worktree", parent: pending.parent });
+    } catch (err) {
+      console.error(`[tah] could not save worktree workspace: ${err instanceof Error ? err.message : err}`);
+    }
+  };
+
   /** A turn-starting call: idle targets need a free slot and count as busy right away. */
   const startsTurn = async (id: string, run: () => Promise<void>): Promise<void> => {
     const w = info(id);
@@ -268,6 +286,7 @@ export function createOrchestrator(opts: {
       w.busy = true;
     }
     try {
+      if (id !== MAIN) await materializeWorktree(id);
       await run();
     } catch (err) {
       if (!wasBusy) w.busy = false;
@@ -287,30 +306,45 @@ export function createOrchestrator(opts: {
       focusId = id;
       w.needsAttention = false;
     },
-    async parallel({ name, cwd }) {
+    async parallel({ name, cwd, deferUntilSend }) {
       assertRoom();
       let wtName: string | undefined;
       let dir = cwd;
+      let spawnCwd = cwd;
+      let deferred = false;
       if (!dir) {
         wtName = name ?? `w${Date.now().toString(36)}${counter}`;
-        dir = addWorktree(mainCwd, wtName).path;
+        const parent = path.resolve(mainCwd);
+        if (deferUntilSend) {
+          validateWorktreeName(wtName);
+          dir = worktreePath(parent, wtName);
+          spawnCwd = mainCwd;
+          deferred = true;
+        } else {
+          dir = addWorktree(mainCwd, wtName).path;
+          spawnCwd = dir;
+        }
       }
       const id = `w${++counter}-${randomBytes(3).toString("hex")}`;
       try {
-        const entry = await start(id, dir);
+        const entry = await start(id, spawnCwd!);
         if (wtName) {
           const parent = path.resolve(mainCwd);
           entry.info.worktree = { name: wtName, parent };
-          try {
-            addWorkspace(opts.homeDir, dir, { kind: "worktree", parent });
-          } catch (err) {
-            console.error(`[tah] could not save worktree workspace: ${err instanceof Error ? err.message : err}`);
+          entry.info.cwd = dir!;
+          if (deferred) {
+            entry.pendingWorktree = { name: wtName, parent, materialized: false };
+          } else {
+            try {
+              addWorkspace(opts.homeDir, dir!, { kind: "worktree", parent });
+            } catch (err) {
+              console.error(`[tah] could not save worktree workspace: ${err instanceof Error ? err.message : err}`);
+            }
           }
         }
-        entry.info.cwd = dir;
         return { ...entry.info };
       } catch (err) {
-        if (wtName) removeWorktree(mainCwd, wtName);
+        if (wtName && !deferred) removeWorktree(mainCwd, wtName);
         throw err;
       }
     },
@@ -333,7 +367,9 @@ export function createOrchestrator(opts: {
       workers.delete(id);
       if (focusId === id) focusId = MAIN;
       const wt = entry.info.worktree;
-      if (wt) removeWorktree(wt.parent, wt.name);
+      if (wt && (!entry.pendingWorktree || entry.pendingWorktree.materialized)) {
+        removeWorktree(wt.parent, wt.name);
+      }
     },
     async send(id, text, attachmentIds = []) {
       if (id === MAIN) return startsTurn(id, () => mainHost.send(text, attachmentIds));

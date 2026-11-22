@@ -16,7 +16,7 @@ export function worktreePath(repoRoot: string, name: string): string {
   return path.join(path.resolve(repoRoot), ".tah", "worktrees", name);
 }
 
-function assertValidName(name: string): void {
+export function validateWorktreeName(name: string): void {
   if (!NAME_RE.test(name)) throw new Error(`invalid worktree name: "${name}"`);
 }
 
@@ -24,7 +24,7 @@ function assertValidName(name: string): void {
 export function addWorktree(repoRoot: string, name: string): { path: string; branch: string } {
   const root = path.resolve(repoRoot);
   if (!isGitRepo(root)) throw new Error(`not a git repository: ${root}`);
-  assertValidName(name);
+  validateWorktreeName(name);
   const wtPath = worktreePath(root, name);
   const branch = `tah/${name}`;
   execFileSync("git", ["worktree", "add", "-b", branch, wtPath], { cwd: root, stdio: "inherit" });
