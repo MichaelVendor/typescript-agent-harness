@@ -1,4 +1,4 @@
-import type { ServeInfo, SettingsView, WorkspaceView } from "@typescript-agent-harness/cli";
+import type { HostEvent, ServeInfo, SettingsView, WorkerInfo, WorkspaceView } from "@typescript-agent-harness/cli";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api, connect, type Connection } from "./api";
 import { agentBrowsing, opensBrowser } from "./browser-view";
@@ -21,7 +21,17 @@ import { Sidebar } from "./components/Sidebar";
 import { contextPercent } from "./context-usage";
 import { fileChanges } from "./diff-view";
 import { fileQuery, touchesFiles, type FileTarget } from "./preview-view";
-import { applyEvent, initialState, type Action, type Entry } from "./state";
+import { applyEvent, initialState, type Action, type Attention, type Entry } from "./state";
+
+function workerLabel(w: WorkerInfo): string {
+  if (w.worktree?.name) return w.worktree.name;
+  if (w.id === "main") return "main";
+  return w.id.slice(0, 8);
+}
+
+function isHostEvent(event: Action): event is HostEvent {
+  return event.type !== "batch" && event.type !== "attention" && event.type !== "workers" && !event.type.startsWith("local.");
+}
 
 function sessionTitle(entries: Entry[]): string {
   for (const e of entries) if (e.kind === "user" && e.text) return e.text;
@@ -59,12 +69,53 @@ function SessionRail(props: {
   onCompact: (() => void) | undefined;
   /** When true, show read-only Super-agent ticket card (polls separately). */
   superAgentPanel?: boolean;
+  workers: WorkerInfo[];
+  focusId: string;
+  attention: Attention[];
+  onFocusWorker(id: string): void;
+  onParallel: (() => void) | undefined;
 }) {
   const tokens = props.tokens;
   const used = tokens ? tokens.promptTokens + tokens.completionTokens : 0;
   const panel = useSuperAgentPanel(props.superAgentPanel === true);
+  const attentionOf = (id: string) => props.attention.find((a) => a.workerId === id);
   return (
     <aside className="session-rail">
+      {props.workers.length > 0 ? (
+        <div className="rail-card">
+          <h2>Workers</h2>
+          <ul className="worker-list">
+            {props.workers.map((w) => {
+              const att = attentionOf(w.id) ?? (w.needsAttention ? { kind: "approval" as const, summary: "needs attention" } : undefined);
+              const focused = w.id === props.focusId;
+              return (
+                <li key={w.id}>
+                  <button
+                    type="button"
+                    className={focused ? "worker-row on" : "worker-row"}
+                    title={w.cwd}
+                    onClick={() => props.onFocusWorker(w.id)}
+                  >
+                    <span className="worker-name">{workerLabel(w)}</span>
+                    {w.dead ? <span className="worker-chip dead">dead</span> : null}
+                    {w.busy && !att ? <span className="spinner" aria-label="busy" /> : null}
+                    {att ? (
+                      <span className="worker-chip attention" title={att.summary}>
+                        {att.kind === "approval" ? "审批" : "提问"}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {props.onParallel ? (
+            <button type="button" className="link" onClick={props.onParallel}>
+              新建并行
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <div className="rail-card">
         <h2>上下文</h2>
         {props.percent !== undefined ? (
@@ -169,9 +220,9 @@ export function App() {
           api.settings().then(setSettings, () => {});
         },
         onEvent(event) {
-          enqueue(event);
-          if (touchesFiles(event)) setPreviewVersion((v) => v + 1);
-          if (opensBrowser(event)) showBrowser();
+          enqueue(event as Action);
+          if (isHostEvent(event as Action) && touchesFiles(event as HostEvent)) setPreviewVersion((v) => v + 1);
+          if (isHostEvent(event as Action) && opensBrowser(event as HostEvent)) showBrowser();
         },
         onStatus: setConnection,
       });
@@ -271,6 +322,9 @@ export function App() {
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
 
+  const withWorker = <T extends Record<string, unknown>>(body: T): T & { workerId?: string } =>
+    state.focusId ? { ...body, workerId: state.focusId } : body;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "o" && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
@@ -283,14 +337,15 @@ export function App() {
       if (tag === "TEXTAREA" || tag === "INPUT") return;
       if (state.busy) {
         e.preventDefault();
-        void api.cancel().catch((err: unknown) =>
+        const body = state.focusId ? { workerId: state.focusId } : {};
+        void api.cancel(body).catch((err: unknown) =>
           enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }),
         );
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dialog, state.busy, enqueue]);
+  }, [dialog, state.busy, state.focusId, enqueue]);
 
   const browse = useMemo(
     () =>
@@ -316,6 +371,9 @@ export function App() {
   const toolRunning = state.entries.some((e) => e.kind === "tool" && e.status === "running");
   const thinking = state.busy && !state.approval && !state.question && !toolRunning && last?.kind !== "assistant";
   const changes = fileChanges(state.entries);
+  const answerLocked = (workerId: string | undefined) =>
+    Boolean(state.focusId && workerId && workerId !== state.focusId);
+  const attentionBanner = state.attention.find((a) => a.workerId !== state.focusId);
   const fileOpen = preview !== undefined;
   const browserOpen = browserShown && browserAvailable;
   const side = diffOpen
@@ -396,6 +454,14 @@ export function App() {
           </div>
         </div>
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
+        {attentionBanner ? (
+          <div className="banner attention">
+            <button type="button" className="link" onClick={() => run(api.workersFocus({ id: attentionBanner.workerId }))}>
+              {attentionBanner.kind === "approval" ? "审批" : "提问"} · {attentionBanner.summary}
+            </button>
+            <span> — 点击切换焦点</span>
+          </div>
+        ) : null}
         <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse} expandTools={expandTools}>
           {state.retry ? (
             <div className="thinking retry">
@@ -409,15 +475,23 @@ export function App() {
           {state.approval ? (
             <ApprovalCard
               approval={state.approval}
-              onAnswer={(answer) => state.approval && run(api.answer({ id: state.approval.id, answer }))}
+              disabled={answerLocked(state.approval.workerId)}
+              onAnswer={(answer) =>
+                state.approval && run(api.answer(withWorker({ id: state.approval.id, answer })))
+              }
             />
           ) : null}
           {state.question ? (
             <QuestionCard
               key={state.question.id}
               question={state.question}
-              onAnswer={(answers) => state.question && run(api.question({ id: state.question.id, answers }))}
-              onSkip={() => state.question && run(api.question({ id: state.question.id, skip: true }))}
+              disabled={answerLocked(state.question.workerId)}
+              onAnswer={(answers) =>
+                state.question && run(api.question(withWorker({ id: state.question.id, answers })))
+              }
+              onSkip={() =>
+                state.question && run(api.question(withWorker({ id: state.question.id, skip: true as const })))
+              }
             />
           ) : null}
           {state.stepLimit && !state.busy ? (
@@ -430,7 +504,7 @@ export function App() {
                   className="primary"
                   onClick={() => {
                     enqueue({ type: "local.continue" });
-                    run(api.continueTurn());
+                    run(api.continueTurn(withWorker({})));
                   }}
                 >
                   Continue
@@ -444,8 +518,8 @@ export function App() {
         <QueueList
           items={state.queue}
           busy={state.busy}
-          onSend={(id) => run(api.queue({ id, send: true }))}
-          onRemove={(id) => run(api.queue({ id, remove: true }))}
+          onSend={(id) => run(api.queue(withWorker({ id, send: true as const })))}
+          onRemove={(id) => run(api.queue(withWorker({ id, remove: true as const })))}
         />
         <Composer
           cwd={activePath}
@@ -468,12 +542,12 @@ export function App() {
           suggestions={suggestions}
           busy={state.busy}
           disabled={connection !== "open" || state.stepLimit}
-          onSend={(text, attachmentIds) => run(api.send({ text, attachmentIds }))}
-          onStop={() => run(api.cancel())}
+          onSend={(text, attachmentIds) => run(api.send(withWorker({ text, attachmentIds })))}
+          onStop={() => run(api.cancel(withWorker({})))}
           onCommand={(cmd) => {
             if (cmd === "compact") {
               enqueue({ type: "local.continue" });
-              run(api.compact());
+              run(api.compact(withWorker({})));
             } else if (cmd === "reset") run(api.reset({}));
             else if (cmd === "fork") run(api.fork({}));
           }}
@@ -500,11 +574,20 @@ export function App() {
             connection === "open" && !state.busy && !state.stepLimit
               ? () => {
                   enqueue({ type: "local.continue" });
-                  run(api.compact());
+                  run(api.compact(withWorker({})));
                 }
               : undefined
           }
           superAgentPanel={info?.superAgentPanel === true}
+          workers={state.workers}
+          focusId={state.focusId}
+          attention={state.attention}
+          onFocusWorker={(id) => run(api.workersFocus({ id }))}
+          onParallel={
+            connection === "open" && state.workers.length > 0
+              ? () => run(api.workersParallel({}))
+              : undefined
+          }
         />
       )}
       {side ? (

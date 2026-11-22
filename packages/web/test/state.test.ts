@@ -187,3 +187,60 @@ test("tool entries keep the file path from events and history", () => {
   const entry = resumed.entries[0];
   assert.equal(entry?.kind === "tool" ? entry.path : undefined, "a.md");
 });
+
+const worker = (id: string, opts: { busy?: boolean; needsAttention?: boolean } = {}) => ({
+  id,
+  cwd: `/tmp/${id}`,
+  sessionId: `s-${id}`,
+  busy: opts.busy ?? false,
+  needsAttention: opts.needsAttention ?? false,
+});
+
+test("workers event sets focusId and list; focus change clears transcript", () => {
+  const withChat = run([
+    { type: "workers", workers: [worker("main")], focusId: "main" },
+    session("s1"),
+    { type: "user", text: "hi", workerId: "main", cwd: "/tmp/main", sessionId: "s1" } as Action,
+  ]);
+  assert.equal(withChat.focusId, "main");
+  assert.equal(withChat.entries.length, 1);
+  const switched = run(
+    [{ type: "workers", workers: [worker("main"), worker("w2")], focusId: "w2" }],
+    withChat,
+  );
+  assert.equal(switched.focusId, "w2");
+  assert.equal(switched.workers.length, 2);
+  assert.deepEqual(switched.entries, []);
+  assert.equal(switched.sessionId, "");
+});
+
+test("tagged host events for a non-focus worker are ignored", () => {
+  const s = run([
+    { type: "workers", workers: [worker("main"), worker("w2", { busy: true })], focusId: "main" },
+    session("s1"),
+    { type: "text", delta: "bg", workerId: "w2", cwd: "/tmp/w2", sessionId: "s-w2" } as Action,
+    { type: "text", delta: "fg", workerId: "main", cwd: "/tmp/main", sessionId: "s1" } as Action,
+  ]);
+  assert.equal(s.entries.at(-1)?.kind, "assistant");
+  assert.equal(s.entries.at(-1)?.kind === "assistant" ? s.entries.at(-1).text : "", "fg");
+});
+
+test("attention is recorded and cleared when that worker becomes focus", () => {
+  const s = run([
+    { type: "workers", workers: [worker("main"), worker("w2")], focusId: "main" },
+    { type: "attention", workerId: "w2", kind: "approval", summary: "write_file x" },
+  ]);
+  assert.deepEqual(s.attention, [{ workerId: "w2", kind: "approval", summary: "write_file x" }]);
+  const focused = run(
+    [{ type: "workers", workers: [worker("main"), worker("w2", { needsAttention: true })], focusId: "w2" }],
+    s,
+  );
+  assert.deepEqual(focused.attention, []);
+  assert.equal(focused.focusId, "w2");
+});
+
+test("untagged host events still apply when focusId is unset (no orchestrator)", () => {
+  const s = run([session("s1"), { type: "user", text: "solo" }]);
+  assert.equal(s.focusId, "");
+  assert.equal(s.entries.length, 1);
+});

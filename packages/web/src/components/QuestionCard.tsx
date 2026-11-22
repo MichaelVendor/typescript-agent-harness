@@ -5,10 +5,13 @@ import type { PendingQuestion } from "../state";
 /** One question at a time (‹ 1 / 3 ›); Skip dismisses the card and ends the turn. */
 export function QuestionCard({
   question,
+  disabled,
   onAnswer,
   onSkip,
 }: {
   question: PendingQuestion;
+  /** True when the card's worker is not the focused one — answers would 409. */
+  disabled?: boolean;
   onAnswer(answers: string[][]): void;
   onSkip(): void;
 }) {
@@ -16,13 +19,14 @@ export function QuestionCard({
   const [drafts, setDrafts] = useState(() => emptyDrafts(questions));
   const [index, setIndex] = useState(0);
   const [sent, setSent] = useState(false);
+  const locked = sent || disabled === true;
   const q = questions[index]!;
   const draft = drafts[index]!;
   const total = questions.length;
   const last = index === total - 1;
 
   const send = (ready: string[][]) => {
-    if (sent) return;
+    if (locked) return;
     setSent(true);
     onAnswer(ready);
   };
@@ -63,6 +67,7 @@ export function QuestionCard({
           </div>
         ) : null}
       </div>
+      {disabled ? <div className="card-hint">先切换到该 worker 再回答</div> : null}
       <div className="question-options">
         {q.options.map((o, k) => (
           <button
@@ -70,7 +75,7 @@ export function QuestionCard({
             key={`${index}-${k}`}
             className={draft.picked.includes(k) ? "question-option picked" : "question-option"}
             aria-pressed={draft.picked.includes(k)}
-            disabled={sent}
+            disabled={locked}
             onClick={() => choose(k)}
           >
             <span className="question-key">{k + 1}</span>
@@ -83,7 +88,7 @@ export function QuestionCard({
         className="question-other"
         placeholder="Or type your own answer"
         value={draft.other}
-        disabled={sent}
+        disabled={locked}
         onChange={(e) => change(typeOther(q, draft, e.target.value))}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.nativeEvent.isComposing && answerOf(q, draft).length > 0) {
@@ -95,8 +100,9 @@ export function QuestionCard({
       <div className="card-actions">
         <button
           type="button"
-          disabled={sent}
+          disabled={locked}
           onClick={() => {
+            if (locked) return;
             setSent(true);
             onSkip();
           }}
@@ -107,7 +113,7 @@ export function QuestionCard({
         <button
           type="button"
           className="primary"
-          disabled={sent || answerOf(q, draft).length === 0}
+          disabled={locked || answerOf(q, draft).length === 0}
           onClick={forward}
         >
           {last ? "Submit" : "Next"}

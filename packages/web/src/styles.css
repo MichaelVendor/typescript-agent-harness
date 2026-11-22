@@ -908,6 +908,78 @@ main {
   color: var(--warn);
   border-bottom: 1px solid var(--border);
 }
+.banner.attention {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+.banner.attention .link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--warn);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.worker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.worker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0 0 2px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.worker-row:hover {
+  background: var(--hover, color-mix(in srgb, var(--text) 6%, transparent));
+}
+.worker-row.on {
+  background: var(--card);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.worker-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worker-chip {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.worker-chip.attention {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+.worker-chip.dead {
+  color: var(--muted);
+  background: var(--bar);
+}
+.worker-row .spinner {
+  width: 10px;
+  height: 10px;
+}
+.card-hint {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--warn);
+}
 
 .messages {
   flex: 1;

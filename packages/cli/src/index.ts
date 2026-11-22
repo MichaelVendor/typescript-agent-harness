@@ -21,12 +21,14 @@ export type {
   PermissionMode,
   ReviewPanelSnapshot,
   ServeError,
+  ServeEvent,
   ChannelsSettingsView,
   ServeInfo,
   ServeRequest,
   SettingsView,
   SkillsImport,
   SkillsView,
+  WorkerInfo,
   WorkspaceView,
 } from "./serve/protocol.js";
 export { signAgentHostToken, type AgentHostClaims } from "./agent-host/auth.js";
