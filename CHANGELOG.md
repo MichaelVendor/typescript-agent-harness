@@ -10,6 +10,8 @@
 
 **MCP lazy:** `extensions.mcpToolExposure` or per-server `extensions.mcp.toolExposure` (`eager` default). In `lazy` mode only `mcp_list_tools` / `mcp_enable_tools` are in the first LLM tool list; other remote MCP tools register after enable.
 
+**DSH P0 polish (web):** Non-main worker focus disables composer attachments (+ / drop / paste); non-main send with `attachmentIds` still returns 400. Dead workers expose **Remove** in the sidebar. Deferred parallel workers show a **pending** chip until the first send materializes the git worktree.
+
 ## 1.7.4 — 2026-11-19
 
 **Web:** Sidebar context menus (⋯ / right-click) portal to `document.body` again so `#root` zoom no longer misplaces Pin / Remove from list / etc.
