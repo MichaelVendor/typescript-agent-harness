@@ -98,6 +98,8 @@ export function createAgentWorkerHandler(opts: AgentWorkerHandlerOptions): Reque
     if (!checkWorkerBearer(req.headers.authorization, opts.token)) throw new HttpError(401, "missing or invalid token");
 
     switch (key) {
+      case "GET /session":
+        return json(res, 200, host.snapshot());
       case "GET /events":
         return events(req, res);
       case "POST /send": {

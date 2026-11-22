@@ -63,6 +63,19 @@ function harness(extra: { maxBusy?: number; mainCwd?: string } = {}) {
         req.on("close", () => sse.delete(res));
         return;
       }
+      if (route === "/session") {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            type: "session",
+            id: `sess-${cwd}`,
+            resumed: false,
+            history: [],
+            hiddenTurns: 0,
+          }),
+        );
+        return;
+      }
       let raw = "";
       req.on("data", (c) => (raw += c));
       req.on("end", () => {
@@ -156,6 +169,17 @@ test("two workers both forward events; focus switches and clears attention", asy
     assert.equal(h.orch.focusId, a.id);
     assert.equal(h.orch.list().find((w) => w.id === a.id)?.needsAttention, false);
     assert.throws(() => h.orch.focus("nope"), /unknown worker/);
+  } finally {
+    await h.close();
+  }
+});
+
+test("parallel sets sessionId from GET /session without session SSE", async () => {
+  const h = harness();
+  try {
+    const a = await h.orch.parallel({ cwd: "/tmp/wa" });
+    assert.equal(a.sessionId, "sess-/tmp/wa");
+    assert.equal(h.orch.list().find((w) => w.id === a.id)?.sessionId, "sess-/tmp/wa");
   } finally {
     await h.close();
   }

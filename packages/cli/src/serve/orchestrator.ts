@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import type { CliFlags } from "../args.js";
-import type { ChatHost, HostEvent } from "../host.js";
+import type { ChatHost, HostEvent, SessionEvent } from "../host.js";
 import { addWorktree, removeWorktree } from "./worktree.js";
 
 export type WorkerInfo = {
@@ -163,6 +163,14 @@ export function createOrchestrator(opts: {
       signal: entry.abort.signal,
     });
     if (!res.ok || !res.body) throw new Error(`worker /events failed: ${res.status}`);
+    const snapRes = await fetch(`${entry.url}/session`, {
+      headers: { authorization: `Bearer ${entry.token}` },
+      signal: entry.abort.signal,
+    });
+    if (snapRes.ok) {
+      const snap = (await snapRes.json()) as SessionEvent;
+      if (snap.type === "session" && snap.id) entry.info.sessionId = snap.id;
+    }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     void (async () => {

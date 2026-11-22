@@ -71,12 +71,27 @@ test("routes other than /health need the Bearer token", { timeout: 20_000 }, asy
   const { url, stop } = await boot();
   try {
     assert.equal((await fetch(`${url}/events`)).status, 401);
+    assert.equal((await fetch(`${url}/session`)).status, 401);
     assert.equal((await fetch(`${url}/events`, { headers: { Authorization: "Bearer nope" } })).status, 401);
     for (const route of ["send", "cancel", "answer", "question", "continue", "compact", "queue"]) {
       const res = await fetch(`${url}/${route}`, { method: "POST", body: "{}" });
       assert.equal(res.status, 401, route);
     }
     assert.equal((await fetch(`${url}/nope`, { headers: auth })).status, 404);
+  } finally {
+    await stop();
+  }
+});
+
+test("GET /session returns host snapshot with session id", { timeout: 20_000 }, async () => {
+  const { url, stop, host } = await boot();
+  try {
+    const res = await fetch(`${url}/session`, { headers: auth });
+    assert.equal(res.status, 200);
+    const snap = (await res.json()) as { type: string; id: string };
+    assert.equal(snap.type, "session");
+    assert.equal(snap.id, host.sessionId);
+    assert.ok(snap.id.length > 0);
   } finally {
     await stop();
   }
