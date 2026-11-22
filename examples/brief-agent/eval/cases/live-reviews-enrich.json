@@ -1,0 +1,12 @@
+{
+  "id": "live-reviews-enrich",
+  "kind": "live-fetch",
+  "fixture": "de-search-ok.html",
+  "dpFixture": "de-dp-ok.html",
+  "reviewsFixture": "de-reviews-ok.html",
+  "targets": [{ "id": "t1", "asin": "B0GX89NY9G" }],
+  "expectPrice": true,
+  "expectTitleSubstring": "Badezimmer",
+  "expectMinBullets": 1,
+  "expectMinReviews": 2
+}

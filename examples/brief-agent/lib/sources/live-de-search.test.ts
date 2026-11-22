@@ -9,6 +9,7 @@ const ROOT = path.join(fileURLToPath(new URL(".", import.meta.url)), "../..");
 const okHtml = readFileSync(path.join(ROOT, "data/fixtures/de-search-ok.html"), "utf8");
 const blockedHtml = readFileSync(path.join(ROOT, "data/fixtures/de-search-blocked.html"), "utf8");
 const dpOk = readFileSync(path.join(ROOT, "data/fixtures/de-dp-ok.html"), "utf8");
+const reviewsOk = readFileSync(path.join(ROOT, "data/fixtures/de-reviews-ok.html"), "utf8");
 
 describe("liveDeSearchSource", () => {
   it("maps fixture ASIN to priced page; dp enrich can fill bullets", async () => {
@@ -16,6 +17,7 @@ describe("liveDeSearchSource", () => {
       targets: [{ id: "t1", asin: "B0GX89NY9G" }],
       fetchHtml: async () => okHtml,
       fetchDpHtml: async () => dpOk,
+      fetchReviewsHtml: async () => "",
       browserEnabled: false,
     });
     assert.equal(out.failures.length, 0);
@@ -26,11 +28,24 @@ describe("liveDeSearchSource", () => {
     assert.ok((out.pages[0]?.reviewSnippets.length ?? 0) >= 1);
   });
 
+  it("merges reviews from product-reviews fixture", async () => {
+    const out = await liveDeSearchSource.fetchPages({
+      targets: [{ id: "t1", asin: "B0GX89NY9G" }],
+      fetchHtml: async () => okHtml,
+      fetchDpHtml: async () => dpOk.replace(/data-hook="review"[\s\S]*?<\/div>/g, ""),
+      fetchReviewsHtml: async () => reviewsOk,
+      browserEnabled: false,
+    });
+    assert.ok((out.pages[0]?.reviewSnippets.length ?? 0) >= 1);
+    assert.ok(out.pages[0]?.reviewSnippets.some((r) => /Rost/i.test(r)));
+  });
+
   it("keeps empty bullets when dp skipped", async () => {
     const out = await liveDeSearchSource.fetchPages({
       targets: [{ id: "t1", asin: "B0GX89NY9G" }],
       fetchHtml: async () => okHtml,
       fetchDpHtml: async () => "",
+      fetchReviewsHtml: async () => "",
       browserEnabled: false,
     });
     assert.deepEqual(out.pages[0]?.bullets, []);

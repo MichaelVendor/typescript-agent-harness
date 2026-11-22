@@ -73,6 +73,7 @@ type LiveFetchCase = CaseBase & {
   expectTitleSubstring?: string;
   expectBlocked?: boolean;
   dpFixture?: string;
+  reviewsFixture?: string;
   expectMinBullets?: number;
   expectMinReviews?: number;
 };
@@ -359,11 +360,15 @@ async function runLiveFetch(c: LiveFetchCase): Promise<CaseResult> {
   const dpHtml = c.dpFixture
     ? readFileSync(path.join(ROOT, "data", "fixtures", c.dpFixture), "utf8")
     : "";
+  const reviewsHtml = c.reviewsFixture
+    ? readFileSync(path.join(ROOT, "data", "fixtures", c.reviewsFixture), "utf8")
+    : "";
   const out = await record(trace, "fetch_product_pages", () =>
     liveDeSearchSource.fetchPages({
       targets: c.targets,
       fetchHtml: async () => html,
       fetchDpHtml: async () => dpHtml,
+      fetchReviewsHtml: async () => reviewsHtml,
       browserEnabled: false,
     }),
   );

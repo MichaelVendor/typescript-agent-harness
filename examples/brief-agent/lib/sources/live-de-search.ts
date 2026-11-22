@@ -106,7 +106,11 @@ export const liveDeSearchSource: PageSource = {
         const enriched = await enrichFromDp({
           asin,
           ...(input.fetchDpHtml ? { fetchDpHtml: input.fetchDpHtml } : {}),
+          ...(input.fetchReviewsHtml ? { fetchReviewsHtml: input.fetchReviewsHtml } : {}),
           ...(input.fetchDpBrowserHtml ? { fetchDpBrowserHtml: input.fetchDpBrowserHtml } : {}),
+          ...(input.fetchReviewsBrowserHtml
+            ? { fetchReviewsBrowserHtml: input.fetchReviewsBrowserHtml }
+            : {}),
           ...(input.browserEnabled !== undefined ? { browserEnabled: input.browserEnabled } : {}),
         });
         page.bullets = enriched.bullets;

@@ -8,6 +8,7 @@ declare module "playwright" {
           opts?: { waitUntil?: string; timeout?: number },
         ) => Promise<unknown>;
         content: () => Promise<string>;
+        evaluate: (fn: string | (() => unknown)) => Promise<unknown>;
       }>;
       close: () => Promise<void>;
     }>;

@@ -20,8 +20,12 @@ export type FetchPagesInput = {
   fetchHtml?: (query: string) => Promise<string>;
   /** 注入 `/dp` curl HTML。 */
   fetchDpHtml?: (asin: string) => Promise<string>;
+  /** 注入 `/product-reviews` curl HTML。 */
+  fetchReviewsHtml?: (asin: string) => Promise<string>;
   /** 注入 `/dp` 浏览器 HTML。 */
   fetchDpBrowserHtml?: (asin: string) => Promise<string>;
+  /** 注入评论页浏览器 HTML。 */
+  fetchReviewsBrowserHtml?: (asin: string) => Promise<string>;
   /** 默认跟 BRIEF_BROWSER（≠0 为开）。 */
   browserEnabled?: boolean;
 };

@@ -39,21 +39,26 @@ export function parseDeDpBullets(html: string): string[] {
   return bullets;
 }
 
-/** 从 data-hook=review-body 抽短评，最多 5 条。 */
+/** 从 review-body / 评论页正文抽短评，最多 5 条。 */
 export function parseDeDpReviews(html: string): string[] {
-  const bodies = [
-    ...html.matchAll(/data-hook="review-body"[^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/gi),
+  const patterns = [
+    /data-hook="review-body"[^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/gi,
+    /data-hook="review-collapsed"[^>]*>([\s\S]*?)<\/div>/gi,
+    /class="review-text-content"[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/gi,
+    /cr-original-review-content[^>]*>([\s\S]*?)<\/span>/gi,
   ];
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const m of bodies) {
-    const text = decode(m[1] ?? "");
-    if (!text || text.length < 3) continue;
-    const key = text.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(text.length > 180 ? `${text.slice(0, 177)}…` : text);
-    if (out.length >= 5) break;
+  for (const re of patterns) {
+    for (const m of html.matchAll(re)) {
+      const text = decode(m[1] ?? "");
+      if (!text || text.length < 3) continue;
+      const key = text.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(text.length > 180 ? `${text.slice(0, 177)}…` : text);
+      if (out.length >= 5) return out;
+    }
   }
   return out;
 }
