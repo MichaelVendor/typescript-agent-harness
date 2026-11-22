@@ -12,7 +12,7 @@
 4. **单条失败不中断整批。** fetch / extract 失败进 `failures`，其余继续；全员失败仍落盘空壳 +「本次无可用证据」。
 5. **P0 抽取为程序化单次取证（无自动重试）**；失败记入 `failures`，主 Agent 不手补数字。子 Agent 抽取与重试留到 P1。
 6. **不做自动跟价、自动改 listing。** IM 异步工单另开。建议只写观察方向与缺口，不写「立即改价」「全渠道铺开」。
-7. **每周盯盘：** 用户要「订阅/每周跑」时调 `subscribe_targets`；定时由本机 `pnpm weekly`（cron）执行，不要假装已推送 IM。
+7. **每周盯盘：** 用户要「订阅/每周跑」时调 `subscribe_targets`；定时由本机 `pnpm weekly`（cron）执行。IM 推送靠环境变量 `BRIEF_NOTIFY`，不要假装已在对话里推送。
 
 ## 标准流程
 

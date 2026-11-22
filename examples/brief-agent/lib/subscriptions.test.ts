@@ -30,6 +30,7 @@ describe("subscriptions", () => {
       subscriptionsPath: subFile,
       briefsDir,
       now: new Date("2026-11-22T01:00:00.000Z"),
+      notifyEnabled: false,
     });
     assert.equal(results.length, 1);
     assert.equal(results[0]?.ok, true);

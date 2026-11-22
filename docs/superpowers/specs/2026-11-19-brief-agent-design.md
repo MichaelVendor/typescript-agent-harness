@@ -99,7 +99,7 @@ Skill: competitive-brief     ← 路径约束：先收集 → 再合成 → 再�
 
 - **1** ✅ DE `/dp` 补页：curl + Playwright 升档（见 `2026-11-21-brief-agent-p2-dp-enrich-design.md`）
 - **2** ✅ 订阅式每周 brief（见 `2026-11-22-brief-agent-p2-weekly-sub-design.md`）
-- Super-agent + 飞书/TG：异步工单「盯这 5 个竞品」
+- **3** ✅ weekly 后推 TG/飞书（见 `2026-11-22-brief-agent-p2-notify-design.md`；非 Super-agent 工单）
 - 与 selection-agent 同构产品线：简报 → 选品 → 上架（两个项目、两个 Skill）
 
 **路线图表述：** 垂直产品 #1：竞品简报 Agent（tah 约定式 + Eval）；验证付费后再开选品产品化与 IM 异步。

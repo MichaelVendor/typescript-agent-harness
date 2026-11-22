@@ -18,6 +18,8 @@
 
 **每周订阅：** `subscribe_targets` 写入 `out/subscriptions.json`；`pnpm weekly` 跑所有 enabled 订阅。cron 例：`0 9 * * 1 cd …/brief-agent && BRIEF_SOURCE=live pnpm weekly`。
 
+**推送：** `BRIEF_NOTIFY=telegram,feishu`（可只开一个）。TG 需 `TELEGRAM_BOT_TOKEN` + `BRIEF_TG_CHAT_ID`；飞书需 `BRIEF_FEISHU_WEBHOOK`（自定义机器人）。推送失败只打日志，不打断落盘。
+
 **数据源：** 环境变量 `BRIEF_SOURCE`：
 
 | 值 | 行为 |

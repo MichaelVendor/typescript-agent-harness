@@ -1,6 +1,7 @@
 import { composeBrief } from "./compose.ts";
 import { extractSignalsForPages } from "./extract.ts";
 import { fetchProductPages } from "./fetch.ts";
+import { notifyBrief, type NotifyDeps } from "./notify.ts";
 import { saveBrief, setBriefOutDirForTest } from "./save.ts";
 import { validateBrief } from "./schema.ts";
 import {
@@ -15,6 +16,9 @@ export type RunWeeklyBriefsOpts = {
   /** 测试用 brief 落盘目录。 */
   briefsDir?: string | null;
   now?: Date;
+  notify?: NotifyDeps;
+  /** false 时跳过推送（默认 true）。 */
+  notifyEnabled?: boolean;
 };
 
 /** 跑所有 enabled 订阅：各出一份 brief 并 save（含 tasks）。 */
@@ -50,12 +54,24 @@ export async function runWeeklyBriefs(
           continue;
         }
         const saved = opts?.now ? saveBrief(brief, { now: opts.now }) : saveBrief(brief);
+        let notify: WeeklyRunResult["notify"];
+        if (opts?.notifyEnabled !== false) {
+          notify = await notifyBrief(
+            {
+              subscriptionId: sub.id,
+              markdown: brief.markdown,
+              mdPath: saved.mdPath,
+            },
+            opts?.notify,
+          );
+        }
         results.push({
           subscriptionId: sub.id,
           ok: true,
           mdPath: saved.mdPath,
           jsonPath: saved.jsonPath,
           brief,
+          ...(notify && notify.length > 0 ? { notify } : {}),
         });
       } catch (error) {
         results.push({

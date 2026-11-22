@@ -102,4 +102,5 @@ export type WeeklyRunResult = {
   jsonPath?: string;
   error?: string;
   brief?: Brief;
+  notify?: Array<{ channel: string; ok: boolean; detail: string }>;
 };
