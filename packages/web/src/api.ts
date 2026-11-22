@@ -12,6 +12,7 @@ import type {
   ServeEvent,
   ServeInfo,
   ServeRequest,
+  SessionStatusDto,
   SettingsView,
   SkillsImport,
   SkillsView,
@@ -52,6 +53,7 @@ export function fileRawURL(target: FileTarget, mtime: number): string {
 export const api = {
   auth: (body: ServeRequest["auth"]) => post("/api/auth", body),
   info: async () => (await (await call("GET", "/api/info")).json()) as ServeInfo,
+  sessionStatus: async () => (await (await call("GET", "/api/session-status")).json()) as SessionStatusDto,
   send: (body: ServeRequest["send"]) => post("/api/send", body),
   workers: async () =>
     (await (await call("GET", "/api/workers")).json()) as { workers: WorkerInfo[]; focusId: string },

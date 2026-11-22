@@ -16,6 +16,7 @@ import { ModelPicker } from "./components/ModelPicker";
 import { NewFolder } from "./components/NewFolder";
 import { OpenProject } from "./components/OpenProject";
 import { Settings } from "./components/Settings";
+import { SessionStatus } from "./components/SessionStatus";
 import { SidePanel } from "./components/SidePanel";
 import { Sidebar } from "./components/Sidebar";
 import { contextPercent } from "./context-usage";
@@ -74,6 +75,8 @@ function SessionRail(props: {
   attention: Attention[];
   onFocusWorker(id: string): void;
   onParallel: (() => void) | undefined;
+  /** Bumps when turn/approval/focus changes so SessionStatus refetches. */
+  statusKey: string | number;
 }) {
   const tokens = props.tokens;
   const used = tokens ? tokens.promptTokens + tokens.completionTokens : 0;
@@ -81,6 +84,7 @@ function SessionRail(props: {
   const attentionOf = (id: string) => props.attention.find((a) => a.workerId === id);
   return (
     <aside className="session-rail">
+      <SessionStatus refreshKey={props.statusKey} />
       {props.workers.length > 0 ? (
         <div className="rail-card">
           <h2>Workers</h2>
@@ -588,6 +592,7 @@ export function App() {
               ? () => run(api.workersParallel({}))
               : undefined
           }
+          statusKey={`${state.turnsEnded}:${state.busy}:${state.approval?.id ?? ""}:${state.question?.id ?? ""}:${state.focusId}:${state.workers.length}`}
         />
       )}
       {side ? (
