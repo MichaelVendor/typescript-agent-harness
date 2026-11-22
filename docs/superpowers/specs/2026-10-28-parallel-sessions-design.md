@@ -1,10 +1,12 @@
 # 并行 Session（Claude 风格 worker）
 
-状态：📐 已设计（未实现）
+状态：✅ 已实现
 
 对齐 [Claude Code 并行 session / worktree](https://code.claude.com/docs/en/worktrees)：并行 = **多个独立 Agent 进程**，文件隔离靠 **git worktree**，不是同 cwd 抢写。本机工作台 `tah serve` 做编排与 UI；`tah chat` / `tah agent-host` 第一版不动。
 
 相关现状：[serve](../../design/serve.md)、[workspaces](../../design/workspaces.md)、[queue](../../design/queue.md)、[browser](../../design/browser.md)、[agent-host](../../design/agent-host.md)。
+
+建议在仓库 `.gitignore` 中加入 `.tah/worktrees/`（见下文 Worktree 表）。
 
 ## 背景
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+**Serve / parallel sessions:** `tah serve` orchestrates up to four busy `tah agent-worker` child processes (usually in git worktrees under `<repo>/.tah/worktrees/<name>/`, branch `tah/<name>`). Web: worker sidebar, single-focus transcript, attention banner for background approval / `ask_user`. Suggest ignoring `.tah/worktrees/` in the repo `.gitignore`. `tah chat` / TUI unchanged.
+
 ## 1.7.4 — 2026-11-19
 
 **Web:** Sidebar context menus (⋯ / right-click) portal to `document.body` again so `#root` zoom no longer misplaces Pin / Remove from list / etc.
