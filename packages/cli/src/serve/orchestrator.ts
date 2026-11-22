@@ -21,6 +21,7 @@ export type SpawnWorker = (args: { cwd: string; token: string }) => Promise<{ ur
 
 export type Orchestrator = {
   readonly focusId: string;
+  readonly maxBusy: number;
   list(): WorkerInfo[];
   busyCount(): number;
   focus(id: string): void;
@@ -270,6 +271,7 @@ export function createOrchestrator(opts: {
     get focusId() {
       return focusId;
     },
+    maxBusy,
     list: () => [mainInfo, ...[...workers.values()].map((w) => w.info)].map((w) => ({ ...w })),
     busyCount,
     focus(id) {

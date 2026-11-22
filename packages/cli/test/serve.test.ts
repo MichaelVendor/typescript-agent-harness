@@ -303,17 +303,19 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
       desktop: home,
     });
 
+    const hostTypes = (evs: { type: string }[]) =>
+      evs.map((e) => e.type).filter((t) => t !== "workers" && t !== "attention");
     const tab = stream(base, cookie);
     await tab.until("session");
     assert.equal((await api.post("/api/send", { text: "看看目录" })).status, 202);
     const turn = await tab.until("turn.end");
-    const types = turn.map((e) => e.type).filter((t, i, all) => t !== "text" || all[i - 1] !== "text");
+    const types = hostTypes(turn).filter((t, i, all) => t !== "text" || all[i - 1] !== "text");
     assert.deepEqual(types, ["session", "user", "tool.start", "tool.end", "text", "turn.end"]);
 
     const late = stream(base, cookie);
     const replay = await late.until("turn.end");
-    assert.deepEqual(replay.map((e) => e.type), ["session", "turn.end"]);
-    const history = (replay[0] as SessionEvent).history;
+    assert.deepEqual(hostTypes(replay), ["session", "turn.end"]);
+    const history = (replay.find((e) => e.type === "session") as SessionEvent).history;
     assert.deepEqual(history[0], { role: "user", text: "看看目录" });
     assert.ok(history.some((h) => h.role === "assistant"));
 

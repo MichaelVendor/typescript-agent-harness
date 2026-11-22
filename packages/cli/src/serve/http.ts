@@ -11,6 +11,7 @@ import { contentType, fileKind, matchFiles, NotInFolderError, resolveInFolder, s
 import { isPermissionMode } from "../permission-mode.js";
 import { listDirs, makeDir } from "./fs.js";
 import { BusyError, type Hub } from "./hub.js";
+import { createFocusHub, type FocusHub } from "./focus-hub.js";
 import {
   channelsSettingsView,
   saveChannelsSettings,
@@ -31,6 +32,7 @@ import {
 import { discoverSkills } from "../skills/discover.js";
 import { importSkills, removeSkill } from "../skills/install.js";
 import { addRemoteSkills } from "../skills/remote.js";
+import type { Orchestrator } from "./orchestrator.js";
 import type { ChannelsSettingsView, FileStat, ServeInfo, SettingsView, SkillsView } from "./protocol.js";
 import { browserURL, createScreen, parseInput, type Cdp } from "./screen.js";
 import { readSuperAgentPanel } from "./super-agent-panel.js";
@@ -78,6 +80,8 @@ export type ServeOptions = {
   superAgentPanelDir?: string;
   /** After IM settings are saved: hot-reload adapters (or bootstrap Super-agent). */
   onChannelsApplied?: () => Promise<void>;
+  /** Multi-worker orchestrator; when set, SSE is focus-aware and `/api/workers/*` is enabled. */
+  orchestrator?: Orchestrator;
 };
 
 class HttpError extends Error {
@@ -162,6 +166,10 @@ function envModel(): SettingsView["env"] {
 /** Request handler plus `closeAll()` to end the event streams on shutdown. */
 export function createServeHandler(opts: ServeOptions): { handle: RequestListener; closeAll(): void } {
   const { workspaces, hub } = opts;
+  const orch = opts.orchestrator;
+  const focusHub: FocusHub | undefined = orch
+    ? createFocusHub(orch, hub, () => workspaces.host.snapshot())
+    : undefined;
   const host = () => workspaces.host;
   const streams = new Set<ServerResponse>();
   const webDir = path.resolve(opts.webDir);
@@ -175,6 +183,22 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const unsubscribeScreen = hub.subscribe((event) => {
     if (event.type === "session" || (event.type === "tool.end" && event.tool.startsWith("browser_"))) void screen.sync();
   });
+
+  const mapOrchError = (err: unknown): never => {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/too many busy|unknown worker|focus that worker/i.test(msg)) throw new HttpError(409, msg);
+    throw new HttpError(400, msg);
+  };
+
+  const resolveWorkerId = (body: Record<string, unknown>): string =>
+    optStr(body, "workerId") ?? orch?.focusId ?? "main";
+
+  /** Approval / question answers require the target worker to be focused. */
+  const requireFocus = (workerId: string) => {
+    if (orch && workerId !== orch.focusId) {
+      throw new HttpError(409, "focus that worker before answering");
+    }
+  };
 
   /** The file a `/api/files/*` query names (`path=` or `attachment=<id>`), inside the open folder. */
   const fileOf = async (req: IncomingMessage) => {
@@ -251,7 +275,9 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     });
     res.write("retry: 1000\n\n");
     streams.add(res);
-    const unsubscribe = hub.subscribe((event) => res.write(`data: ${JSON.stringify(event)}\n\n`));
+    const unsubscribe = focusHub
+      ? focusHub.subscribe((event) => res.write(`data: ${JSON.stringify(event)}\n\n`))
+      : hub.subscribe((event) => res.write(`data: ${JSON.stringify(event)}\n\n`));
     const heartbeat = setInterval(() => res.write(": ping\n\n"), HEARTBEAT_MS);
     req.on("close", () => {
       clearInterval(heartbeat);
@@ -357,6 +383,18 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
             })
           : [];
         if (!text.trim() && attachmentIds.length === 0) throw new HttpError(400, "text or attachmentIds required");
+        const workerId = resolveWorkerId(body);
+        if (orch && workerId !== "main") {
+          try {
+            await orch.send(workerId, text, attachmentIds);
+          } catch (err) {
+            mapOrchError(err);
+          }
+          return json(res, 202);
+        }
+        if (orch && !hub.busy && orch.busyCount() >= orch.maxBusy) {
+          throw new HttpError(409, `too many busy workers (max ${orch.maxBusy})`);
+        }
         if (!hub.busy) {
           hub.start(() => host().send(text, attachmentIds));
           return json(res, 202);
@@ -372,20 +410,75 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "POST /api/queue": {
         const body = await readBody(req);
         const id = str(body, "id");
+        const workerId = resolveWorkerId(body);
+        if (orch && workerId !== "main") {
+          try {
+            if (body.remove === true) await orch.queue(workerId, { id, remove: true });
+            else if (body.send === true) await orch.queue(workerId, { id, send: true });
+            else throw new HttpError(400, 'pass "send": true or "remove": true');
+          } catch (err) {
+            if (err instanceof HttpError) throw err;
+            mapOrchError(err);
+          }
+          return json(res, 204);
+        }
         if (body.remove === true) host().removeQueued(id);
-        else if (body.send === true) hub.start(() => host().sendQueued(id));
-        else throw new HttpError(400, 'pass "send": true or "remove": true');
+        else if (body.send === true) {
+          if (orch && !hub.busy && orch.busyCount() >= orch.maxBusy) {
+            throw new HttpError(409, `too many busy workers (max ${orch.maxBusy})`);
+          }
+          hub.start(() => host().sendQueued(id));
+        } else throw new HttpError(400, 'pass "send": true or "remove": true');
         return json(res, 204);
       }
-      case "POST /api/continue":
+      case "POST /api/continue": {
+        const body = await readBody(req).catch(() => ({}) as Record<string, unknown>);
+        const workerId = resolveWorkerId(body);
+        if (orch && workerId !== "main") {
+          try {
+            await orch.continueTurn(workerId);
+          } catch (err) {
+            mapOrchError(err);
+          }
+          return json(res, 202);
+        }
+        if (orch && !hub.busy && orch.busyCount() >= orch.maxBusy) {
+          throw new HttpError(409, `too many busy workers (max ${orch.maxBusy})`);
+        }
         hub.start(() => host().continueTurn());
         return json(res, 202);
-      case "POST /api/compact":
+      }
+      case "POST /api/compact": {
+        const body = await readBody(req).catch(() => ({}) as Record<string, unknown>);
+        const workerId = resolveWorkerId(body);
+        if (orch && workerId !== "main") {
+          try {
+            await orch.compact(workerId);
+          } catch (err) {
+            mapOrchError(err);
+          }
+          return json(res, 202);
+        }
+        if (orch && !hub.busy && orch.busyCount() >= orch.maxBusy) {
+          throw new HttpError(409, `too many busy workers (max ${orch.maxBusy})`);
+        }
         hub.start(() => host().compact());
         return json(res, 202);
-      case "POST /api/cancel":
+      }
+      case "POST /api/cancel": {
+        const body = await readBody(req).catch(() => ({}) as Record<string, unknown>);
+        const workerId = resolveWorkerId(body);
+        if (orch && workerId !== "main") {
+          try {
+            await orch.cancel(workerId);
+          } catch (err) {
+            mapOrchError(err);
+          }
+          return json(res, 204);
+        }
         host().cancel();
         return json(res, 204);
+      }
       case "POST /api/mode": {
         const mode = (await readBody(req)).mode;
         if (!isPermissionMode(mode)) throw new HttpError(400, '"mode" must be manual, accept-edits or plan');
@@ -396,11 +489,42 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         const body = await readBody(req);
         const answer = body.answer as ApprovalAnswer;
         if (!ANSWERS.includes(answer)) throw new HttpError(400, `"answer" must be one of ${ANSWERS.join(", ")}`);
+        const workerId = resolveWorkerId(body);
+        requireFocus(workerId);
+        if (orch && workerId !== "main") {
+          try {
+            await orch.answer(workerId, str(body, "id"), answer);
+          } catch (err) {
+            mapOrchError(err);
+          }
+          return json(res, 204);
+        }
         host().answer(str(body, "id"), answer);
         return json(res, 204);
       }
       case "POST /api/question": {
         const body = await readBody(req);
+        const workerId = resolveWorkerId(body);
+        requireFocus(workerId);
+        if (orch && workerId !== "main") {
+          try {
+            if (body.skip === true) await orch.skipQuestion(workerId, str(body, "id"));
+            else {
+              const answers = body.answers;
+              if (
+                !Array.isArray(answers) ||
+                !answers.every((a) => Array.isArray(a) && a.every((s) => typeof s === "string"))
+              ) {
+                throw new HttpError(400, '"answers" must be a list of string lists');
+              }
+              await orch.answerQuestion(workerId, str(body, "id"), answers as string[][]);
+            }
+          } catch (err) {
+            if (err instanceof HttpError) throw err;
+            mapOrchError(err);
+          }
+          return json(res, 204);
+        }
         if (body.skip === true) {
           host().skipQuestion(str(body, "id"));
           return json(res, 204);
@@ -410,6 +534,70 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           throw new HttpError(400, '"answers" must be a list of string lists');
         }
         host().answerQuestion(str(body, "id"), answers as string[][]);
+        return json(res, 204);
+      }
+      case "GET /api/workers": {
+        if (!orch) throw new HttpError(404, "workers not enabled");
+        return json(res, 200, { workers: orch.list(), focusId: orch.focusId });
+      }
+      case "POST /api/workers/parallel": {
+        if (!orch) throw new HttpError(404, "workers not enabled");
+        const body = await readBody(req);
+        try {
+          const name = optStr(body, "name");
+          const cwd = optStr(body, "cwd");
+          const info = await orch.parallel({
+            ...(name !== undefined ? { name } : {}),
+            ...(cwd !== undefined ? { cwd } : {}),
+          });
+          focusHub?.notifyWorkersChanged();
+          return json(res, 200, info);
+        } catch (err) {
+          return mapOrchError(err);
+        }
+      }
+      case "POST /api/workers/focus": {
+        if (!orch) throw new HttpError(404, "workers not enabled");
+        const id = str(await readBody(req), "id");
+        try {
+          orch.focus(id);
+        } catch (err) {
+          mapOrchError(err);
+        }
+        focusHub?.notifyFocusChanged();
+        return json(res, 204);
+      }
+      case "POST /api/workers/stop": {
+        if (!orch) throw new HttpError(404, "workers not enabled");
+        const id = str(await readBody(req), "id");
+        try {
+          await orch.stop(id);
+        } catch (err) {
+          mapOrchError(err);
+        }
+        focusHub?.notifyWorkersChanged();
+        return json(res, 204);
+      }
+      case "POST /api/workers/restart": {
+        if (!orch) throw new HttpError(404, "workers not enabled");
+        const id = str(await readBody(req), "id");
+        try {
+          await orch.restart(id);
+        } catch (err) {
+          mapOrchError(err);
+        }
+        focusHub?.notifyWorkersChanged();
+        return json(res, 204);
+      }
+      case "POST /api/workers/remove": {
+        if (!orch) throw new HttpError(404, "workers not enabled");
+        const id = str(await readBody(req), "id");
+        try {
+          await orch.remove(id);
+        } catch (err) {
+          mapOrchError(err);
+        }
+        focusHub?.notifyWorkersChanged();
         return json(res, 204);
       }
       case "POST /api/reset": {
@@ -725,6 +913,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     handle,
     closeAll() {
       unsubscribeScreen();
+      focusHub?.dispose();
       screen.dispose();
       for (const res of streams) res.end();
       streams.clear();
