@@ -14,8 +14,18 @@ export type WorkerInfo = {
   sessionId: string;
   busy: boolean;
   needsAttention: boolean;
+  /** Pending approval/question on a non-focused worker (for snapshot / UI). */
+  attention?: "approval" | "question";
   worktree?: { name: string; parent: string };
   dead?: boolean;
+};
+
+export type WorkerSnapshot = {
+  workerId: string;
+  cwd: string;
+  busy: boolean;
+  attention?: "approval" | "question";
+  worktree?: { name: string; branch: string };
 };
 
 export type SpawnWorker = (args: { id: string; cwd: string; token: string }) => Promise<{ url: string; kill(): void }>;
@@ -24,6 +34,7 @@ export type Orchestrator = {
   readonly focusId: string;
   readonly maxBusy: number;
   list(): WorkerInfo[];
+  snapshot(): { focusId: string; workers: WorkerSnapshot[] };
   busyCount(): number;
   focus(id: string): void;
   /** Create worktree (unless cwd given) and spawn worker. Rejects with a message usable as a 409/400 body. */
@@ -156,9 +167,17 @@ export function createOrchestrator(opts: {
     if (event.type === "session") w.sessionId = event.id;
     else if (event.type === "user") w.busy = true;
     else if (event.type === "turn.end" || event.type === "turn.error") w.busy = false;
-    if (
+    if (event.type === "approval" && id !== focusId) {
+      w.needsAttention = true;
+      w.attention = "approval";
+    } else if (event.type === "question" && id !== focusId) {
+      w.needsAttention = true;
+      w.attention = "question";
+    } else if (event.type === "approval.end" || event.type === "question.end") {
+      delete w.attention;
+    } else if (
       id !== focusId &&
-      (event.type === "approval" || event.type === "question" || event.type === "turn.end" || event.type === "turn.error")
+      (event.type === "turn.end" || event.type === "turn.error")
     ) {
       w.needsAttention = true;
     }
@@ -278,6 +297,13 @@ export function createOrchestrator(opts: {
   };
 
   /** A turn-starting call: idle targets need a free slot and count as busy right away. */
+  const toWorkerSnapshot = (w: WorkerInfo): WorkerSnapshot => {
+    const snap: WorkerSnapshot = { workerId: w.id, cwd: w.cwd, busy: w.busy };
+    if (w.needsAttention && w.attention) snap.attention = w.attention;
+    if (w.worktree) snap.worktree = { name: w.worktree.name, branch: `tah/${w.worktree.name}` };
+    return snap;
+  };
+
   const startsTurn = async (id: string, run: () => Promise<void>): Promise<void> => {
     const w = info(id);
     const wasBusy = w.busy;
@@ -300,11 +326,13 @@ export function createOrchestrator(opts: {
     },
     maxBusy,
     list: () => [mainInfo, ...[...workers.values()].map((w) => w.info)].map((w) => ({ ...w })),
+    snapshot: () => ({ focusId, workers: [mainInfo, ...[...workers.values()].map((w) => w.info)].map(toWorkerSnapshot) }),
     busyCount,
     focus(id) {
       const w = info(id);
       focusId = id;
       w.needsAttention = false;
+      delete w.attention;
     },
     async parallel({ name, cwd, deferUntilSend }) {
       assertRoom();
@@ -434,6 +462,7 @@ export function createOrchestrator(opts: {
       mainInfo.sessionId = snap.id;
       mainInfo.busy = false;
       mainInfo.needsAttention = false;
+      delete mainInfo.attention;
     },
     async dispose() {
       mainOff();
