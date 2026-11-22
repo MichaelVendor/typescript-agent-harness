@@ -74,6 +74,7 @@ function SessionRail(props: {
   focusId: string;
   attention: Attention[];
   onFocusWorker(id: string): void;
+  onRemoveWorker(id: string): void;
   onParallel: (() => void) | undefined;
   /** Bumps when turn/approval/focus changes so SessionStatus refetches. */
   statusKey: string | number;
@@ -102,6 +103,11 @@ function SessionRail(props: {
                   >
                     <span className="worker-name">{workerLabel(w)}</span>
                     {w.dead ? <span className="worker-chip dead">dead</span> : null}
+                    {w.dead ? (
+                      <button type="button" className="link" onClick={(e) => { e.stopPropagation(); props.onRemoveWorker(w.id); }}>
+                        Remove
+                      </button>
+                    ) : null}
                     {w.busy && !att ? <span className="spinner" aria-label="busy" /> : null}
                     {att ? (
                       <span className="worker-chip attention" title={att.summary}>
@@ -588,6 +594,7 @@ export function App() {
           focusId={state.focusId}
           attention={state.attention}
           onFocusWorker={(id) => run(api.workersFocus({ id }))}
+          onRemoveWorker={(id) => run(api.workersRemove({ id }))}
           onParallel={
             connection === "open" && state.workers.length > 0
               ? () => run(api.workersParallel({ deferUntilSend: true }))
