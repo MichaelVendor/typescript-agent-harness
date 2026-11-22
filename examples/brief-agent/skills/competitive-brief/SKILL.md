@@ -14,4 +14,5 @@ description: 用户给出竞品 URL、ASIN、品牌或类目关键词，需要�
 3. `extract_signals`。`pages` 原样传入。不要自己补价格、卖点或差评主题。
 4. `compose_brief`。`signals` + `failures`（把 fetch 与 extract 的 failures 合并）+ `truncated` 原样传入。不要改字段。用户要「一页纸/给老板」时传 `template: "exec"`，否则默认 `ops`。
 5. `save_brief`。`brief` 原样传入。落盘 brief 并追加 `out/tasks.jsonl`。返回的 `mdPath` / `markdown` 用于回复。
-6. 按 `AGENTS.md` 回复格式写出四块：结论、对照表、差评主题、缺口。四块内容只贴工具 markdown，不要另起散文报告。
+6. 用户要「每周盯 / 订阅」时另调 `subscribe_targets`（targets 与本次一致即可）；定时由本机 `pnpm weekly`，本轮仍先出当次简报。
+7. 按 `AGENTS.md` 回复格式写出四块：结论、对照表、差评主题、缺口。四块内容只贴工具 markdown，不要另起散文报告。

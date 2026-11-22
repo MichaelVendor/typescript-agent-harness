@@ -16,6 +16,8 @@
 
 **差评清洗：** 评论摘录按 DE/EN 词表拆正负；「差评主题」只出负面，正面进「好评要点」。
 
+**每周订阅：** `subscribe_targets` 写入 `out/subscriptions.json`；`pnpm weekly` 跑所有 enabled 订阅。cron 例：`0 9 * * 1 cd …/brief-agent && BRIEF_SOURCE=live pnpm weekly`。
+
 **数据源：** 环境变量 `BRIEF_SOURCE`：
 
 | 值 | 行为 |
@@ -41,7 +43,8 @@ pnpm build --filter @typescript-agent-harness/cli...
 ```bash
 pnpm start    # tah chat
 pnpm smoke    # 不起模型跑完整链路并落盘
-pnpm eval     # 无模型黄金路径（7/7）
+pnpm weekly   # 按 out/subscriptions.json 出简报
+pnpm eval     # 无模型黄金路径
 pnpm test
 pnpm typecheck
 ```
