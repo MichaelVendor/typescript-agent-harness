@@ -1,6 +1,6 @@
 # brief-agent P2-1：DE `/dp` 补页（curl + 浏览器升档）
 
-状态：P2-1 已实现（fixture/eval 绿；真机 Playwright 为 optionalDependency）。  
+状态：P2-1 已实现；D 真机：`playwright` 已入 devDependencies，优先本机 Chrome `channel`（下载 Chromium 易超时）。  
 选定：搜索之后用 **curl `/dp` → 挡了/字段空再 headless Playwright** 补 bullets / reviewSnippets。
 
 ## 目标

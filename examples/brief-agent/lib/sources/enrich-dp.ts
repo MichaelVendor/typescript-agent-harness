@@ -57,11 +57,16 @@ async function curlDpHtml(asin: string): Promise<string> {
   }
 }
 
-/** headless Chromium；未安装 playwright 时返回空串。 */
+/** headless：优先本机 Chrome（channel），再回退 Playwright Chromium；未装则空串。 */
 export async function playwrightDpHtml(asin: string): Promise<string> {
   try {
     const { chromium } = await import("playwright");
-    const browser = await chromium.launch({ headless: true });
+    let browser: Awaited<ReturnType<typeof chromium.launch>>;
+    try {
+      browser = await chromium.launch({ headless: true, channel: "chrome" });
+    } catch {
+      browser = await chromium.launch({ headless: true });
+    }
     try {
       const page = await browser.newPage();
       await page.goto(`https://www.amazon.de/dp/${encodeURIComponent(asin)}`, {
