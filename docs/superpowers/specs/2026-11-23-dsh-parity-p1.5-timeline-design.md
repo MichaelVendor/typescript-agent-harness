@@ -1,6 +1,6 @@
 # DSH 对照升级（P1.5）— Timeline 任务树
 
-状态：📐 已设计（待计划 / 实现）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-23-dsh-parity-p1.5-timeline.md`；分支 `feat/dsh-parity-p1`）
 
 在 P1（未读 / Code Review / GitHub OAuth / 钉钉·企微）之上，对照 DeepSeek Harness 任务树的最小切片。**不**换 `packages/core`、**不**改 `DefaultLoop`、**不**引入 NestJS / Cordis。
 

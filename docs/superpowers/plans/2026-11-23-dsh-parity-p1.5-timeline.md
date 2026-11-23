@@ -105,7 +105,7 @@ export function groupTicketsForTimeline(tickets: { id: string; status: string; c
 - Modify: `CHANGELOG.md` Unreleased
 - Modify: `docs/guide/status.md` 一行（可选）
 
-- [ ] Commit — `docs: DSH P1.5 Timeline 已实现说明`
+- [x] Commit — `docs: DSH P1.5 Timeline 已实现说明`
 
 ---
 
