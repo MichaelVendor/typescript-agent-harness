@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**Serve / parallel sessions:** `tah serve` orchestrates up to four busy `tah agent-worker` child processes (usually in git worktrees under `<repo>/.tah/worktrees/<name>/`, branch `tah/<name>`). Web: worker sidebar, single-focus transcript, attention banner for background approval / `ask_user`. Suggest ignoring `.tah/worktrees/` in the repo `.gitignore`. `tah chat` / TUI unchanged.
+
+**Session status:** `GET /api/session-status` returns focus cwd, busy/idle, pending approval or `ask_user`, orchestrator worker list, and optional Super-agent ticket count. The web **Session status** rail refreshes on turn / approval / focus events.
+
+**Connectors:** Messaging bot tokens (Telegram, Slack, 飞书) live in `~/.tah/connectors.json` (mode `0600`); Settings shows `keyHint` only. Env vars still win. Legacy `settings.channels` secrets migrate on first read.
+
+**MCP lazy:** `extensions.mcpToolExposure` or per-server `extensions.mcp.toolExposure` (`eager` default). In `lazy` mode only `mcp_list_tools` / `mcp_enable_tools` are in the first LLM tool list; other remote MCP tools register after enable.
+
+**DSH P0 polish (web):** Non-main worker focus disables composer attachments (+ / drop / paste); non-main send with `attachmentIds` still returns 400. Dead workers expose **Remove** in the sidebar. Deferred parallel workers show a **pending** chip until the first send materializes the git worktree.
+
 ## 1.7.4 — 2026-11-19
 
 **Web:** Sidebar context menus (⋯ / right-click) portal to `document.body` again so `#root` zoom no longer misplaces Pin / Remove from list / etc.

@@ -12,6 +12,7 @@ import { createChatHost } from "../host.js";
 import { readSavedSessions } from "../runtime.js";
 import { createServeHandler } from "./http.js";
 import { createHub } from "./hub.js";
+import { createOrchestrator } from "./orchestrator.js";
 import { createSuperAgentChat, type SuperAgentChat } from "./super-agent-chat.js";
 import { createWorkspaces, type Workspaces } from "./workspaces.js";
 
@@ -78,9 +79,16 @@ export async function startServe(
   let closeAll: () => void;
   let server: Server;
   let port: number;
+  let orch: ReturnType<typeof createOrchestrator> | undefined;
   try {
     await host.open();
     workspaces = createWorkspaces({ cwd: flags.cwd, home, host, hub, createHost: hostFor, readSessions: readSavedSessions });
+    orch = createOrchestrator({
+      main: host,
+      mainCwd: flags.cwd,
+      flags,
+      homeDir: home,
+    });
     let panelDir = flags.superAgentPanel
       ? path.resolve(flags.cwd, flags.superAgentPanel)
       : saChat
@@ -111,6 +119,7 @@ export async function startServe(
       webDir: fileURLToPath(new URL("../web/", import.meta.url)),
       persist: flags.persist,
       home,
+      orchestrator: orch,
       ...(panelDir ? { superAgentPanelDir: panelDir } : {}),
       async onChannelsApplied() {
         const panel = flags.superAgentPanel || ".tah/super-agent";
@@ -136,6 +145,7 @@ export async function startServe(
     server = createServer(handler.handle);
     port = await listen(server, flags.port);
   } catch (err) {
+    await orch?.dispose();
     await host.close();
     if (saChat) await saChat.stop();
     throw err;
@@ -153,6 +163,7 @@ export async function startServe(
       closeAll();
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
+      await orch?.dispose();
       await workspaces.close();
       if (saChat) await saChat.stop();
     },

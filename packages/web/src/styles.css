@@ -858,6 +858,35 @@ main {
   padding: 14px 12px;
   overflow: auto;
 }
+.session-status-cwd {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+.session-status-turn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.session-status-workers {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--muted);
+}
+.session-status-workers li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-status-sa {
+  margin-top: 6px;
+  color: var(--muted);
+}
 .rail-card {
   border: 1px solid var(--border);
   background: var(--card);
@@ -907,6 +936,92 @@ main {
   font-size: 13px;
   color: var(--warn);
   border-bottom: 1px solid var(--border);
+}
+.banner.attention {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+.banner.attention .link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--warn);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.worker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.worker-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 2px;
+}
+.worker-item > .worker-row {
+  flex: 1;
+  margin: 0;
+}
+.worker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin: 0 0 2px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.worker-row:hover {
+  background: var(--hover, color-mix(in srgb, var(--text) 6%, transparent));
+}
+.worker-row.on {
+  background: var(--card);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.worker-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.worker-chip {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.worker-chip.attention {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+.worker-chip.dead {
+  color: var(--muted);
+  background: var(--bar);
+}
+.worker-chip.pending {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+}
+.worker-row .spinner {
+  width: 10px;
+  height: 10px;
+}
+.card-hint {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: var(--warn);
 }
 
 .messages {

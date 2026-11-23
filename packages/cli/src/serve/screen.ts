@@ -485,6 +485,7 @@ export function createScreen(opts: { browser(): Browser | undefined; connect?: (
 
   async function sync() {
     const b = opts.browser();
+    await b?.syncState?.();
     if (cdp && (b !== owner || !b?.running())) drop();
     if (b?.running() && !cdp && listeners.size > 0) {
       try {

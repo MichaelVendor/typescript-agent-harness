@@ -1,4 +1,12 @@
-import type { AttachmentMeta, HistoryItem, HostEvent, Question, QueuedMessage, Todo } from "@typescript-agent-harness/cli";
+import type {
+  AttachmentMeta,
+  HistoryItem,
+  HostEvent,
+  Question,
+  QueuedMessage,
+  Todo,
+  WorkerInfo,
+} from "@typescript-agent-harness/cli";
 
 type TokenUsage = NonNullable<Extract<HostEvent, { type: "turn.end" }>["sessionUsage"]>;
 
@@ -19,9 +27,11 @@ export type Entry =
     }
   | { id: number; kind: "notice"; text: string; error: boolean };
 
-export type Approval = { id: string; tool: string; input: unknown };
+export type Approval = { id: string; tool: string; input: unknown; workerId?: string };
 
-export type PendingQuestion = { id: string; questions: Question[] };
+export type PendingQuestion = { id: string; questions: Question[]; workerId?: string };
+
+export type Attention = { workerId: string; kind: "approval" | "question"; summary: string };
 
 export type State = {
   sessionId: string;
@@ -44,6 +54,11 @@ export type State = {
   /** Tokens reported since this session was opened. */
   tokens: TokenUsage | undefined;
   nextId: number;
+  /** Focused worker when orchestrator SSE is on; empty when serve has no workers hub. */
+  focusId: string;
+  workers: WorkerInfo[];
+  /** Background approval/question chips until that worker is focused. */
+  attention: Attention[];
 };
 
 /** Things the page does itself: show a failed command, continue or drop a step-limited turn, start over on reconnect. */
@@ -53,7 +68,14 @@ export type LocalAction =
   | { type: "local.dismiss" }
   | { type: "local.reset" };
 
-export type Action = HostEvent | LocalAction | { type: "batch"; actions: Action[] };
+type TaggedHost = HostEvent & { workerId?: string; cwd?: string; sessionId?: string };
+
+export type Action =
+  | TaggedHost
+  | LocalAction
+  | { type: "batch"; actions: Action[] }
+  | { type: "attention"; workerId: string; kind: "approval" | "question"; summary: string }
+  | { type: "workers"; workers: WorkerInfo[]; focusId: string };
 
 export const initialState: State = {
   sessionId: "",
@@ -69,6 +91,9 @@ export const initialState: State = {
   rounds: 0,
   tokens: undefined,
   nextId: 0,
+  focusId: "",
+  workers: [],
+  attention: [],
 };
 
 type NewEntry = Entry extends infer E ? (E extends Entry ? Omit<E, "id"> : never) : never;
@@ -107,11 +132,45 @@ const running = (state: State): State => ({ ...state, busy: true, stepLimit: fal
 /** Events that mean the retried request got through (or the turn is over). */
 const PROGRESS = new Set<Action["type"]>(["session", "user", "text", "tool.start", "approval", "question", "turn.end", "turn.error", "local.reset"]);
 
+const META = new Set<string>(["batch", "attention", "workers", "local.error", "local.continue", "local.dismiss", "local.reset"]);
+
+function eventWorkerId(action: Action): string | undefined {
+  if (!("workerId" in action)) return undefined;
+  const id = (action as { workerId?: unknown }).workerId;
+  return typeof id === "string" ? id : undefined;
+}
+
 export function applyEvent(state: State, action: Action): State {
+  if (!META.has(action.type)) {
+    const wid = eventWorkerId(action);
+    if (wid !== undefined && state.focusId && wid !== state.focusId) return state;
+  }
   if (state.retry !== undefined && PROGRESS.has(action.type)) state = { ...state, retry: undefined };
   switch (action.type) {
     case "batch":
       return action.actions.reduce(applyEvent, state);
+    case "workers": {
+      const attention = state.attention.filter(
+        (a) => a.workerId !== action.focusId && action.workers.some((w) => w.id === a.workerId && w.needsAttention),
+      );
+      if (action.focusId !== state.focusId) {
+        return {
+          ...initialState,
+          focusId: action.focusId,
+          workers: action.workers,
+          attention,
+        };
+      }
+      return { ...state, workers: action.workers, focusId: action.focusId, attention };
+    }
+    case "attention":
+      return {
+        ...state,
+        attention: [
+          ...state.attention.filter((a) => a.workerId !== action.workerId),
+          { workerId: action.workerId, kind: action.kind, summary: action.summary },
+        ],
+      };
     case "local.reset":
       return initialState;
     case "local.error":
@@ -174,11 +233,26 @@ export function applyEvent(state: State, action: Action): State {
       return { ...state, entries };
     }
     case "approval":
-      return { ...running(state), approval: { id: action.id, tool: action.tool, input: action.input } };
+      return {
+        ...running(state),
+        approval: {
+          id: action.id,
+          tool: action.tool,
+          input: action.input,
+          ...(eventWorkerId(action) ? { workerId: eventWorkerId(action) } : state.focusId ? { workerId: state.focusId } : {}),
+        },
+      };
     case "approval.end":
       return state.approval?.id === action.id ? { ...state, approval: undefined } : state;
     case "question":
-      return { ...running(state), question: { id: action.id, questions: action.questions } };
+      return {
+        ...running(state),
+        question: {
+          id: action.id,
+          questions: action.questions,
+          ...(eventWorkerId(action) ? { workerId: eventWorkerId(action) } : state.focusId ? { workerId: state.focusId } : {}),
+        },
+      };
     case "question.end":
       return state.question?.id === action.id ? { ...state, question: undefined } : state;
     case "todos":

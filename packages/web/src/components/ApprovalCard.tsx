@@ -42,7 +42,16 @@ function describe(approval: Approval): { title: string; body: string } {
   return { title: `Call ${approval.tool}`, body: JSON.stringify(approval.input, null, 2) };
 }
 
-export function ApprovalCard({ approval, onAnswer }: { approval: Approval; onAnswer(answer: ApprovalAnswer): void }) {
+export function ApprovalCard({
+  approval,
+  disabled,
+  onAnswer,
+}: {
+  approval: Approval;
+  /** True when the card's worker is not the focused one — answers would 409. */
+  disabled?: boolean;
+  onAnswer(answer: ApprovalAnswer): void;
+}) {
   const { title, body } = describe(approval);
   return (
     <div className="card approval" role="dialog" aria-label="approval">
@@ -51,12 +60,15 @@ export function ApprovalCard({ approval, onAnswer }: { approval: Approval; onAns
         <CopyButton text={body} />
         <pre className="card-body">{body}</pre>
       </div>
+      {disabled ? <div className="card-hint">先切换到该 worker 再批准</div> : null}
       <div className="card-actions">
-        <button className="primary" onClick={() => onAnswer("yes")}>
+        <button className="primary" disabled={disabled} onClick={() => onAnswer("yes")}>
           允许一次
         </button>
-        <button onClick={() => onAnswer("always")}>本会话允许</button>
-        <button className="danger" onClick={() => onAnswer("no")}>
+        <button disabled={disabled} onClick={() => onAnswer("always")}>
+          本会话允许
+        </button>
+        <button className="danger" disabled={disabled} onClick={() => onAnswer("no")}>
           拒绝
         </button>
       </div>

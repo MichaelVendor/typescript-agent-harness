@@ -121,6 +121,7 @@ async function main(): Promise<void> {
     !hasLlmKey() &&
     flags.command !== "serve" &&
     flags.command !== "agent-host" &&
+    flags.command !== "agent-worker" &&
     flags.command !== "channel-host"
   ) {
     console.error(
@@ -192,6 +193,12 @@ async function main(): Promise<void> {
   if (flags.command === "agent-host") {
     const { runAgentHost } = await import("./agent-host/run.js");
     await runAgentHost(flags);
+    return;
+  }
+
+  if (flags.command === "agent-worker") {
+    const { runAgentWorker } = await import("./agent-worker/run.js");
+    await runAgentWorker(flags);
     return;
   }
 

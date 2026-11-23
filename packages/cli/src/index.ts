@@ -21,14 +21,17 @@ export type {
   PermissionMode,
   ReviewPanelSnapshot,
   ServeError,
+  ServeEvent,
   ChannelsSettingsView,
   ServeInfo,
   ServeRequest,
   SettingsView,
   SkillsImport,
   SkillsView,
+  WorkerInfo,
   WorkspaceView,
 } from "./serve/protocol.js";
+export type { SessionStatusDto } from "./serve/session-status.js";
 export { signAgentHostToken, type AgentHostClaims } from "./agent-host/auth.js";
 
 /** A file in `tools/`; `name` defaults to the file name with `-` → `_`. */

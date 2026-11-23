@@ -1,5 +1,7 @@
 # DSH 对照 P0 收尾 Implementation Plan
 
+> **Status:** ✅ 已落地（`feat/dsh-parity-p0`，2026-11-22）。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 把已落地的 P0 三条体验缺口收成可用：defer worktree 对用户可见、并行 worker 附件有明确 UI 护栏、dead worker 可从侧栏移除。
@@ -119,8 +121,8 @@ cd packages/cli && pnpm build && node --test test/serve-workers.test.ts
 - Modify: `CHANGELOG.md` Unreleased（三条收尾）
 - Modify: `docs/superpowers/specs/2026-11-22-dsh-parity-p0-design.md` 或本计划旁注「P0 polish ✅」
 
-- [ ] **Step 1:** Unreleased 增加 polish 子弹（附件护栏、dead remove、pending chip）
-- [ ] **Step 2: Commit** — `docs: P0 收尾说明`
+- [x] **Step 1:** Unreleased 增加 polish 子弹（附件护栏、dead remove、pending chip）
+- [x] **Step 2: Commit** — `docs: P0 收尾说明`
 
 ---
 

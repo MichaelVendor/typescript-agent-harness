@@ -280,6 +280,38 @@ test("bootRuntime --no-exec overrides config coding.exec", async () => {
   await runtime.stop();
 });
 
+test("parseTahConfig accepts mcpToolExposure and mcp.toolExposure on a single server", () => {
+  assert.equal(
+    parseTahConfig({ extensions: { mcpToolExposure: "lazy", mcp: { command: "node", args: ["s.mjs"] } } })
+      .extensions?.mcpToolExposure,
+    "lazy",
+  );
+  assert.equal(
+    parseTahConfig({ extensions: { mcp: { command: "node", args: ["s.mjs"], toolExposure: "lazy" } } })
+      .extensions?.mcpToolExposure,
+    "lazy",
+  );
+  assert.throws(
+    () =>
+      parseTahConfig({
+        extensions: {
+          mcpToolExposure: "lazy",
+          mcp: { command: "node", args: ["s.mjs"], toolExposure: "lazy" },
+        },
+      }),
+    /cannot both be set/,
+  );
+  assert.throws(() => parseTahConfig({ extensions: { mcpToolExposure: "soon" } }), /must be "eager" or "lazy"/);
+});
+
+test("resolveCapabilities defaults mcpToolExposure to eager", () => {
+  assert.equal(resolveCapabilities(undefined, flagBits(), undefined).mcpToolExposure, "eager");
+  assert.equal(
+    resolveCapabilities({ extensions: { mcpToolExposure: "lazy" } }, flagBits(), undefined).mcpToolExposure,
+    "lazy",
+  );
+});
+
 test("bootRuntime mounts mcp from extensions.mcp", async () => {
   const pingServer = fileURLToPath(
     new URL("../../mcp/test/fixtures/ping-server.mjs", import.meta.url),
@@ -293,6 +325,27 @@ test("bootRuntime mounts mcp from extensions.mcp", async () => {
   const { runtime, startup } = await bootRuntime(flags, { homeDir });
   assert.match(startup, /mcp=1/);
   assert.equal(runtime.get(TOOLS).listSchemas().some((t) => t.name === "ping"), true);
+  await runtime.stop();
+});
+
+test("bootRuntime lazy mcpToolExposure omits remote tools from schema list", async () => {
+  const pingServer = fileURLToPath(
+    new URL("../../mcp/test/fixtures/ping-server.mjs", import.meta.url),
+  );
+  const cwd = projectDir({
+    "tah.config.json": JSON.stringify({
+      extensions: {
+        mcpToolExposure: "lazy",
+        mcp: { command: process.execPath, args: [pingServer] },
+      },
+    }),
+  });
+  const flags = { ...parseArgv(["--mock", "--no-persist", "--quiet", "run", "hi"]), cwd };
+  const { runtime, caps } = await bootRuntime(flags, { homeDir });
+  assert.equal(caps.mcpToolExposure, "lazy");
+  const names = runtime.get(TOOLS).listSchemas().map((t) => t.name);
+  assert.ok(names.includes("mcp_list_tools"));
+  assert.ok(!names.includes("ping"));
   await runtime.stop();
 });
 

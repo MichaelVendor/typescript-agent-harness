@@ -1,9 +1,14 @@
 /**
  * Project IM toggles → `<cwd>/tah.channels.json`.
- * Bot secrets → `~/.tah/settings.json` (same vault as model keys); env still wins when set.
+ * Bot secrets → `~/.tah/connectors.json`; env still wins when set.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import {
+  readConnectorSecret,
+  removeConnector,
+  upsertConnectorToken,
+} from "./connectors.js";
 import {
   keyHint,
   loadSettings,
@@ -86,18 +91,51 @@ function saveHomeSettings(home: string, settings: Settings): void {
 }
 
 function hintSource(
-  settingsVal: string | undefined,
+  connectorVal: string | undefined,
   envVal: string | undefined,
 ): { hint: string | null; source: "settings" | "env" | null } {
   if (envVal?.trim()) return { hint: keyHint(envVal.trim()), source: "env" };
-  if (settingsVal?.trim()) return { hint: keyHint(settingsVal.trim()), source: "settings" };
+  if (connectorVal?.trim()) return { hint: keyHint(connectorVal.trim()), source: "settings" };
   return { hint: null, source: null };
+}
+
+const CONNECTOR_IDS: Record<keyof ChannelSecrets, { id: string; provider: string; label: string }> = {
+  telegramBotToken: { id: "channel.telegram.botToken", provider: "telegram", label: "Bot token" },
+  slackBotToken: { id: "channel.slack.botToken", provider: "slack", label: "Bot token" },
+  slackSigningSecret: { id: "channel.slack.signingSecret", provider: "slack", label: "Signing secret" },
+  feishuAppId: { id: "channel.feishu.appId", provider: "feishu", label: "App ID" },
+  feishuAppSecret: { id: "channel.feishu.appSecret", provider: "feishu", label: "App secret" },
+  feishuVerificationToken: {
+    id: "channel.feishu.verificationToken",
+    provider: "feishu",
+    label: "Verification token",
+  },
+};
+
+function connectorSecrets(home: string): ChannelSecrets {
+  const settings = loadSettings(home);
+  const legacy = settings.channels ?? {};
+  const secrets: ChannelSecrets = {};
+  for (const key of Object.keys(CONNECTOR_IDS) as (keyof ChannelSecrets)[]) {
+    const connector = CONNECTOR_IDS[key];
+    let value = readConnectorSecret(home, connector.id);
+    if (!value && legacy[key]) {
+      upsertConnectorToken(home, { ...connector, token: legacy[key] });
+      value = legacy[key];
+    }
+    if (value) secrets[key] = value;
+  }
+  if (settings.channels) {
+    const { channels: _, ...rest } = settings;
+    saveHomeSettings(home, rest);
+  }
+  return secrets;
 }
 
 export function channelsSettingsView(cwd: string, home: string): ChannelsSettingsView {
   const file = readChannelsFile(cwd);
   const ch = file.channels ?? {};
-  const secrets = loadSettings(home).channels ?? {};
+  const secrets = connectorSecrets(home);
   const tg = hintSource(secrets.telegramBotToken, process.env.TELEGRAM_BOT_TOKEN);
   const slackBot = hintSource(secrets.slackBotToken, process.env.SLACK_BOT_TOKEN);
   const slackSign = hintSource(secrets.slackSigningSecret, process.env.SLACK_SIGNING_SECRET);
@@ -135,27 +173,26 @@ export function channelsSettingsView(cwd: string, home: string): ChannelsSetting
   };
 }
 
-function applySecret(
-  secrets: ChannelSecrets,
+function applyConnectorSecret(
+  home: string,
   key: keyof ChannelSecrets,
   value: string | null | undefined,
-): ChannelSecrets {
-  if (value === undefined) return secrets;
-  const next = { ...secrets };
+): void {
+  if (value === undefined) return;
+  const connector = CONNECTOR_IDS[key];
   if (value === null) {
-    delete next[key];
-    return next;
+    removeConnector(home, connector.id);
+    return;
   }
   const trimmed = value.trim();
-  if (!trimmed) return secrets;
-  next[key] = trimmed;
-  return next;
+  if (!trimmed) return;
+  upsertConnectorToken(home, { ...connector, token: trimmed });
 }
 
 export function saveChannelsSettings(cwd: string, home: string, patch: ChannelsSettingsPatch): ChannelsSettingsView {
   const file = readChannelsFile(cwd);
   const channels = { ...(file.channels ?? {}) };
-  let secrets: ChannelSecrets = { ...(loadSettings(home).channels ?? {}) };
+  connectorSecrets(home);
 
   if (patch.telegram) {
     const t = patch.telegram;
@@ -170,24 +207,24 @@ export function saveChannelsSettings(cwd: string, home: string, patch: ChannelsS
       }
     }
     channels.telegram = prev;
-    secrets = applySecret(secrets, "telegramBotToken", t.botToken);
+    applyConnectorSecret(home, "telegramBotToken", t.botToken);
   }
   if (patch.slack) {
     const s = patch.slack;
     const prev = { ...(channels.slack ?? {}) };
     if (s.enabled !== undefined) prev.enabled = s.enabled;
     channels.slack = prev;
-    secrets = applySecret(secrets, "slackBotToken", s.botToken);
-    secrets = applySecret(secrets, "slackSigningSecret", s.signingSecret);
+    applyConnectorSecret(home, "slackBotToken", s.botToken);
+    applyConnectorSecret(home, "slackSigningSecret", s.signingSecret);
   }
   if (patch.feishu) {
     const f = patch.feishu;
     const prev = { ...(channels.feishu ?? {}) };
     if (f.enabled !== undefined) prev.enabled = f.enabled;
     channels.feishu = prev;
-    secrets = applySecret(secrets, "feishuAppId", f.appId);
-    secrets = applySecret(secrets, "feishuAppSecret", f.appSecret);
-    secrets = applySecret(secrets, "feishuVerificationToken", f.verificationToken);
+    applyConnectorSecret(home, "feishuAppId", f.appId);
+    applyConnectorSecret(home, "feishuAppSecret", f.appSecret);
+    applyConnectorSecret(home, "feishuVerificationToken", f.verificationToken);
   }
 
   writeChannelsFile(cwd, {
@@ -196,17 +233,10 @@ export function saveChannelsSettings(cwd: string, home: string, patch: ChannelsS
     channels,
   });
 
-  const base = loadSettings(home);
-  const { channels: _, ...rest } = base;
-  saveHomeSettings(
-    home,
-    Object.keys(secrets).length > 0 ? { ...rest, channels: secrets } : rest,
-  );
-
   return channelsSettingsView(cwd, home);
 }
 
-/** Resolve tokens: env → settings → "". */
+/** Resolve tokens: env → connectors (migrating legacy settings) → "". */
 export function resolveChannelSecrets(home: string): {
   telegramToken: string;
   slackBotToken: string;
@@ -215,7 +245,7 @@ export function resolveChannelSecrets(home: string): {
   feishuAppSecret: string;
   feishuVerificationToken: string;
 } {
-  const s = loadSettings(home).channels ?? {};
+  const s = connectorSecrets(home);
   return {
     telegramToken: process.env.TELEGRAM_BOT_TOKEN?.trim() || s.telegramBotToken || "",
     slackBotToken: process.env.SLACK_BOT_TOKEN?.trim() || s.slackBotToken || "",

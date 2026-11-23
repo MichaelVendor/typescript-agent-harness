@@ -1,5 +1,7 @@
 # DSH 对照升级（P0）Implementation Plan
 
+> **Land status:** Phase **A–D** 已合入 `v1.7`；下方 Task 勾选保留作执行记录，不必逐条改勾。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 按推荐顺序落地 Worktree 并行会话、会话状态面、连接器账号层（token）、MCP 工具按需暴露——对齐 DSH 工作流，不换框架。

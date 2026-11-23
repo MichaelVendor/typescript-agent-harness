@@ -9,11 +9,14 @@ import type {
   RecentFolder,
   ReviewPanelSnapshot,
   ServeError,
+  ServeEvent,
   ServeInfo,
   ServeRequest,
+  SessionStatusDto,
   SettingsView,
   SkillsImport,
   SkillsView,
+  WorkerInfo,
   WorkspaceView,
 } from "@typescript-agent-harness/cli";
 import { fileQuery, type FileTarget } from "./preview-view";
@@ -50,7 +53,15 @@ export function fileRawURL(target: FileTarget, mtime: number): string {
 export const api = {
   auth: (body: ServeRequest["auth"]) => post("/api/auth", body),
   info: async () => (await (await call("GET", "/api/info")).json()) as ServeInfo,
+  sessionStatus: async () => (await (await call("GET", "/api/session-status")).json()) as SessionStatusDto,
   send: (body: ServeRequest["send"]) => post("/api/send", body),
+  workers: async () =>
+    (await (await call("GET", "/api/workers")).json()) as { workers: WorkerInfo[]; focusId: string },
+  workersParallel: (body: ServeRequest["workersParallel"] = {}) => post("/api/workers/parallel", body),
+  workersFocus: (body: ServeRequest["workersFocus"]) => post("/api/workers/focus", body),
+  workersStop: (body: ServeRequest["workersStop"]) => post("/api/workers/stop", body),
+  workersRestart: (body: ServeRequest["workersRestart"]) => post("/api/workers/restart", body),
+  workersRemove: (body: ServeRequest["workersRemove"]) => post("/api/workers/remove", body),
   async upload(file: File): Promise<AttachmentMeta> {
     const res = await fetch("/api/attachments", {
       method: "POST",
@@ -67,9 +78,9 @@ export const api = {
     }
     return (await res.json()) as AttachmentMeta;
   },
-  continueTurn: () => post("/api/continue"),
-  compact: () => post("/api/compact"),
-  cancel: () => post("/api/cancel"),
+  continueTurn: (body?: { workerId?: string }) => post("/api/continue", body ?? {}),
+  compact: (body?: { workerId?: string }) => post("/api/compact", body ?? {}),
+  cancel: (body?: { workerId?: string }) => post("/api/cancel", body ?? {}),
   answer: (body: ServeRequest["answer"]) => post("/api/answer", body),
   mode: (body: ServeRequest["mode"]) => post("/api/mode", body),
   names: async (q: string) =>
@@ -143,7 +154,7 @@ export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";
  */
 export function connect(handlers: {
   onOpen(): void;
-  onEvent(event: HostEvent): void;
+  onEvent(event: ServeEvent | HostEvent): void;
   onStatus(status: Connection): void;
 }): () => void {
   const source = new EventSource("/api/events");
@@ -151,7 +162,7 @@ export function connect(handlers: {
     handlers.onOpen();
     handlers.onStatus("open");
   };
-  source.onmessage = (message) => handlers.onEvent(JSON.parse(message.data as string) as HostEvent);
+  source.onmessage = (message) => handlers.onEvent(JSON.parse(message.data as string) as ServeEvent | HostEvent);
   source.onerror = () => {
     handlers.onStatus("reconnecting");
     api.info().catch((err: unknown) => {

@@ -1,6 +1,6 @@
 # DSH 对照升级（P0）设计
 
-状态：📐 已设计（计划见 `docs/superpowers/plans/2026-11-22-dsh-parity-p0.md`）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-22-dsh-parity-p0.md`）；**P0 polish ✅**（`docs/superpowers/plans/2026-11-22-dsh-parity-p0-polish.md`）。P1 见下。
 
 对照 DeepSeek Harness ≤ **v0.2.3-alpha** 的工作流能力，按产品咬合度升级 tah；**不**换 `packages/core`、**不**改 `DefaultLoop`、**不**引入 NestJS / Cordis。
 

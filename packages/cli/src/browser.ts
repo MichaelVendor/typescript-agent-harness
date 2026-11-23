@@ -34,11 +34,23 @@ export type BrowserServer = { command: string; args: string[] };
 export type BrowserOptions = {
   cwd: string;
   homeDir: string;
+  /** Isolates Chrome user data under `~/.tah/browser-profiles/<profileId>`. */
+  profileId?: string;
   /** `tah chat` shows a Chrome window; `tah run` has nobody watching and `tah serve` shows the page in its browser panel. */
   headless: boolean;
   /** Tests swap in a fake MCP server. */
   server?: BrowserServer;
 };
+
+export function browserProfileId(explicit?: string): string {
+  if (explicit) return explicit;
+  const fromEnv = process.env.TAH_BROWSER_PROFILE_ID;
+  if (fromEnv) return fromEnv;
+  return "main";
+}
+
+export const profileDir = (homeDir: string, id: string) =>
+  path.join(homeDir, ".tah", "browser-profiles", id);
 
 /** One tah host's browser: the agent's tools, plus what `tah serve`'s browser panel needs. */
 export type Browser = {
@@ -53,9 +65,10 @@ export type Browser = {
   cdpPort(): number | undefined;
   /** Closes the browser and withdraws the tools. */
   close(): Promise<void>;
+  /** Refreshes cached CDP state (remote workers only). */
+  syncState?(): Promise<void>;
 };
 
-const profileDir = (homeDir: string) => path.join(homeDir, ".tah", "browser-profile");
 const configFile = (homeDir: string) => path.join(homeDir, ".tah", "browser-config.json");
 
 /** Playwright MCP's config: Chrome opens a random debugging port and writes it to `<profile>/DevToolsActivePort`. */
@@ -65,6 +78,7 @@ export function writeBrowserConfig(homeDir: string): void {
 }
 
 export function playwrightServer(o: BrowserOptions): BrowserServer {
+  const profileId = browserProfileId(o.profileId);
   const require = createRequire(import.meta.url);
   const pkg = require.resolve("@playwright/mcp/package.json");
   const bin = (JSON.parse(readFileSync(pkg, "utf8")) as { bin: Record<string, string> }).bin["playwright-mcp"]!;
@@ -75,7 +89,7 @@ export function playwrightServer(o: BrowserOptions): BrowserServer {
       "--browser",
       "chrome",
       "--user-data-dir",
-      profileDir(o.homeDir),
+      profileDir(o.homeDir, profileId),
       "--output-dir",
       path.join(o.cwd, ".tah", "browser"),
       "--image-responses",
@@ -98,6 +112,8 @@ export function clipResult(out: unknown): unknown {
 
 /** `browser_open` starts Playwright MCP on first use and mounts the browser tools; `browser_close` takes them down again. The panel can start the browser first (`launch`) without mounting them. */
 export function createBrowser(o: BrowserOptions): Browser {
+  const profileId = browserProfileId(o.profileId);
+  const userDataDir = () => profileDir(o.homeDir, profileId);
   let tools: ToolService | undefined;
   let backend: McpBackend | undefined;
   let starting: Promise<McpBackend> | undefined;
@@ -125,7 +141,7 @@ export function createBrowser(o: BrowserOptions): Browser {
       const message = err instanceof Error ? err.message : String(err);
       if (/already in use/i.test(message)) {
         throw new Error(
-          `the browser profile ${profileDir(o.homeDir)} is in use by another tah — close that tah (or its browser) and try again`,
+          `the browser profile ${userDataDir()} is in use by another tah — close that tah (or its browser) and try again`,
         );
       }
       throw new Error(`could not start the browser: ${message}`);
@@ -200,7 +216,7 @@ export function createBrowser(o: BrowserOptions): Browser {
     cdpPort() {
       if (!backend) return undefined;
       try {
-        const port = Number(readFileSync(path.join(profileDir(o.homeDir), "DevToolsActivePort"), "utf8").split("\n")[0]);
+        const port = Number(readFileSync(path.join(userDataDir(), "DevToolsActivePort"), "utf8").split("\n")[0]);
         return Number.isInteger(port) && port > 0 ? port : undefined;
       } catch {
         return undefined;

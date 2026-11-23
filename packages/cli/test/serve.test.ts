@@ -303,17 +303,19 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
       desktop: home,
     });
 
+    const hostTypes = (evs: { type: string }[]) =>
+      evs.map((e) => e.type).filter((t) => t !== "workers" && t !== "attention");
     const tab = stream(base, cookie);
     await tab.until("session");
     assert.equal((await api.post("/api/send", { text: "看看目录" })).status, 202);
     const turn = await tab.until("turn.end");
-    const types = turn.map((e) => e.type).filter((t, i, all) => t !== "text" || all[i - 1] !== "text");
+    const types = hostTypes(turn).filter((t, i, all) => t !== "text" || all[i - 1] !== "text");
     assert.deepEqual(types, ["session", "user", "tool.start", "tool.end", "text", "turn.end"]);
 
     const late = stream(base, cookie);
     const replay = await late.until("turn.end");
-    assert.deepEqual(replay.map((e) => e.type), ["session", "turn.end"]);
-    const history = (replay[0] as SessionEvent).history;
+    assert.deepEqual(hostTypes(replay), ["session", "turn.end"]);
+    const history = (replay.find((e) => e.type === "session") as SessionEvent).history;
     assert.deepEqual(history[0], { role: "user", text: "看看目录" });
     assert.ok(history.some((h) => h.role === "assistant"));
 
@@ -1105,9 +1107,14 @@ test("browser panel over HTTP: open, stream frames, type; a browser tool event r
     assert.deepEqual(conns[0]!.sent.at(-1), { method: "Input.insertText", params: { text: "hi" }, sessionId: "S-T1" });
     assert.equal((await api.post("/api/browser/nav", { action: "reload" })).status, 204);
     assert.equal((await api.post("/api/browser/viewport", { width: 640, height: 900, scale: 2 })).status, 204);
-    assert.deepEqual(conns[0]!.sent.at(-1), {
+    assert.deepEqual(conns[0]!.sent.filter((m) => m.method === "Emulation.setDeviceMetricsOverride").at(-1), {
       method: "Emulation.setDeviceMetricsOverride",
       params: { width: 640, height: 900, deviceScaleFactor: 2, mobile: false },
+      sessionId: "S-T1",
+    });
+    assert.deepEqual(conns[0]!.sent.at(-1), {
+      method: "Page.startScreencast",
+      params: { format: "jpeg", quality: 95, everyNthFrame: 1, maxWidth: 1280, maxHeight: 1800 },
       sessionId: "S-T1",
     });
     assert.equal((await api.post("/api/browser/viewport", { width: "x" })).status, 400);
@@ -1216,6 +1223,66 @@ test("GET /api/super-agent/panel is 404 when disabled", async () => {
   const s = await fakeServer();
   try {
     assert.equal((await client(s.base, s.cookie).get("/api/super-agent/panel")).status, 404);
+  } finally {
+    await s.close();
+  }
+});
+
+test("GET /api/session-status returns cwd snapshot", async () => {
+  const s = await fakeServer();
+  try {
+    const res = await client(s.base, s.cookie).get("/api/session-status");
+    assert.equal(res.status, 200);
+    const body = JSON.parse(res.body) as {
+      cwd: string;
+      busy: boolean;
+      pending: null | { kind: string; id: string };
+      workers: unknown[];
+    };
+    assert.equal(body.cwd, s.cwd);
+    assert.equal(body.busy, false);
+    assert.equal(body.pending, null);
+    assert.deepEqual(body.workers, []);
+  } finally {
+    await s.close();
+  }
+});
+
+test("GET /api/session-status includes superAgent ticketCount when panel enabled", async () => {
+  const panelDir = mkdtempSync(path.join(tmpdir(), "tah-sa-status-"));
+  writeFileSync(
+    path.join(panelDir, "panel.json"),
+    JSON.stringify({
+      agentId: "sa1",
+      status: "running",
+      needsHuman: [
+        {
+          id: "t1",
+          mandateId: "m1",
+          goal: "review",
+          status: "needs_human",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      running: [
+        {
+          id: "t2",
+          mandateId: "m1",
+          goal: "fix",
+          status: "running",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      recentReplies: [],
+      subscriptions: [],
+    }),
+  );
+  const s = await fakeServer(undefined, undefined, undefined, panelDir);
+  try {
+    const body = JSON.parse((await client(s.base, s.cookie).get("/api/session-status")).body) as {
+      superAgent?: { ticketCount: number };
+    };
+    assert.deepEqual(body.superAgent, { ticketCount: 2 });
   } finally {
     await s.close();
   }

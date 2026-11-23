@@ -15,7 +15,7 @@ const dir = () => mkdtempSync(path.join(tmpdir(), "tah-browser-"));
 
 async function boot(extra: string[] = [], command = process.execPath) {
   const homeDir = dir();
-  const profile = path.join(homeDir, ".tah", "browser-profile");
+  const profile = path.join(homeDir, ".tah", "browser-profiles", "main");
   const server = { command, args: command === process.execPath ? [fake, "--user-data-dir", profile, ...extra] : [] };
   const browser = createBrowser({ cwd: dir(), homeDir, headless: true, server });
   const runtime = new Runtime({ id: "t" });
@@ -97,10 +97,10 @@ test("a profile held by another tah closes the browser again with a clear error"
   try {
     const out = await call("browser_open", { url: "https://example.com" });
     assert.equal(out.ok, false);
-    assert.match(String((out.output as { error: string }).error), /browser-profile is in use by another tah/);
+    assert.match(String((out.output as { error: string }).error), /browser-profiles.* is in use by another tah/);
     assert.deepEqual(names(), ["browser_open"]);
     assert.equal(browser.running(), false);
-    await assert.rejects(browser.launch(), /browser-profile is in use by another tah/);
+    await assert.rejects(browser.launch(), /browser-profiles.* is in use by another tah/);
   } finally {
     await runtime.stop();
   }
@@ -158,7 +158,7 @@ test("playwrightServer runs the bundled Playwright MCP with Chrome, the tah prof
     "--browser",
     "chrome",
     "--user-data-dir",
-    path.join("/h", ".tah", "browser-profile"),
+    path.join("/h", ".tah", "browser-profiles", "main"),
     "--output-dir",
     path.join("/w", ".tah", "browser"),
     "--image-responses",

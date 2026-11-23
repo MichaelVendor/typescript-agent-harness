@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { readSavedSessions } from "../dist/runtime.js";
-import { addWorkspace, loadRecent, loadWorkspaces, removeWorkspace, workspacesPath } from "../dist/workspaces.js";
+import {
+  addWorkspace,
+  loadRecent,
+  loadWorkspaceEntries,
+  loadWorkspaces,
+  removeWorkspace,
+  workspacesPath,
+} from "../dist/workspaces.js";
 
 test("workspaces.json: add dedupes by resolved path, remove keeps order", () => {
   const home = mkdtempSync(path.join(tmpdir(), "tah-ws-home-"));
@@ -28,6 +35,31 @@ test("workspaces.json: removed folders become recent (newest first, capped); add
   assert.deepEqual(loadWorkspaces(home), ["/tmp/r5"]);
   removeWorkspace(home, "/tmp/r5");
   assert.equal(loadRecent(home)[0], "/tmp/r5");
+});
+
+test("workspaces.json: loads string paths and object entries with metadata", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "tah-ws-home-"));
+  mkdirSync(path.join(home, ".tah"));
+  writeFileSync(
+    workspacesPath(home),
+    JSON.stringify({
+      workspaces: ["/tmp/a", { path: "/tmp/b", kind: "worktree", parent: "/repo/root" }],
+    }),
+  );
+  assert.deepEqual(loadWorkspaces(home), ["/tmp/a", "/tmp/b"]);
+  assert.deepEqual(loadWorkspaceEntries(home), [
+    { path: "/tmp/a" },
+    { path: "/tmp/b", kind: "worktree", parent: path.resolve("/repo/root") },
+  ]);
+});
+
+test("workspaces.json: addWorkspace with worktree metadata persists object", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "tah-ws-home-"));
+  const wt = "/tmp/wt-feat";
+  addWorkspace(home, wt, { kind: "worktree", parent: "/repo" });
+  const raw = JSON.parse(readFileSync(workspacesPath(home), "utf8")) as { workspaces: unknown[] };
+  assert.deepEqual(raw.workspaces, [{ path: wt, kind: "worktree", parent: path.resolve("/repo") }]);
+  assert.deepEqual(loadWorkspaceEntries(home), [{ path: wt, kind: "worktree", parent: path.resolve("/repo") }]);
 });
 
 test("workspaces.json: corrupt or wrong-shaped file reads as empty", () => {

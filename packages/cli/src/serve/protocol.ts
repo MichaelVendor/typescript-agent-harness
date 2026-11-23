@@ -1,9 +1,18 @@
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import type { AttachmentMeta } from "../attachments/store.js";
+import type { HostEvent } from "../host.js";
 import type { PermissionMode } from "../permission-mode.js";
 import type { SessionRow } from "../sessions.js";
+import type { WorkerInfo } from "./orchestrator.js";
 
 export type { PermissionMode };
+export type { WorkerInfo };
+
+/** SSE payload when multi-worker orchestrator is enabled. */
+export type ServeEvent =
+  | (HostEvent & { workerId: string; cwd: string; sessionId: string })
+  | { type: "attention"; workerId: string; kind: "approval" | "question"; summary: string }
+  | { type: "workers"; workers: WorkerInfo[]; focusId: string };
 
 /** `GET /api/info`; `maxSteps` is null when unlimited; `desktop` is where "New folder" starts (home when there is no Desktop). */
 export type ServeInfo = {
@@ -24,14 +33,19 @@ export type { ReviewPanelSnapshot } from "@typescript-agent-harness/agent";
 /** Request bodies of the `POST /api/*` commands that take one. */
 export type ServeRequest = {
   auth: { token: string };
-  send: { text?: string; attachmentIds?: string[] };
-  answer: { id: string; answer: ApprovalAnswer };
+  send: { text?: string; attachmentIds?: string[]; workerId?: string };
+  answer: { id: string; answer: ApprovalAnswer; workerId?: string };
   /** Session permission mode: ask, auto-allow file edits, or block edits and commands. */
   mode: { mode: PermissionMode };
   /** Answers a `question` event (one list per question, in order), or skips it: the questions become text and the turn ends. */
-  question: { id: string; answers: string[][] } | { id: string; skip: true };
+  question: { id: string; answers: string[][]; workerId?: string } | { id: string; skip: true; workerId?: string };
   /** Sends a held queued message now (between turns), or removes one. */
-  queue: { id: string; send: true } | { id: string; remove: true };
+  queue: { id: string; send: true; workerId?: string } | { id: string; remove: true; workerId?: string };
+  workersParallel: { name?: string; cwd?: string; deferUntilSend?: boolean };
+  workersFocus: { id: string };
+  workersStop: { id: string };
+  workersRestart: { id: string };
+  workersRemove: { id: string };
   /** `cwd`: start the session in that folder (switching to it first). */
   reset: { cwd?: string };
   resume: { ref: string; cwd?: string };

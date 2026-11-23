@@ -1,4 +1,4 @@
-export { mcpPlugin, type McpPluginOptions } from "./plugin.js";
+export { mcpPlugin, type McpPluginOptions, type McpToolExposure } from "./plugin.js";
 export { inProcessPingBackend } from "./ping-backend.js";
 export { stdioMcpBackend, type StdioMcpOptions } from "./stdio-backend.js";
 export { httpMcpBackend, type HttpConnectKind } from "./http-backend.js";
