@@ -146,6 +146,7 @@ MCP OAuth 全自动刷新产品化（可后续复用 refresh 工具函数）；�
 | channel-host design | D 扩展；钉钉企微原标 P1 |
 | parallel-sessions | B 的 workerId / attention 输入 |
 
-## P1.5 / 以后（仅占位）
+## P1.5 / 以后
 
-Timeline 任务树、AgentTeam UX、GitLab、跨会话消息、Computer Use。
+- **Timeline 任务树** — 设计见 [`2026-11-23-dsh-parity-p1.5-timeline-design.md`](./2026-11-23-dsh-parity-p1.5-timeline-design.md)（📐）
+- 另开：AgentTeam UX、GitLab、跨会话消息、飞书 OAuth、Computer Use
