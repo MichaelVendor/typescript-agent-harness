@@ -3,6 +3,7 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import {
   createDingTalkAdapter,
+  createWeComAdapter,
   createFeishuAdapter,
   createMockChannel,
   createSlackAdapter,
@@ -39,6 +40,7 @@ export async function startChannelHost(
   let slack: ReturnType<typeof createSlackAdapter> | undefined;
   let feishu: ReturnType<typeof createFeishuAdapter> | undefined;
   let dingtalk: ReturnType<typeof createDingTalkAdapter> | undefined;
+  let wecom: ReturnType<typeof createWeComAdapter> | undefined;
 
   if (mockChannel) {
     mock = createMockChannel({ name: "mock" });
@@ -80,6 +82,18 @@ export async function startChannelHost(
       });
       adapters.push(dingtalk);
     }
+    if (cfg.wecom.enabled) {
+      if (!cfg.wecom.corpId || !cfg.wecom.agentId || !cfg.wecom.secret || !cfg.wecom.token) {
+        throw new Error("WECOM_CORP_ID / WECOM_AGENT_ID / WECOM_SECRET / WECOM_TOKEN required");
+      }
+      wecom = createWeComAdapter({
+        corpId: cfg.wecom.corpId,
+        agentId: cfg.wecom.agentId,
+        secret: cfg.wecom.secret,
+        token: cfg.wecom.token,
+      });
+      adapters.push(wecom);
+    }
     if (adapters.length === 0) {
       throw new Error(
         "no channels enabled — set tah.channels.json or pass --mock-channel for local demo",
@@ -94,7 +108,7 @@ export async function startChannelHost(
     mockLlm: flags.mock || mockChannel,
   });
 
-  const needHttp = Boolean(slack || feishu || dingtalk);
+  const needHttp = Boolean(slack || feishu || dingtalk || wecom);
   let server: Server | undefined;
   let port = cfg.port;
   const host = "127.0.0.1";
@@ -114,6 +128,10 @@ export async function startChannelHost(
           }
           if (req.method === "POST" && url.pathname === "/hooks/dingtalk" && dingtalk) {
             await dingtalk.handleHttp(req, res);
+            return;
+          }
+          if (url.pathname === "/hooks/wecom" && wecom) {
+            await wecom.handleHttp(req, res);
             return;
           }
           if (req.method === "GET" && url.pathname === "/health") {
@@ -150,7 +168,7 @@ export async function runChannelHost(flags: CliFlags): Promise<void> {
   const started = await startChannelHost(flags);
   console.log(`[tah] channel-host persist → ${started.persistDir}`);
   if (started.url.startsWith("http")) {
-    console.log(`[tah] hooks on ${started.url}  (/hooks/slack /hooks/feishu /hooks/dingtalk)`);
+    console.log(`[tah] hooks on ${started.url}  (/hooks/slack /hooks/feishu /hooks/dingtalk /hooks/wecom)`);
   }
   if (flags.mockChannel) {
     console.log(`[tah] --mock-channel: inject via test or demo script`);

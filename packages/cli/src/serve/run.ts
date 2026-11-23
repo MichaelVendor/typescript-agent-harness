@@ -20,7 +20,13 @@ import { createWorkspaces, type Workspaces } from "./workspaces.js";
 function maybeEnableSuperAgent(flags: CliFlags, home: string): CliFlags {
   if (flags.superAgent) return flags;
   const cfg = loadChannelHostConfig(flags.cwd, { homeDir: home });
-  if (!cfg.telegram.enabled && !cfg.slack.enabled && !cfg.feishu.enabled && !cfg.dingtalk.enabled)
+  if (
+    !cfg.telegram.enabled &&
+    !cfg.slack.enabled &&
+    !cfg.feishu.enabled &&
+    !cfg.dingtalk.enabled &&
+    !cfg.wecom.enabled
+  )
     return flags;
   return {
     ...flags,

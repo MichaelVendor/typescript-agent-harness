@@ -11,6 +11,7 @@ export type ChannelHostFileConfig = {
     slack?: { enabled?: boolean };
     feishu?: { enabled?: boolean };
     dingtalk?: { enabled?: boolean };
+    wecom?: { enabled?: boolean };
   };
 };
 
@@ -30,6 +31,13 @@ export type ChannelHostResolved = {
     appKey: string;
     appSecret: string;
     verificationToken: string;
+  };
+  wecom: {
+    enabled: boolean;
+    corpId: string;
+    agentId: string;
+    secret: string;
+    token: string;
   };
 };
 
@@ -69,6 +77,13 @@ export function loadChannelHostConfig(
       appKey: secrets.dingtalkAppKey,
       appSecret: secrets.dingtalkAppSecret,
       verificationToken: secrets.dingtalkVerificationToken,
+    },
+    wecom: {
+      enabled: ch.wecom?.enabled === true,
+      corpId: secrets.wecomCorpId,
+      agentId: secrets.wecomAgentId,
+      secret: secrets.wecomSecret,
+      token: secrets.wecomToken,
     },
   };
 }

@@ -26,6 +26,7 @@ export type ChannelsFile = {
     slack?: { enabled?: boolean };
     feishu?: { enabled?: boolean };
     dingtalk?: { enabled?: boolean };
+    wecom?: { enabled?: boolean };
   };
 };
 
@@ -61,6 +62,17 @@ export type ChannelsSettingsView = {
     verificationTokenHint: string | null;
     verificationTokenSource: "settings" | "env" | null;
   };
+  wecom: {
+    enabled: boolean;
+    corpIdHint: string | null;
+    corpIdSource: "settings" | "env" | null;
+    agentIdHint: string | null;
+    agentIdSource: "settings" | "env" | null;
+    secretHint: string | null;
+    secretSource: "settings" | "env" | null;
+    tokenHint: string | null;
+    tokenSource: "settings" | "env" | null;
+  };
   anyEnabled: boolean;
 };
 
@@ -78,6 +90,13 @@ export type ChannelsSettingsPatch = {
     appKey?: string | null;
     appSecret?: string | null;
     verificationToken?: string | null;
+  };
+  wecom?: {
+    enabled?: boolean;
+    corpId?: string | null;
+    agentId?: string | null;
+    secret?: string | null;
+    token?: string | null;
   };
 };
 
@@ -133,6 +152,10 @@ const CONNECTOR_IDS: Record<keyof ChannelSecrets, { id: string; provider: string
     provider: "dingtalk",
     label: "Verification token",
   },
+  wecomCorpId: { id: "channel.wecom.corpId", provider: "wecom", label: "Corp ID" },
+  wecomAgentId: { id: "channel.wecom.agentId", provider: "wecom", label: "Agent ID" },
+  wecomSecret: { id: "channel.wecom.secret", provider: "wecom", label: "Secret" },
+  wecomToken: { id: "channel.wecom.token", provider: "wecom", label: "Token" },
 };
 
 function connectorSecrets(home: string): ChannelSecrets {
@@ -168,6 +191,10 @@ export function channelsSettingsView(cwd: string, home: string): ChannelsSetting
   const dtKey = hintSource(secrets.dingtalkAppKey, process.env.DINGTALK_APP_KEY);
   const dtSecret = hintSource(secrets.dingtalkAppSecret, process.env.DINGTALK_APP_SECRET);
   const dtTok = hintSource(secrets.dingtalkVerificationToken, process.env.DINGTALK_VERIFICATION_TOKEN);
+  const wcCorp = hintSource(secrets.wecomCorpId, process.env.WECOM_CORP_ID);
+  const wcAgent = hintSource(secrets.wecomAgentId, process.env.WECOM_AGENT_ID);
+  const wcSecret = hintSource(secrets.wecomSecret, process.env.WECOM_SECRET);
+  const wcTok = hintSource(secrets.wecomToken, process.env.WECOM_TOKEN);
   const mirror = ch.telegram?.mirrorChatId;
   const telegram = {
     enabled: ch.telegram?.enabled === true,
@@ -200,12 +227,25 @@ export function channelsSettingsView(cwd: string, home: string): ChannelsSetting
     verificationTokenHint: dtTok.hint,
     verificationTokenSource: dtTok.source,
   };
+  const wecom = {
+    enabled: ch.wecom?.enabled === true,
+    corpIdHint: wcCorp.hint,
+    corpIdSource: wcCorp.source,
+    agentIdHint: wcAgent.hint,
+    agentIdSource: wcAgent.source,
+    secretHint: wcSecret.hint,
+    secretSource: wcSecret.source,
+    tokenHint: wcTok.hint,
+    tokenSource: wcTok.source,
+  };
   return {
     telegram,
     slack,
     feishu,
     dingtalk,
-    anyEnabled: telegram.enabled || slack.enabled || feishu.enabled || dingtalk.enabled,
+    wecom,
+    anyEnabled:
+      telegram.enabled || slack.enabled || feishu.enabled || dingtalk.enabled || wecom.enabled,
   };
 }
 
@@ -271,6 +311,16 @@ export function saveChannelsSettings(cwd: string, home: string, patch: ChannelsS
     applyConnectorSecret(home, "dingtalkAppSecret", d.appSecret);
     applyConnectorSecret(home, "dingtalkVerificationToken", d.verificationToken);
   }
+  if (patch.wecom) {
+    const w = patch.wecom;
+    const prev = { ...(channels.wecom ?? {}) };
+    if (w.enabled !== undefined) prev.enabled = w.enabled;
+    channels.wecom = prev;
+    applyConnectorSecret(home, "wecomCorpId", w.corpId);
+    applyConnectorSecret(home, "wecomAgentId", w.agentId);
+    applyConnectorSecret(home, "wecomSecret", w.secret);
+    applyConnectorSecret(home, "wecomToken", w.token);
+  }
 
   writeChannelsFile(cwd, {
     persistDir: file.persistDir ?? ".tah/super-agent",
@@ -292,6 +342,10 @@ export function resolveChannelSecrets(home: string): {
   dingtalkAppKey: string;
   dingtalkAppSecret: string;
   dingtalkVerificationToken: string;
+  wecomCorpId: string;
+  wecomAgentId: string;
+  wecomSecret: string;
+  wecomToken: string;
 } {
   const s = connectorSecrets(home);
   return {
@@ -305,5 +359,9 @@ export function resolveChannelSecrets(home: string): {
     dingtalkAppSecret: process.env.DINGTALK_APP_SECRET?.trim() || s.dingtalkAppSecret || "",
     dingtalkVerificationToken:
       process.env.DINGTALK_VERIFICATION_TOKEN?.trim() || s.dingtalkVerificationToken || "",
+    wecomCorpId: process.env.WECOM_CORP_ID?.trim() || s.wecomCorpId || "",
+    wecomAgentId: process.env.WECOM_AGENT_ID?.trim() || s.wecomAgentId || "",
+    wecomSecret: process.env.WECOM_SECRET?.trim() || s.wecomSecret || "",
+    wecomToken: process.env.WECOM_TOKEN?.trim() || s.wecomToken || "",
   };
 }

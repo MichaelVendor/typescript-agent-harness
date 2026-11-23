@@ -38,3 +38,11 @@ export {
   type DingTalkAdapterOptions,
   type DingTalkReplyHandle,
 } from "./dingtalk.js";
+export {
+  createWeComAdapter,
+  handleWeComUrlVerify,
+  ingestWeComPayload,
+  wecomThreadId,
+  type WeComAdapterOptions,
+  type WeComReplyHandle,
+} from "./wecom.js";

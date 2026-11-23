@@ -5,7 +5,10 @@ import {
   createMockChannel,
   dingtalkThreadId,
   feishuThreadId,
+  handleWeComUrlVerify,
   ingestDingTalkPayload,
+  ingestWeComPayload,
+  wecomThreadId,
   ingestFeishuPayload,
   ingestSlackPayload,
   parseTelegramUpdates,
@@ -168,4 +171,46 @@ test("dingtalk ingest text + bad token ignored", () => {
     "test-token",
   );
   assert.deepEqual(bad, []);
+});
+
+test("wecom ingest text + bad token ignored", () => {
+  const seen: { threadId: string; text: string; isNewThread: boolean }[] = [];
+  ingestWeComPayload(
+    {
+      token: "test-token",
+      MsgType: "text",
+      Content: "查库存",
+      MsgId: "m1",
+      ChatId: "wrxxx",
+      FromUserName: "u1",
+    },
+    (m) => seen.push({ threadId: m.threadId, text: m.text, isNewThread: m.isNewThread }),
+    "test-token",
+  );
+  assert.equal(seen[0]?.threadId, wecomThreadId("wrxxx", "m1"));
+  assert.equal(seen[0]?.text, "查库存");
+  assert.equal(seen[0]?.isNewThread, true);
+
+  const bad: string[] = [];
+  ingestWeComPayload(
+    {
+      token: "wrong",
+      MsgType: "text",
+      Content: "nope",
+      MsgId: "m2",
+      ChatId: "wrxxx",
+    },
+    (m) => bad.push(m.text),
+    "test-token",
+  );
+  assert.deepEqual(bad, []);
+});
+
+test("wecom GET echostr verify (plaintext demo)", () => {
+  const q = new URLSearchParams({ echostr: "hello_echo", token: "tok" });
+  const ok = handleWeComUrlVerify(q, "tok");
+  assert.equal(ok?.status, 200);
+  assert.equal(ok?.body, "hello_echo");
+  const bad = handleWeComUrlVerify(new URLSearchParams({ echostr: "x", token: "wrong" }), "tok");
+  assert.equal(bad?.status, 401);
 });
