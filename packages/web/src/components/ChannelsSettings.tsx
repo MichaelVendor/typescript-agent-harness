@@ -11,7 +11,7 @@ function sourceLabel(source: "settings" | "env" | null): string {
   return t.channels.notSet;
 }
 
-/** Telegram / Slack / Feishu — toggles in tah.channels.json, secrets in ~/.tah/settings.json. */
+/** Telegram / Slack / Feishu / DingTalk / WeCom — toggles in tah.channels.json, secrets in ~/.tah/settings.json. */
 export function ChannelsSettings(props: {
   busy: boolean;
   view: SettingsView;
@@ -29,6 +29,15 @@ export function ChannelsSettings(props: {
   const [feishuAppId, setFeishuAppId] = useState("");
   const [feishuSecret, setFeishuSecret] = useState("");
   const [feishuVerify, setFeishuVerify] = useState("");
+  const [dingtalkEnabled, setDingtalkEnabled] = useState(channels.dingtalk.enabled);
+  const [dingtalkAppKey, setDingtalkAppKey] = useState("");
+  const [dingtalkAppSecret, setDingtalkAppSecret] = useState("");
+  const [dingtalkVerify, setDingtalkVerify] = useState("");
+  const [wecomEnabled, setWecomEnabled] = useState(channels.wecom.enabled);
+  const [wecomCorpId, setWecomCorpId] = useState("");
+  const [wecomAgentId, setWecomAgentId] = useState("");
+  const [wecomSecret, setWecomSecret] = useState("");
+  const [wecomToken, setWecomToken] = useState("");
   const [error, setError] = useState<string>();
   const [note, setNote] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -39,6 +48,8 @@ export function ChannelsSettings(props: {
     setMirrorChatId(channels.telegram.mirrorChatId);
     setSlackEnabled(channels.slack.enabled);
     setFeishuEnabled(channels.feishu.enabled);
+    setDingtalkEnabled(channels.dingtalk.enabled);
+    setWecomEnabled(channels.wecom.enabled);
   }, [channels]);
 
   const save = async () => {
@@ -63,6 +74,19 @@ export function ChannelsSettings(props: {
           ...(feishuSecret.trim() ? { appSecret: feishuSecret.trim() } : {}),
           ...(feishuVerify.trim() ? { verificationToken: feishuVerify.trim() } : {}),
         },
+        dingtalk: {
+          enabled: dingtalkEnabled,
+          ...(dingtalkAppKey.trim() ? { appKey: dingtalkAppKey.trim() } : {}),
+          ...(dingtalkAppSecret.trim() ? { appSecret: dingtalkAppSecret.trim() } : {}),
+          ...(dingtalkVerify.trim() ? { verificationToken: dingtalkVerify.trim() } : {}),
+        },
+        wecom: {
+          enabled: wecomEnabled,
+          ...(wecomCorpId.trim() ? { corpId: wecomCorpId.trim() } : {}),
+          ...(wecomAgentId.trim() ? { agentId: wecomAgentId.trim() } : {}),
+          ...(wecomSecret.trim() ? { secret: wecomSecret.trim() } : {}),
+          ...(wecomToken.trim() ? { token: wecomToken.trim() } : {}),
+        },
       });
       props.onChange(next);
       setTgToken("");
@@ -71,6 +95,13 @@ export function ChannelsSettings(props: {
       setFeishuAppId("");
       setFeishuSecret("");
       setFeishuVerify("");
+      setDingtalkAppKey("");
+      setDingtalkAppSecret("");
+      setDingtalkVerify("");
+      setWecomCorpId("");
+      setWecomAgentId("");
+      setWecomSecret("");
+      setWecomToken("");
       setNote(c.savedNote);
     } catch (err) {
       setError(errText(err));
@@ -211,6 +242,111 @@ export function ChannelsSettings(props: {
             placeholder={channels.feishu.verificationTokenHint ? c.leaveBlank : "…"}
             disabled={locked}
             onChange={(e) => setFeishuVerify(e.target.value)}
+          />
+        </label>
+      </ChannelCard>
+
+      <ChannelCard
+        title={c.dingtalk.title}
+        hint={c.dingtalk.hint}
+        enabled={dingtalkEnabled}
+        onEnabled={setDingtalkEnabled}
+        locked={locked}
+        status={
+          channels.dingtalk.appKeyHint
+            ? `${channels.dingtalk.appKeyHint} · ${sourceLabel(channels.dingtalk.appKeySource)}`
+            : sourceLabel(null)
+        }
+      >
+        <label>
+          <span>{c.dingtalk.appKey}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={dingtalkAppKey}
+            placeholder={channels.dingtalk.appKeyHint ? c.leaveBlank : "…"}
+            disabled={locked}
+            onChange={(e) => setDingtalkAppKey(e.target.value)}
+          />
+        </label>
+        <label>
+          <span>{c.dingtalk.appSecret}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={dingtalkAppSecret}
+            placeholder={channels.dingtalk.appSecretHint ? c.leaveBlank : "…"}
+            disabled={locked}
+            onChange={(e) => setDingtalkAppSecret(e.target.value)}
+          />
+        </label>
+        <label>
+          <span>{c.dingtalk.verificationToken}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={dingtalkVerify}
+            placeholder={channels.dingtalk.verificationTokenHint ? c.leaveBlank : "…"}
+            disabled={locked}
+            onChange={(e) => setDingtalkVerify(e.target.value)}
+          />
+        </label>
+      </ChannelCard>
+
+      <ChannelCard
+        title={c.wecom.title}
+        hint={c.wecom.hint}
+        enabled={wecomEnabled}
+        onEnabled={setWecomEnabled}
+        locked={locked}
+        status={
+          channels.wecom.corpIdHint
+            ? `${channels.wecom.corpIdHint} · ${sourceLabel(channels.wecom.corpIdSource)}`
+            : sourceLabel(null)
+        }
+      >
+        <label>
+          <span>{c.wecom.corpId}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={wecomCorpId}
+            placeholder={channels.wecom.corpIdHint ? c.leaveBlank : "…"}
+            disabled={locked}
+            onChange={(e) => setWecomCorpId(e.target.value)}
+          />
+        </label>
+        <label>
+          <span>{c.wecom.agentId}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={wecomAgentId}
+            placeholder={channels.wecom.agentIdHint ? c.leaveBlank : "…"}
+            disabled={locked}
+            onChange={(e) => setWecomAgentId(e.target.value)}
+          />
+        </label>
+        <label>
+          <span>{c.wecom.secret}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={wecomSecret}
+            placeholder={channels.wecom.secretHint ? c.leaveBlank : "…"}
+            disabled={locked}
+            onChange={(e) => setWecomSecret(e.target.value)}
+          />
+        </label>
+        <label>
+          <span>{c.wecom.token}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={wecomToken}
+            placeholder={channels.wecom.tokenHint ? c.leaveBlank : "…"}
+            disabled={locked}
+            onChange={(e) => setWecomToken(e.target.value)}
           />
         </label>
       </ChannelCard>

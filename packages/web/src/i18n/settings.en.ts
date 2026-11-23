@@ -46,6 +46,21 @@ export const settingsEn = {
       appSecret: "App Secret",
       verificationToken: "Verification token",
     },
+    dingtalk: {
+      title: "DingTalk",
+      hint: "Enterprise robot / callback app from the DingTalk Open Platform. Local hooks at /hooks/dingtalk.",
+      appKey: "App key",
+      appSecret: "App secret",
+      verificationToken: "Verification token",
+    },
+    wecom: {
+      title: "WeCom",
+      hint: "Enterprise WeChat self-built app; callback URL at /hooks/wecom (URL verification uses token + corp secret).",
+      corpId: "Corp ID",
+      agentId: "Agent ID",
+      secret: "Secret",
+      token: "Token",
+    },
   },
 } as const;
 
