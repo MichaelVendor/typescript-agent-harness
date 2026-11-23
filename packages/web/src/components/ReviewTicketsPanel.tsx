@@ -8,7 +8,13 @@ function ticketLine(t: { status: string; goal: string }): string {
 }
 
 /** 右侧栏只读 Super-agent 工单；仅在 `info.superAgentPanel` 时挂载并由父组件轮询触发刷新。 */
-export function ReviewTicketsPanel({ panel }: { panel: ReviewPanelSnapshot | null }) {
+export function ReviewTicketsPanel({
+  panel,
+  onSelectTicket,
+}: {
+  panel: ReviewPanelSnapshot | null;
+  onSelectTicket?: (id: string) => void;
+}) {
   if (!panel) {
     return (
       <div className="rail-card">
@@ -29,11 +35,23 @@ export function ReviewTicketsPanel({ panel }: { panel: ReviewPanelSnapshot | nul
           <div className="rail-usage" style={{ marginTop: 6 }}>
             待人审 · {needs.length}
           </div>
-          {needs.slice(0, 4).map((t) => (
-            <div key={t.id} title={t.goal}>
-              {ticketLine(t)}
-            </div>
-          ))}
+          {needs.slice(0, 4).map((t) =>
+            onSelectTicket ? (
+              <button
+                key={t.id}
+                type="button"
+                className="link timeline-rail-ticket"
+                title={t.goal}
+                onClick={() => onSelectTicket(t.id)}
+              >
+                {ticketLine(t)}
+              </button>
+            ) : (
+              <div key={t.id} title={t.goal}>
+                {ticketLine(t)}
+              </div>
+            ),
+          )}
         </>
       ) : null}
       {running.length ? (
@@ -41,11 +59,23 @@ export function ReviewTicketsPanel({ panel }: { panel: ReviewPanelSnapshot | nul
           <div className="rail-usage" style={{ marginTop: 6 }}>
             进行中 · {running.length}
           </div>
-          {running.slice(0, 4).map((t) => (
-            <div key={t.id} title={t.goal}>
-              {ticketLine(t)}
-            </div>
-          ))}
+          {running.slice(0, 4).map((t) =>
+            onSelectTicket ? (
+              <button
+                key={t.id}
+                type="button"
+                className="link timeline-rail-ticket"
+                title={t.goal}
+                onClick={() => onSelectTicket(t.id)}
+              >
+                {ticketLine(t)}
+              </button>
+            ) : (
+              <div key={t.id} title={t.goal}>
+                {ticketLine(t)}
+              </div>
+            ),
+          )}
         </>
       ) : null}
       {!needs.length && !running.length ? <div>暂无 running / needs_human</div> : null}
@@ -65,12 +95,19 @@ export function ReviewTicketsPanel({ panel }: { panel: ReviewPanelSnapshot | nul
   );
 }
 
+export type SuperAgentPanelState = {
+  panel: ReviewPanelSnapshot | null;
+  error?: string;
+};
+
 /** Poll `GET /api/super-agent/panel` while enabled. */
-export function useSuperAgentPanel(enabled: boolean): ReviewPanelSnapshot | null {
+export function useSuperAgentPanel(enabled: boolean): SuperAgentPanelState {
   const [panel, setPanel] = useState<ReviewPanelSnapshot | null>(null);
+  const [error, setError] = useState<string | undefined>();
   useEffect(() => {
     if (!enabled) {
       setPanel(null);
+      setError(undefined);
       return;
     }
     let cancelled = false;
@@ -78,10 +115,16 @@ export function useSuperAgentPanel(enabled: boolean): ReviewPanelSnapshot | null
       api
         .superAgentPanel()
         .then((snap) => {
-          if (!cancelled) setPanel(snap);
+          if (!cancelled) {
+            setPanel(snap);
+            setError(undefined);
+          }
         })
-        .catch(() => {
-          if (!cancelled) setPanel(null);
+        .catch((err: unknown) => {
+          if (!cancelled) {
+            setPanel(null);
+            setError(err instanceof Error ? err.message : String(err));
+          }
         });
     };
     load();
@@ -91,5 +134,5 @@ export function useSuperAgentPanel(enabled: boolean): ReviewPanelSnapshot | null
       clearInterval(id);
     };
   }, [enabled]);
-  return panel;
+  return { panel, error };
 }

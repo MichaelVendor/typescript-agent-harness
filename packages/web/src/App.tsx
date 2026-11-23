@@ -11,6 +11,7 @@ import { QueueList } from "./components/QueueList";
 import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
 import { ReviewTicketsPanel, useSuperAgentPanel } from "./components/ReviewTicketsPanel";
+import { TimelineView } from "./components/TimelineView";
 import { ReviewPane } from "./components/ReviewPane";
 import { Messages } from "./components/Messages";
 import { ModelPicker } from "./components/ModelPicker";
@@ -72,6 +73,8 @@ function SessionRail(props: {
   onCompact: (() => void) | undefined;
   /** When true, show read-only Super-agent ticket card (polls separately). */
   superAgentPanel?: boolean;
+  superAgentPanelState: ReturnType<typeof useSuperAgentPanel>;
+  onSelectTicket?: (id: string) => void;
   workers: WorkerInfo[];
   focusId: string;
   attention: Attention[];
@@ -86,7 +89,7 @@ function SessionRail(props: {
 }) {
   const tokens = props.tokens;
   const used = tokens ? tokens.promptTokens + tokens.completionTokens : 0;
-  const panel = useSuperAgentPanel(props.superAgentPanel === true);
+  const { panel } = props.superAgentPanelState;
   const attentionOf = (id: string) => props.attention.find((a) => a.workerId === id);
   return (
     <aside className="session-rail">
@@ -187,7 +190,9 @@ function SessionRail(props: {
         <h2>正在跑</h2>
         {props.running.length ? props.running.join(" · ") : props.thinking ? "思考中" : "空闲"}
       </div>
-      {props.superAgentPanel ? <ReviewTicketsPanel panel={panel} /> : null}
+      {props.superAgentPanel ? (
+        <ReviewTicketsPanel panel={panel} onSelectTicket={props.onSelectTicket} />
+      ) : null}
     </aside>
   );
 }
@@ -210,6 +215,10 @@ export function App() {
   const [view, setView] = useState<"file" | "browser" | "diff">("file");
   const [mode, setMode] = useState<Mode>("manual");
   const [expandTools, setExpandTools] = useState(false);
+  const [mainView, setMainView] = useState<"chat" | "timeline">("chat");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const superAgentEnabled = info?.superAgentPanel === true;
+  const superAgentPanelState = useSuperAgentPanel(superAgentEnabled);
   const [diffOpen, setDiffOpen] = useState(false);
   const [diffFocus, setDiffFocus] = useState<string>();
   const openFile = useCallback((target: FileTarget) => {
@@ -517,6 +526,20 @@ export function App() {
           <span className="session-name">
             {sessionTitle(state.entries)}
           </span>
+          {superAgentEnabled ? (
+            <div className="panes main-view-switch">
+              <button type="button" className={mainView === "chat" ? "on" : ""} onClick={() => setMainView("chat")}>
+                Chat
+              </button>
+              <button
+                type="button"
+                className={mainView === "timeline" ? "on" : ""}
+                onClick={() => setMainView("timeline")}
+              >
+                Timeline
+              </button>
+            </div>
+          ) : null}
           <div className="panes">
             <button
               type="button"
@@ -557,70 +580,82 @@ export function App() {
             <span> — 点击切换焦点</span>
           </div>
         ) : null}
-        <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse} expandTools={expandTools}>
-          {state.retry ? (
-            <div className="thinking retry">
-              <span className="spinner" /> {state.retry}
-            </div>
-          ) : thinking ? (
-            <div className="thinking">
-              <span className="spinner" /> thinking…
-            </div>
-          ) : null}
-          {state.approval ? (
-            <ApprovalCard
-              approval={state.approval}
-              disabled={answerLocked(state.approval.workerId)}
-              onAnswer={(answer) =>
-                state.approval && run(api.answer(withWorker({ id: state.approval.id, answer })))
-              }
+        {mainView === "timeline" && superAgentEnabled ? (
+          <TimelineView
+            panel={superAgentPanelState.panel}
+            error={superAgentPanelState.error}
+            highlightId={highlightId}
+            onHighlightConsumed={() => setHighlightId(null)}
+          />
+        ) : (
+          <>
+            <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse} expandTools={expandTools}>
+              {state.retry ? (
+                <div className="thinking retry">
+                  <span className="spinner" /> {state.retry}
+                </div>
+              ) : thinking ? (
+                <div className="thinking">
+                  <span className="spinner" /> thinking…
+                </div>
+              ) : null}
+              {state.approval ? (
+                <ApprovalCard
+                  approval={state.approval}
+                  disabled={answerLocked(state.approval.workerId)}
+                  onAnswer={(answer) =>
+                    state.approval && run(api.answer(withWorker({ id: state.approval.id, answer })))
+                  }
+                />
+              ) : null}
+              {state.question ? (
+                <QuestionCard
+                  key={state.question.id}
+                  question={state.question}
+                  disabled={answerLocked(state.question.workerId)}
+                  onAnswer={(answers) =>
+                    state.question && run(api.question(withWorker({ id: state.question.id, answers })))
+                  }
+                  onSkip={() =>
+                    state.question && run(api.question(withWorker({ id: state.question.id, skip: true as const })))
+                  }
+                />
+              ) : null}
+              {state.stepLimit && !state.busy ? (
+                <div className="card">
+                  <div className="card-title">
+                    Step limit reached{info?.maxSteps ? ` (${info.maxSteps} rounds this turn)` : ""}.
+                  </div>
+                  <div className="card-actions">
+                    <button
+                      className="primary"
+                      onClick={() => {
+                        enqueue({ type: "local.continue" });
+                        run(api.continueTurn(withWorker({})));
+                      }}
+                    >
+                      Continue
+                    </button>
+                    <button onClick={() => enqueue({ type: "local.dismiss" })}>Stop</button>
+                  </div>
+                </div>
+              ) : null}
+            </Messages>
+            <TodoPanel todos={state.todos} />
+            <QueueList
+              items={state.queue}
+              busy={state.busy}
+              onSend={(id) => run(api.queue(withWorker({ id, send: true as const })))}
+              onRemove={(id) => run(api.queue(withWorker({ id, remove: true as const })))}
             />
-          ) : null}
-          {state.question ? (
-            <QuestionCard
-              key={state.question.id}
-              question={state.question}
-              disabled={answerLocked(state.question.workerId)}
-              onAnswer={(answers) =>
-                state.question && run(api.question(withWorker({ id: state.question.id, answers })))
-              }
-              onSkip={() =>
-                state.question && run(api.question(withWorker({ id: state.question.id, skip: true as const })))
-              }
-            />
-          ) : null}
-          {state.stepLimit && !state.busy ? (
-            <div className="card">
-              <div className="card-title">
-                Step limit reached{info?.maxSteps ? ` (${info.maxSteps} rounds this turn)` : ""}.
+            {review ? (
+              <div className="review-notice">
+                Reviewing {review.owner}/{review.repo}#{review.number}
               </div>
-              <div className="card-actions">
-                <button
-                  className="primary"
-                  onClick={() => {
-                    enqueue({ type: "local.continue" });
-                    run(api.continueTurn(withWorker({})));
-                  }}
-                >
-                  Continue
-                </button>
-                <button onClick={() => enqueue({ type: "local.dismiss" })}>Stop</button>
-              </div>
-            </div>
-          ) : null}
-        </Messages>
-        <TodoPanel todos={state.todos} />
-        <QueueList
-          items={state.queue}
-          busy={state.busy}
-          onSend={(id) => run(api.queue(withWorker({ id, send: true as const })))}
-          onRemove={(id) => run(api.queue(withWorker({ id, remove: true as const })))}
-        />
-        {review ? (
-          <div className="review-notice">
-            Reviewing {review.owner}/{review.repo}#{review.number}
-          </div>
-        ) : null}
+            ) : null}
+          </>
+        )}
+        {mainView === "chat" || !superAgentEnabled ? (
         <Composer
           cwd={activePath}
           mode={
@@ -660,6 +695,7 @@ export function App() {
             onManage={() => setDialog("settings")}
           />
         </Composer>
+        ) : null}
       </main>
       {side ? null : (
         <SessionRail
@@ -679,7 +715,12 @@ export function App() {
                 }
               : undefined
           }
-          superAgentPanel={info?.superAgentPanel === true}
+          superAgentPanel={superAgentEnabled}
+          superAgentPanelState={superAgentPanelState}
+          onSelectTicket={(id) => {
+            setMainView("timeline");
+            setHighlightId(id);
+          }}
           workers={state.workers}
           focusId={state.focusId}
           attention={state.attention}

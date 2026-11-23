@@ -827,6 +827,11 @@ main {
   height: 44px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.main-view-switch {
+  margin-right: auto;
+  margin-left: 8px;
 }
 .session-name {
   min-width: 0;
@@ -2298,6 +2303,118 @@ button.file-link {
   opacity: 0;
   cursor: default;
   caret-color: transparent;
+}
+
+.timeline-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 20px;
+}
+.timeline-empty {
+  color: var(--muted);
+  font-size: 13px;
+}
+.timeline-group {
+  margin-bottom: 16px;
+}
+.timeline-group-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.timeline-row {
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.timeline-row-flash {
+  animation: timeline-flash 1.8s ease;
+}
+@keyframes timeline-flash {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  20%,
+  60% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+}
+.timeline-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.timeline-status {
+  flex: none;
+  font-size: 11px;
+}
+.timeline-goal {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.timeline-chevron {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
+}
+.timeline-detail {
+  padding: 0 10px 10px;
+  font-size: 12.5px;
+  border-top: 1px solid var(--border);
+}
+.timeline-detail > div {
+  margin-top: 8px;
+}
+.timeline-detail strong {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.timeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.timeline-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 12px;
+}
+.timeline-code {
+  font-size: 12px;
+  word-break: break-all;
+}
+.timeline-rail-ticket {
+  font-size: 12.5px;
 }
 
 @media (max-width: 900px) {
