@@ -1,6 +1,6 @@
 # DSH 对照升级（P1）设计
 
-状态：📐 已设计（计划见 `docs/superpowers/plans/2026-11-23-dsh-parity-p1.md`）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-23-dsh-parity-p1.md`；分支 `feat/dsh-parity-p1`）
 
 在 P0（并行 worktree / 会话状态 / connectors token / MCP lazy）之上，对照 DeepSeek Harness 0.2.3 的下一批高价值工作流。**不**换 `packages/core`、**不**改 `DefaultLoop`、**不**引入 NestJS / Cordis。
 

@@ -2,11 +2,13 @@
 
 ## Unreleased
 
+**DSH P1 (parity):** Worker unread dots (localStorage); session-bound GitHub PR review (`/api/review*`, ReviewPane, mock → PAT/OAuth via connectors); GitHub OAuth connect/disconnect in Settings (`TAH_GITHUB_CLIENT_*`); DingTalk + WeCom channel adapters + Messaging toggles (`/hooks/dingtalk`, `/hooks/wecom`). Does not change `DefaultLoop` / core. Spec: `docs/superpowers/specs/2026-11-23-dsh-parity-p1-design.md`.
+
 **Serve / parallel sessions:** `tah serve` orchestrates up to four busy `tah agent-worker` child processes (usually in git worktrees under `<repo>/.tah/worktrees/<name>/`, branch `tah/<name>`). Web: worker sidebar, single-focus transcript, attention banner for background approval / `ask_user`. Suggest ignoring `.tah/worktrees/` in the repo `.gitignore`. `tah chat` / TUI unchanged.
 
 **Session status:** `GET /api/session-status` returns focus cwd, busy/idle, pending approval or `ask_user`, orchestrator worker list, and optional Super-agent ticket count. The web **Session status** rail refreshes on turn / approval / focus events.
 
-**Connectors:** Messaging bot tokens (Telegram, Slack, 飞书) live in `~/.tah/connectors.json` (mode `0600`); Settings shows `keyHint` only. Env vars still win. Legacy `settings.channels` secrets migrate on first read.
+**Connectors:** Messaging bot tokens (Telegram, Slack, 飞书, 钉钉, 企微) live in `~/.tah/connectors.json` (mode `0600`); Settings shows `keyHint` only. Env vars still win. Legacy `settings.channels` secrets migrate on first read. GitHub accounts support `authKind: "oauth"` (access/refresh) in addition to PAT tokens.
 
 **MCP lazy:** `extensions.mcpToolExposure` or per-server `extensions.mcp.toolExposure` (`eager` default). In `lazy` mode only `mcp_list_tools` / `mcp_enable_tools` are in the first LLM tool list; other remote MCP tools register after enable.
 
