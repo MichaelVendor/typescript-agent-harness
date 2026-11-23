@@ -11,6 +11,20 @@ function isTicketLike(row: unknown): boolean {
   return typeof t.id === "string" && typeof t.goal === "string" && typeof t.status === "string";
 }
 
+function unionTicketsById(
+  needsHuman: ReviewPanelSnapshot["needsHuman"],
+  running: ReviewPanelSnapshot["running"],
+): ReviewPanelSnapshot["tickets"] {
+  const seen = new Set<string>();
+  const out: ReviewPanelSnapshot["tickets"] = [];
+  for (const t of [...needsHuman, ...running]) {
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    out.push(t);
+  }
+  return out;
+}
+
 export function readSuperAgentPanel(persistDir: string): ReviewPanelSnapshot {
   const file = path.join(persistDir, "panel.json");
   if (!existsSync(file)) throw new Error(`no panel.json in ${persistDir}`);
@@ -42,11 +56,20 @@ export function readSuperAgentPanel(persistDir: string): ReviewPanelSnapshot {
         return [{ threadId: row.threadId, ticketId: row.ticketId }];
       })
     : [];
+  const needsHuman = o.needsHuman as ReviewPanelSnapshot["needsHuman"];
+  const running = o.running as ReviewPanelSnapshot["running"];
+  let tickets: ReviewPanelSnapshot["tickets"];
+  if (Array.isArray(o.tickets) && o.tickets.every(isTicketLike)) {
+    tickets = o.tickets as ReviewPanelSnapshot["tickets"];
+  } else {
+    tickets = unionTicketsById(needsHuman, running);
+  }
   return {
     agentId: o.agentId,
     status: o.status as ReviewPanelSnapshot["status"],
-    needsHuman: o.needsHuman as ReviewPanelSnapshot["needsHuman"],
-    running: o.running as ReviewPanelSnapshot["running"],
+    needsHuman,
+    running,
+    tickets,
     recentReplies,
     subscriptions,
   };
