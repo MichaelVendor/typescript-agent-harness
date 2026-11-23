@@ -996,6 +996,13 @@ main {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.worker-unread-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
 .worker-chip {
   flex: none;
   padding: 0 5px;

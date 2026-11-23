@@ -23,6 +23,7 @@ import { contextPercent } from "./context-usage";
 import { fileChanges } from "./diff-view";
 import { fileQuery, touchesFiles, type FileTarget } from "./preview-view";
 import { applyEvent, initialState, type Action, type Attention, type Entry } from "./state";
+import { clearUnread, loadUnread, markUnread } from "./unread";
 
 function workerLabel(w: WorkerInfo): string {
   if (w.worktree?.name) return w.worktree.name;
@@ -76,6 +77,7 @@ function SessionRail(props: {
   onFocusWorker(id: string): void;
   onRemoveWorker(id: string): void;
   onParallel: (() => void) | undefined;
+  unread: Record<string, true>;
   /** Bumps when turn/approval/focus changes so SessionStatus refetches. */
   statusKey: string | number;
 }) {
@@ -101,6 +103,9 @@ function SessionRail(props: {
                     title={w.cwd}
                     onClick={() => props.onFocusWorker(w.id)}
                   >
+                    {props.unread[w.id] && !focused ? (
+                      <span className="worker-unread-dot" aria-label="未读" title="有新活动" />
+                    ) : null}
                     <span className="worker-name">{workerLabel(w)}</span>
                     {w.pendingWorktree ? (
                       <span className="worker-chip pending" title="首条消息后再创建 worktree">
@@ -225,6 +230,44 @@ export function App() {
     });
   }, []);
 
+  const tahOrigin = typeof location !== "undefined" ? location.origin : "";
+  const [unreadTick, setUnreadTick] = useState(0);
+  const unread = useMemo(() => loadUnread(tahOrigin), [tahOrigin, unreadTick]);
+  const bumpUnread = useCallback(() => setUnreadTick((n) => n + 1), []);
+  const focusIdRef = useRef(state.focusId);
+  const workersBusyRef = useRef<Map<string, boolean>>(new Map());
+  useEffect(() => {
+    focusIdRef.current = state.focusId;
+  }, [state.focusId]);
+
+  const applyUnreadFromEvent = useCallback(
+    (event: Action) => {
+      const focus = focusIdRef.current;
+      let touched = false;
+      if (event.type === "attention" && event.workerId !== focus) {
+        markUnread(tahOrigin, event.workerId);
+        touched = true;
+      } else if (event.type === "turn.end") {
+        const wid = "workerId" in event && typeof event.workerId === "string" ? event.workerId : undefined;
+        if (wid && wid !== focus) {
+          markUnread(tahOrigin, wid);
+          touched = true;
+        }
+      } else if (event.type === "workers") {
+        clearUnread(tahOrigin, event.focusId);
+        touched = true;
+        for (const w of event.workers) {
+          if (w.id !== event.focusId && workersBusyRef.current.get(w.id) === true && !w.busy) {
+            markUnread(tahOrigin, w.id);
+          }
+          workersBusyRef.current.set(w.id, w.busy);
+        }
+      }
+      if (touched) bumpUnread();
+    },
+    [tahOrigin, bumpUnread],
+  );
+
   useEffect(() => {
     let stop = () => {};
     let cancelled = false;
@@ -240,6 +283,7 @@ export function App() {
           api.settings().then(setSettings, () => {});
         },
         onEvent(event) {
+          applyUnreadFromEvent(event as Action);
           enqueue(event as Action);
           if (isHostEvent(event as Action) && touchesFiles(event as HostEvent)) setPreviewVersion((v) => v + 1);
           if (isHostEvent(event as Action) && opensBrowser(event as HostEvent)) showBrowser();
@@ -251,7 +295,7 @@ export function App() {
       cancelled = true;
       stop();
     };
-  }, [enqueue, showBrowser]);
+  }, [enqueue, showBrowser, applyUnreadFromEvent]);
 
   const refresh = useCallback(
     () =>
@@ -341,6 +385,15 @@ export function App() {
 
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
+
+  const focusWorker = useCallback(
+    (id: string) => {
+      clearUnread(tahOrigin, id);
+      bumpUnread();
+      run(api.workersFocus({ id }));
+    },
+    [tahOrigin, bumpUnread, run],
+  );
 
   const withWorker = <T extends Record<string, unknown>>(body: T): T & { workerId?: string } =>
     state.focusId ? { ...body, workerId: state.focusId } : body;
@@ -476,7 +529,7 @@ export function App() {
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
         {attentionBanner ? (
           <div className="banner attention">
-            <button type="button" className="link" onClick={() => run(api.workersFocus({ id: attentionBanner.workerId }))}>
+            <button type="button" className="link" onClick={() => focusWorker(attentionBanner.workerId)}>
               {attentionBanner.kind === "approval" ? "审批" : "提问"} · {attentionBanner.summary}
             </button>
             <span> — 点击切换焦点</span>
@@ -603,7 +656,8 @@ export function App() {
           workers={state.workers}
           focusId={state.focusId}
           attention={state.attention}
-          onFocusWorker={(id) => run(api.workersFocus({ id }))}
+          onFocusWorker={focusWorker}
+          unread={unread}
           onRemoveWorker={(id) => run(api.workersRemove({ id }))}
           onParallel={
             connection === "open" && state.workers.length > 0
