@@ -149,4 +149,5 @@ MCP OAuth 全自动刷新产品化（可后续复用 refresh 工具函数）；�
 ## P1.5 / 以后
 
 - **Timeline 任务树** — 设计见 [`2026-11-23-dsh-parity-p1.5-timeline-design.md`](./2026-11-23-dsh-parity-p1.5-timeline-design.md)（📐）
-- 另开：AgentTeam UX、GitLab、跨会话消息、飞书 OAuth、Computer Use
+- 飞书 OAuth — 设计见 [`2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md`](./2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md)（📐）
+- 另开：AgentTeam UX、GitLab、跨会话消息、Computer Use
