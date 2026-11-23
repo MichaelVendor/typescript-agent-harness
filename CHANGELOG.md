@@ -6,6 +6,8 @@
 
 **DSH P1.5 (Timeline):** Super-agent web **Chat | Timeline** tab with grouped full ticket tree; right-rail summary click highlights row; `reviewPanel` / `GET /api/super-agent/panel` gains `tickets[]` with legacy fallback. Spec: `docs/superpowers/specs/2026-11-23-dsh-parity-p1.5-timeline-design.md`.
 
+**DSH P1.5 (Feishu OAuth):** Settings **Connect Feishu** via local OAuth (`GET /api/connectors/oauth/start?provider=feishu`); credentials `TAH_FEISHU_CLIENT_ID` / `TAH_FEISHU_CLIENT_SECRET` (fallback `FEISHU_APP_*`); connected account `feishu.oauth` in `~/.tah/connectors.json`. Messaging bot keys stay separate. Spec: `docs/superpowers/specs/2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md`.
+
 **Serve / parallel sessions:** `tah serve` orchestrates up to four busy `tah agent-worker` child processes (usually in git worktrees under `<repo>/.tah/worktrees/<name>/`, branch `tah/<name>`). Web: worker sidebar, single-focus transcript, attention banner for background approval / `ask_user`. Suggest ignoring `.tah/worktrees/` in the repo `.gitignore`. `tah chat` / TUI unchanged.
 
 **Session status:** `GET /api/session-status` returns focus cwd, busy/idle, pending approval or `ask_user`, orchestrator worker list, and optional Super-agent ticket count. The web **Session status** rail refreshes on turn / approval / focus events.

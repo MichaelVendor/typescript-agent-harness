@@ -79,10 +79,10 @@ export async function exchangeFeishuOAuthCode(
 
 ### Task F4: Docs
 
-- Spec 状态 → ✅
-- CHANGELOG Unreleased 一行
-- `docs/guide/status.md` 可选
-- Commit — `docs: DSH P1.5 飞书 OAuth 已实现说明`
+- [x] Spec 状态 → ✅
+- [x] CHANGELOG Unreleased 一行
+- [x] `docs/guide/status.md` 可选
+- [x] Commit — `docs: DSH P1.5 飞书 OAuth 已实现说明`
 
 ---
 

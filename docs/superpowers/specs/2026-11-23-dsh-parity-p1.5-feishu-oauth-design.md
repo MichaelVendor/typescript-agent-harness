@@ -1,6 +1,6 @@
 # DSH 对照升级（P1.5）— 飞书 OAuth
 
-状态：📐 已设计（待计划 / 实现）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-23-dsh-parity-p1.5-feishu-oauth.md`；分支 `feat/dsh-parity-p1`）
 
 在 P1 GitHub OAuth 之上，为 connectors 增加第二家 **飞书用户授权**。**不**换 core / DefaultLoop；**不**替代 Messaging 机器人 App 密钥。
 
