@@ -6,16 +6,52 @@ import { keyHint } from "./settings.js";
 export type ConnectorAccount = {
   id: string;
   provider: "telegram" | "slack" | "feishu" | string;
-  authKind: "token";
+  authKind: "token" | "oauth";
   label?: string;
   keyHint: string;
 };
 
-type StoredConnector = Omit<ConnectorAccount, "keyHint"> & { token: string };
+type StoredTokenConnector = {
+  id: string;
+  provider: string;
+  authKind: "token";
+  label?: string;
+  token: string;
+};
+
+type StoredOAuthConnector = {
+  id: string;
+  provider: string;
+  authKind: "oauth";
+  label?: string;
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  scopes?: string[];
+};
+
+type StoredConnector = StoredTokenConnector | StoredOAuthConnector;
 type ConnectorsFile = { accounts: StoredConnector[] };
 
 function connectorsPath(home: string): string {
   return path.join(home, ".tah", "connectors.json");
+}
+
+function isStoredConnector(account: unknown): account is StoredConnector {
+  if (!account || typeof account !== "object") return false;
+  const a = account as Record<string, unknown>;
+  if (typeof a.id !== "string" || typeof a.provider !== "string") return false;
+  if (a.label !== undefined && typeof a.label !== "string") return false;
+  if (a.authKind === "token") return typeof a.token === "string";
+  if (a.authKind === "oauth") {
+    if (typeof a.accessToken !== "string") return false;
+    if (a.refreshToken !== undefined && typeof a.refreshToken !== "string") return false;
+    if (a.expiresAt !== undefined && typeof a.expiresAt !== "number") return false;
+    if (a.scopes !== undefined && !Array.isArray(a.scopes)) return false;
+    if (Array.isArray(a.scopes) && !a.scopes.every((s) => typeof s === "string")) return false;
+    return true;
+  }
+  return false;
 }
 
 function readStored(home: string): ConnectorsFile {
@@ -23,14 +59,7 @@ function readStored(home: string): ConnectorsFile {
   if (!existsSync(file)) return { accounts: [] };
   try {
     const raw = JSON.parse(readFileSync(file, "utf8")) as { accounts?: unknown };
-    const accounts = (Array.isArray(raw.accounts) ? raw.accounts : []).filter(
-      (account): account is StoredConnector =>
-        typeof account?.id === "string" &&
-        typeof account.provider === "string" &&
-        account.authKind === "token" &&
-        typeof account.token === "string" &&
-        (account.label === undefined || typeof account.label === "string"),
-    );
+    const accounts = (Array.isArray(raw.accounts) ? raw.accounts : []).filter(isStoredConnector);
     return { accounts };
   } catch {
     return { accounts: [] };
@@ -44,9 +73,18 @@ function writeStored(home: string, data: ConnectorsFile): void {
   chmodSync(file, 0o600);
 }
 
+function secretOf(account: StoredConnector): string {
+  return account.authKind === "token" ? account.token : account.accessToken;
+}
+
 function publicAccount(account: StoredConnector): ConnectorAccount {
-  const { token, ...rest } = account;
-  return { ...rest, keyHint: keyHint(token) };
+  const hint = keyHint(secretOf(account));
+  if (account.authKind === "token") {
+    const { token: _t, ...rest } = account;
+    return { ...rest, keyHint: hint };
+  }
+  const { accessToken: _a, refreshToken: _r, expiresAt: _e, scopes: _s, ...rest } = account;
+  return { ...rest, keyHint: hint };
 }
 
 export function loadConnectors(home: string): { accounts: ConnectorAccount[] } {
@@ -63,12 +101,48 @@ export function upsertConnectorToken(
   if (!token) throw new Error("token is required");
   const id = input.id?.trim() || `c_${randomBytes(4).toString("hex")}`;
   const label = input.label?.trim();
-  const account: StoredConnector = {
+  const account: StoredTokenConnector = {
     id,
     provider,
     authKind: "token",
     ...(label ? { label } : {}),
     token,
+  };
+  const data = readStored(home);
+  const index = data.accounts.findIndex((item) => item.id === id);
+  if (index === -1) data.accounts.push(account);
+  else data.accounts[index] = account;
+  writeStored(home, data);
+  return publicAccount(account);
+}
+
+export type UpsertConnectorOAuthInput = {
+  id?: string;
+  provider: string;
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  scopes?: string[];
+  label?: string;
+};
+
+export function upsertConnectorOAuth(home: string, input: UpsertConnectorOAuthInput): ConnectorAccount {
+  const provider = input.provider.trim();
+  const accessToken = input.accessToken.trim();
+  if (!provider) throw new Error("provider is required");
+  if (!accessToken) throw new Error("accessToken is required");
+  const id = input.id?.trim() || `c_${randomBytes(4).toString("hex")}`;
+  const label = input.label?.trim();
+  const refreshToken = input.refreshToken?.trim();
+  const account: StoredOAuthConnector = {
+    id,
+    provider,
+    authKind: "oauth",
+    ...(label ? { label } : {}),
+    accessToken,
+    ...(refreshToken ? { refreshToken } : {}),
+    ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
+    ...(input.scopes?.length ? { scopes: [...input.scopes] } : {}),
   };
   const data = readStored(home);
   const index = data.accounts.findIndex((item) => item.id === id);
@@ -84,5 +158,7 @@ export function removeConnector(home: string, id: string): void {
 }
 
 export function readConnectorSecret(home: string, id: string): string | undefined {
-  return readStored(home).accounts.find((account) => account.id === id)?.token;
+  const account = readStored(home).accounts.find((item) => item.id === id);
+  if (!account) return undefined;
+  return secretOf(account);
 }
