@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { githubReviewToken } from "../connectors.js";
 
 export type ReviewBinding = {
   provider: "github";
@@ -122,7 +123,7 @@ async function fetchGithubSnapshot(binding: ReviewBinding, token: string): Promi
 
 export async function fetchReviewSnapshot(
   binding: ReviewBinding,
-  opts: { mock?: ReviewSnapshot; token?: string },
+  opts: { mock?: ReviewSnapshot; token?: string; home?: string },
 ): Promise<ReviewSnapshot> {
   if (opts.mock) {
     const diffPreview = truncateDiff(opts.mock.diffPreview);
@@ -133,6 +134,9 @@ export async function fetchReviewSnapshot(
       ...(diffPreview !== undefined ? { diffPreview } : {}),
     };
   }
-  if (!opts.token) throw new Error("github token or mock snapshot required");
-  return fetchGithubSnapshot(binding, opts.token);
+  const token = opts.token ?? (opts.home ? githubReviewToken(opts.home) : undefined);
+  if (!token) {
+    throw new Error("connect GitHub (oauth or PAT) or pass a mock snapshot");
+  }
+  return fetchGithubSnapshot(binding, token);
 }

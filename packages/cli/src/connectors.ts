@@ -162,3 +162,13 @@ export function readConnectorSecret(home: string, id: string): string | undefine
   if (!account) return undefined;
   return secretOf(account);
 }
+
+/** GitHub PR review: oauth account first, then PAT token connector for provider github. */
+export function githubReviewToken(home: string): string | undefined {
+  const oauth = readConnectorSecret(home, "github.oauth");
+  if (oauth) return oauth;
+  const pat = readStored(home).accounts.find(
+    (account) => account.provider === "github" && account.authKind === "token",
+  );
+  return pat ? secretOf(pat) : undefined;
+}

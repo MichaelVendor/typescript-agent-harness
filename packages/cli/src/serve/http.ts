@@ -12,7 +12,7 @@ import {
   exchangeGithubOAuthCode,
   type OAuthFetch,
 } from "../connectors-oauth.js";
-import { loadConnectors, removeConnector, upsertConnectorOAuth } from "../connectors.js";
+import { githubReviewToken, loadConnectors, removeConnector, upsertConnectorOAuth } from "../connectors.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
 import { contentType, fileKind, matchFiles, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
 import { isPermissionMode } from "../permission-mode.js";
@@ -327,15 +327,20 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     return json(res, 200, settingsView());
   };
   const reviewSnapshot = (binding: ReviewBinding): Promise<ReviewSnapshot> => {
-    const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
-    return fetchReviewSnapshot(binding, token ? { token } : {
-      mock: {
-        ...binding,
-        title: binding.title ?? `${binding.owner}/${binding.repo}#${binding.number}`,
-        state: "open",
-        files: [],
-      },
-    });
+    const token = githubReviewToken(opts.home);
+    return fetchReviewSnapshot(
+      binding,
+      token
+        ? { token }
+        : {
+            mock: {
+              ...binding,
+              title: binding.title ?? `${binding.owner}/${binding.repo}#${binding.number}`,
+              state: "open",
+              files: [],
+            },
+          },
+    );
   };
 
   const needPersist = () => {

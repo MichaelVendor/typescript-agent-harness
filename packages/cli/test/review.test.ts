@@ -11,7 +11,7 @@ import {
   parseGithubPrRef,
   reviewBindingPath,
   type ReviewBinding,
-} from "../src/serve/review.ts";
+} from "../dist/serve/review.js";
 
 const binding = (partial?: Partial<ReviewBinding>): ReviewBinding => ({
   provider: "github",
@@ -77,5 +77,5 @@ test("fetchReviewSnapshot: mock returns files without network", async () => {
 });
 
 test("fetchReviewSnapshot: requires mock or token", async () => {
-  await assert.rejects(fetchReviewSnapshot(binding(), {}), /token|mock/i);
+  await assert.rejects(fetchReviewSnapshot(binding(), {}), /mock|github|connect/i);
 });

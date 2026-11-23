@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import {
+  githubReviewToken,
   loadConnectors,
   readConnectorSecret,
   removeConnector,
@@ -69,6 +70,21 @@ test("connectors: oauth stores secrets privately and readConnectorSecret returns
   const pub = loadConnectors(home).accounts[0]!;
   assert.equal("accessToken" in pub, false);
   assert.equal("refreshToken" in pub, false);
+});
+
+test("githubReviewToken: oauth github.oauth then PAT token account", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "tah-connectors-"));
+  assert.equal(githubReviewToken(home), undefined);
+  upsertConnectorToken(home, { id: "github.pat", provider: "github", token: "ghp_patOnly" });
+  assert.equal(githubReviewToken(home), "ghp_patOnly");
+  upsertConnectorOAuth(home, {
+    id: "github.oauth",
+    provider: "github",
+    accessToken: "gho_oauthWins",
+  });
+  assert.equal(githubReviewToken(home), "gho_oauthWins");
+  removeConnector(home, "github.oauth");
+  assert.equal(githubReviewToken(home), "ghp_patOnly");
 });
 
 test("connectors: token and oauth accounts coexist", () => {
