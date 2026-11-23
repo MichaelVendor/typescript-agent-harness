@@ -20,6 +20,7 @@ export type {
   RecentFolder,
   PermissionMode,
   ReviewPanelSnapshot,
+  ReviewSnapshot,
   ServeError,
   ServeEvent,
   ChannelsSettingsView,

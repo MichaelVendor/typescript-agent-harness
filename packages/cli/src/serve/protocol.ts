@@ -4,6 +4,7 @@ import type { HostEvent } from "../host.js";
 import type { PermissionMode } from "../permission-mode.js";
 import type { SessionRow } from "../sessions.js";
 import type { WorkerInfo } from "./orchestrator.js";
+import type { ReviewSnapshot } from "./review.js";
 
 export type { PermissionMode };
 export type { WorkerInfo };
@@ -74,6 +75,7 @@ export type ServeRequest = {
   addSkills: { source: string; project?: boolean; names?: string[] };
   /** Only skills in `~/.tah/skills` can be removed here. */
   removeSkill: { name: string };
+  reviewBind: { ref: string };
   /** System folder dialog starting at `start`; answers `{ path: string | null }` (null = cancelled), 501 when unavailable. */
   choose: { start?: string };
   /** `url`: http(s) (not tah itself), `about:blank`, or a `/preview/…` address; omitted = just start the browser. */
@@ -88,6 +90,7 @@ export type ServeRequest = {
 };
 
 export type { AttachmentMeta };
+export type { ReviewSnapshot };
 
 /** Body of every 4xx response. */
 export type ServeError = { error: string };

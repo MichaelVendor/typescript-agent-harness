@@ -41,6 +41,15 @@ import { buildSessionStatus, type SessionStatusDto } from "./session-status.js";
 import { readSuperAgentPanel } from "./super-agent-panel.js";
 import { loadSuggestions } from "./suggestions.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
+import {
+  bindReview,
+  clearReviewBinding,
+  fetchReviewSnapshot,
+  loadReviewBinding,
+  parseGithubPrRef,
+  type ReviewBinding,
+  type ReviewSnapshot,
+} from "./review.js";
 
 const COOKIE = "tah_token";
 const MAX_BODY = 1_000_000;
@@ -305,6 +314,17 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     change();
     if (JSON.stringify(activeModel(opts.home)) !== before) await host().reload();
     return json(res, 200, settingsView());
+  };
+  const reviewSnapshot = (binding: ReviewBinding): Promise<ReviewSnapshot> => {
+    const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+    return fetchReviewSnapshot(binding, token ? { token } : {
+      mock: {
+        ...binding,
+        title: binding.title ?? `${binding.owner}/${binding.repo}#${binding.number}`,
+        state: "open",
+        files: [],
+      },
+    });
   };
 
   const needPersist = () => {
@@ -882,6 +902,26 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       }
       case "GET /api/suggestions":
         return json(res, 200, { suggestions: await loadSuggestions(workspaces.cwd) });
+      case "POST /api/review/bind": {
+        const parsed = parseGithubPrRef(str(await readBody(req), "ref"));
+        const binding: ReviewBinding = {
+          provider: "github",
+          ...parsed,
+          url: `https://github.com/${parsed.owner}/${parsed.repo}/pull/${parsed.number}`,
+          boundAt: Date.now(),
+        };
+        const snapshot = await reviewSnapshot(binding);
+        bindReview(workspaces.cwd, { ...binding, ...(snapshot.title ? { title: snapshot.title } : {}) });
+        return json(res, 200, snapshot);
+      }
+      case "GET /api/review": {
+        const binding = loadReviewBinding(workspaces.cwd);
+        if (!binding) throw new HttpError(404, "no review is bound");
+        return json(res, 200, await reviewSnapshot(binding));
+      }
+      case "POST /api/review/clear":
+        clearReviewBinding(workspaces.cwd);
+        return json(res, 204);
       case "GET /api/skills":
         return json(res, 200, skillsView());
       case "POST /api/skills/import": {

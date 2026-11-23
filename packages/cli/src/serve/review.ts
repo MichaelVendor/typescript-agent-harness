@@ -106,17 +106,17 @@ async function fetchGithubSnapshot(binding: ReviewBinding, token: string): Promi
   const files: ReviewSnapshot["files"] = filesRes.ok
     ? ((await filesRes.json()) as Array<{ filename?: string; status?: string }>).map((f) => ({
         path: f.filename ?? "",
-        status: f.status,
+        ...(f.status ? { status: f.status } : {}),
       }))
     : [];
+  const title = pr.title ?? binding.title;
   return {
     ...binding,
-    title: pr.title ?? binding.title,
     url: pr.html_url ?? binding.url,
-    body: pr.body ?? undefined,
-    state: pr.state,
+    ...(title ? { title } : {}),
+    ...(pr.body ? { body: pr.body } : {}),
+    ...(pr.state ? { state: pr.state } : {}),
     files,
-    diffPreview: undefined,
   };
 }
 
@@ -125,11 +125,12 @@ export async function fetchReviewSnapshot(
   opts: { mock?: ReviewSnapshot; token?: string },
 ): Promise<ReviewSnapshot> {
   if (opts.mock) {
+    const diffPreview = truncateDiff(opts.mock.diffPreview);
     return {
       ...binding,
       ...opts.mock,
       files: opts.mock.files ?? [],
-      diffPreview: truncateDiff(opts.mock.diffPreview),
+      ...(diffPreview !== undefined ? { diffPreview } : {}),
     };
   }
   if (!opts.token) throw new Error("github token or mock snapshot required");
