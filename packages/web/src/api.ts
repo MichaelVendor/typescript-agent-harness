@@ -8,6 +8,7 @@ import type {
   HostEvent,
   RecentFolder,
   ReviewPanelSnapshot,
+  ReviewSnapshot,
   ServeError,
   ServeEvent,
   ServeInfo,
@@ -126,6 +127,10 @@ export const api = {
   suggestions: async () =>
     ((await (await call("GET", "/api/suggestions")).json()) as { suggestions: { label: string; send: string; detail?: string }[] })
       .suggestions,
+  review: async () => (await (await call("GET", "/api/review")).json()) as ReviewSnapshot,
+  reviewBind: async (body: ServeRequest["reviewBind"]) =>
+    (await (await call("POST", "/api/review/bind", body)).json()) as ReviewSnapshot,
+  reviewClear: () => post("/api/review/clear"),
   skills: async () => (await (await call("GET", "/api/skills")).json()) as SkillsView,
   importSkills: async (body: ServeRequest["importSkills"]) =>
     (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,

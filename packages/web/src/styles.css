@@ -914,6 +914,78 @@ main {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.review-head,
+.review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.review-head h2 {
+  margin-bottom: 0;
+}
+.review-state {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.review-state.open {
+  color: var(--success);
+}
+.review-title {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.review-ref,
+.review-body,
+.review-error {
+  margin-top: 4px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.review-body {
+  margin-bottom: 0;
+  white-space: pre-wrap;
+}
+.review-error {
+  color: var(--fail);
+}
+.review-files {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.review-files li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review-files li span {
+  margin-right: 5px;
+  color: var(--muted);
+}
+.review-files .muted {
+  color: var(--muted);
+}
+.review-diff {
+  margin-top: 8px;
+}
+.review-diff pre {
+  max-height: 180px;
+  margin: 6px 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 10px;
+}
+.rail-card .review-actions button.link {
+  width: auto;
+}
+.review-actions button.muted {
+  color: var(--muted);
+}
 .rail-meter {
   height: 6px;
   margin: 2px 0 8px;
@@ -1476,6 +1548,11 @@ button.question-option.picked {
 .composer-wrap {
   position: relative;
   padding: 8px max(16px, calc((100% - 860px) / 2));
+}
+.review-notice {
+  padding: 6px max(16px, calc((100% - 860px) / 2)) 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 .diff-list {
   list-style: none;

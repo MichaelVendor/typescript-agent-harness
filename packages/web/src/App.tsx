@@ -1,6 +1,6 @@
-import type { HostEvent, ServeInfo, SettingsView, WorkerInfo, WorkspaceView } from "@typescript-agent-harness/cli";
+import type { HostEvent, ReviewSnapshot, ServeInfo, SettingsView, WorkerInfo, WorkspaceView } from "@typescript-agent-harness/cli";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { api, connect, type Connection } from "./api";
+import { api, ApiError, connect, type Connection } from "./api";
 import { agentBrowsing, opensBrowser } from "./browser-view";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { QuestionCard } from "./components/QuestionCard";
@@ -11,6 +11,7 @@ import { QueueList } from "./components/QueueList";
 import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
 import { ReviewTicketsPanel, useSuperAgentPanel } from "./components/ReviewTicketsPanel";
+import { ReviewPane } from "./components/ReviewPane";
 import { Messages } from "./components/Messages";
 import { ModelPicker } from "./components/ModelPicker";
 import { NewFolder } from "./components/NewFolder";
@@ -80,6 +81,8 @@ function SessionRail(props: {
   unread: Record<string, true>;
   /** Bumps when turn/approval/focus changes so SessionStatus refetches. */
   statusKey: string | number;
+  review: ReviewSnapshot | undefined;
+  onReviewChange(review?: ReviewSnapshot): void;
 }) {
   const tokens = props.tokens;
   const used = tokens ? tokens.promptTokens + tokens.completionTokens : 0;
@@ -88,6 +91,7 @@ function SessionRail(props: {
   return (
     <aside className="session-rail">
       <SessionStatus refreshKey={props.statusKey} />
+      <ReviewPane review={props.review} onChange={props.onReviewChange} />
       {props.workers.length > 0 ? (
         <div className="rail-card">
           <h2>Workers</h2>
@@ -197,6 +201,7 @@ export function App() {
   const [sessionsError, setSessionsError] = useState<string>();
   const [dialog, setDialog] = useState<"open" | "new" | "settings">();
   const [settings, setSettings] = useState<SettingsView>();
+  const [review, setReview] = useState<ReviewSnapshot>();
   const [preview, setPreview] = useState<FileTarget>();
   const [previewVersion, setPreviewVersion] = useState(0);
   const closePreview = useCallback(() => setPreview(undefined), []);
@@ -359,6 +364,23 @@ export function App() {
     return () => {
       stop = true;
       clearInterval(timer);
+    };
+  }, [connection, activePath]);
+
+  useEffect(() => {
+    if (connection !== "open") return;
+    let cancelled = false;
+    setReview(undefined);
+    void api.review().then(
+      (snapshot) => {
+        if (!cancelled) setReview(snapshot);
+      },
+      (err: unknown) => {
+        if (!cancelled && err instanceof ApiError && err.status === 404) setReview(undefined);
+      },
+    );
+    return () => {
+      cancelled = true;
     };
   }, [connection, activePath]);
 
@@ -594,6 +616,11 @@ export function App() {
           onSend={(id) => run(api.queue(withWorker({ id, send: true as const })))}
           onRemove={(id) => run(api.queue(withWorker({ id, remove: true as const })))}
         />
+        {review ? (
+          <div className="review-notice">
+            Reviewing {review.owner}/{review.repo}#{review.number}
+          </div>
+        ) : null}
         <Composer
           cwd={activePath}
           mode={
@@ -665,6 +692,8 @@ export function App() {
               : undefined
           }
           statusKey={`${state.turnsEnded}:${state.busy}:${state.approval?.id ?? ""}:${state.question?.id ?? ""}:${state.focusId}:${state.workers.length}`}
+          review={review}
+          onReviewChange={setReview}
         />
       )}
       {side ? (
