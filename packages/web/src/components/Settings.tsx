@@ -88,22 +88,25 @@ function IntegrationsSettings(props: { view: SettingsView; onChange(view: Settin
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
   const github = props.view.connectors.find((account) => account.id === "github.oauth");
+  const feishu = props.view.connectors.find((account) => account.id === "feishu.oauth");
 
   useEffect(() => {
     const connected = (event: MessageEvent) => {
-      if (event.data !== "tah:github-connected") return;
+      if (event.data !== "tah:github-connected" && event.data !== "tah:feishu-connected") return;
       void api.settings().then(props.onChange, (err: unknown) => setError(text(err)));
     };
     window.addEventListener("message", connected);
     return () => window.removeEventListener("message", connected);
   }, [props.onChange]);
 
-  const connect = async () => {
+  const connect = async (provider: "github" | "feishu") => {
     setPending(true);
     setError(undefined);
     try {
-      const { url } = await api.oauthStart();
-      if (!window.open(url, "tah-github-oauth", "popup,width=720,height=760")) throw new Error("Allow popups to connect GitHub.");
+      const { url } = await api.oauthStart(provider);
+      const popup = provider === "github" ? "tah-github-oauth" : "tah-feishu-oauth";
+      const label = provider === "github" ? "GitHub" : "Feishu";
+      if (!window.open(url, popup, "popup,width=720,height=760")) throw new Error(`Allow popups to connect ${label}.`);
     } catch (err) {
       setError(text(err));
     } finally {
@@ -111,11 +114,11 @@ function IntegrationsSettings(props: { view: SettingsView; onChange(view: Settin
     }
   };
 
-  const disconnect = async () => {
+  const disconnect = async (id: "github.oauth" | "feishu.oauth") => {
     setPending(true);
     setError(undefined);
     try {
-      await api.removeConnector({ id: "github.oauth" });
+      await api.removeConnector({ id });
       props.onChange(await api.settings());
     } catch (err) {
       setError(text(err));
@@ -126,22 +129,38 @@ function IntegrationsSettings(props: { view: SettingsView; onChange(view: Settin
 
   return (
     <>
-      <p className="settings-desc">Connect GitHub through the OAuth app configured for this local tah server.</p>
+      <p className="settings-desc">{t.integrations.desc}</p>
       <ul className="model-cards">
         <li className={github ? "model-card in-use" : "model-card"}>
           <div className="model-main">
             <div className="model-name">GitHub</div>
             <div className="model-meta">{github ? `Connected · ${github.keyHint}` : "Not connected"}</div>
           </div>
-          <button type="button" disabled={pending} onClick={() => void (github ? disconnect() : connect())}>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => void (github ? disconnect("github.oauth") : connect("github"))}
+          >
             {github ? "Disconnect" : "Connect GitHub"}
+          </button>
+        </li>
+        <li className={feishu ? "model-card in-use" : "model-card"}>
+          <div className="model-main">
+            <div className="model-name">Feishu / Lark</div>
+            <div className="model-meta">{feishu ? `Connected · ${feishu.keyHint}` : "Not connected"}</div>
+          </div>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => void (feishu ? disconnect("feishu.oauth") : connect("feishu"))}
+          >
+            {feishu ? "Disconnect" : "Connect Feishu"}
           </button>
         </li>
       </ul>
       {error ? <div className="modal-error">{error}</div> : null}
-      <div className="settings-note">
-        Requires TAH_GITHUB_CLIENT_ID and TAH_GITHUB_CLIENT_SECRET in the serve environment.
-      </div>
+      <div className="settings-note">{t.integrations.githubEnv}</div>
+      <div className="settings-note">{t.integrations.feishuEnv}</div>
     </>
   );
 }
