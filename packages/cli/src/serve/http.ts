@@ -7,9 +7,12 @@ import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import { AttachmentError, createAttachmentStore, MAX_FILE_BYTES } from "../attachments/store.js";
 import {
+  buildFeishuOAuthUrl,
   buildGithubOAuthUrl,
   createGithubOAuthState,
+  exchangeFeishuOAuthCode,
   exchangeGithubOAuthCode,
+  resolveFeishuOAuthCredentials,
   type OAuthFetch,
 } from "../connectors-oauth.js";
 import { githubReviewToken, loadConnectors, removeConnector, upsertConnectorOAuth } from "../connectors.js";
@@ -196,7 +199,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const webDir = path.resolve(opts.webDir);
   let choosing = false;
   const previewToken = randomBytes(32).toString("base64url");
-  const oauthStates = new Map<string, { provider: "github"; redirectUri: string; expiresAt: number }>();
+  const oauthStates = new Map<string, { provider: "github" | "feishu"; redirectUri: string; expiresAt: number }>();
   const workerBrowsers = new Map<string, Browser>();
   const focusedBrowser = (): Browser | undefined => {
     const main = host().browser;
@@ -440,10 +443,43 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       const pending = oauthStates.get(state);
       oauthStates.delete(state);
       if (!pending || pending.expiresAt < Date.now()) throw new HttpError(400, "invalid or expired OAuth state");
+      const providerLabel = pending.provider === "feishu" ? "Feishu" : "GitHub";
       const error = query.get("error_description") ?? query.get("error");
-      if (error) throw new HttpError(400, `GitHub OAuth denied: ${error}`);
+      if (error) throw new HttpError(400, `${providerLabel} OAuth denied: ${error}`);
       const code = query.get("code");
-      if (!code) throw new HttpError(400, "GitHub OAuth callback is missing code");
+      if (!code) throw new HttpError(400, `${providerLabel} OAuth callback is missing code`);
+      if (pending.provider === "feishu") {
+        const creds = resolveFeishuOAuthCredentials();
+        if (!creds) throw new HttpError(503, "Feishu OAuth is not configured");
+        const token = await exchangeFeishuOAuthCode(
+          {
+            clientId: creds.clientId,
+            clientSecret: creds.clientSecret,
+            code,
+            redirectUri: pending.redirectUri,
+            host: creds.host,
+          },
+          opts.oauthFetch,
+        );
+        upsertConnectorOAuth(opts.home, {
+          id: "feishu.oauth",
+          provider: "feishu",
+          label: "飞书",
+          accessToken: token.accessToken,
+          ...(token.refreshToken ? { refreshToken: token.refreshToken } : {}),
+          ...(token.expiresAt !== undefined ? { expiresAt: token.expiresAt } : {}),
+          scopes: token.scopes,
+        });
+        res
+          .writeHead(200, {
+            "content-type": "text/html; charset=utf-8",
+            "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'",
+          })
+          .end(
+            '<!doctype html><title>飞书 connected</title><p>飞书 connected. You can close this window.</p><script>window.opener?.postMessage("tah:feishu-connected","*");window.close()</script>',
+          );
+        return;
+      }
       const clientId = process.env.TAH_GITHUB_CLIENT_ID?.trim();
       const clientSecret = process.env.TAH_GITHUB_CLIENT_SECRET?.trim();
       if (!clientId || !clientSecret) throw new HttpError(503, "GitHub OAuth is not configured");
@@ -473,14 +509,30 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     switch (key) {
       case "GET /api/connectors/oauth/start": {
         const provider = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("provider");
-        if (provider !== "github") throw new HttpError(400, 'provider must be "github"');
-        const clientId = process.env.TAH_GITHUB_CLIENT_ID?.trim();
-        const clientSecret = process.env.TAH_GITHUB_CLIENT_SECRET?.trim();
-        if (!clientId || !clientSecret) throw new HttpError(503, "GitHub OAuth is not configured");
+        if (provider !== "github" && provider !== "feishu") {
+          throw new HttpError(400, 'provider must be "github" or "feishu"');
+        }
         const port = req.socket.localPort;
         if (!port) throw new HttpError(503, "serve port is unavailable");
         const redirectUri = `http://127.0.0.1:${port}/api/connectors/oauth/callback`;
         const state = createGithubOAuthState();
+        if (provider === "feishu") {
+          const creds = resolveFeishuOAuthCredentials();
+          if (!creds) throw new HttpError(503, "Feishu OAuth is not configured");
+          oauthStates.set(state, { provider, redirectUri, expiresAt: Date.now() + 10 * 60_000 });
+          return json(res, 200, {
+            url: buildFeishuOAuthUrl({
+              clientId: creds.clientId,
+              redirectUri,
+              state,
+              host: creds.host,
+            }),
+            state,
+          });
+        }
+        const clientId = process.env.TAH_GITHUB_CLIENT_ID?.trim();
+        const clientSecret = process.env.TAH_GITHUB_CLIENT_SECRET?.trim();
+        if (!clientId || !clientSecret) throw new HttpError(503, "GitHub OAuth is not configured");
         oauthStates.set(state, { provider, redirectUri, expiresAt: Date.now() + 10 * 60_000 });
         return json(res, 200, { url: buildGithubOAuthUrl({ clientId, redirectUri, state }), state });
       }

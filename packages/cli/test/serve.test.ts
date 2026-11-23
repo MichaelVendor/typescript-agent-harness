@@ -418,6 +418,85 @@ test("GitHub OAuth start and callback exchange the code and store the account", 
   }
 });
 
+test("Feishu OAuth start returns 503 when not configured", async () => {
+  const keys = ["TAH_FEISHU_CLIENT_ID", "TAH_FEISHU_CLIENT_SECRET", "FEISHU_APP_ID", "FEISHU_APP_SECRET"] as const;
+  const saved: Record<string, string | undefined> = {};
+  for (const k of keys) {
+    saved[k] = process.env[k];
+    delete process.env[k];
+  }
+  const s = await fakeServer();
+  try {
+    const started = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=feishu");
+    assert.equal(started.status, 503);
+    const bad = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=slack");
+    assert.equal(bad.status, 400);
+  } finally {
+    await s.close();
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  }
+});
+
+test("Feishu OAuth start and callback exchange the code and store the account", async () => {
+  const envKeys = ["TAH_FEISHU_CLIENT_ID", "TAH_FEISHU_CLIENT_SECRET", "FEISHU_APP_ID", "FEISHU_APP_SECRET"] as const;
+  const saved: Record<string, string | undefined> = {};
+  for (const k of envKeys) {
+    saved[k] = process.env[k];
+    delete process.env[k];
+  }
+  process.env.FEISHU_APP_ID = "cli_feishu";
+  process.env.FEISHU_APP_SECRET = "secret-feishu";
+  const now = 1_700_000_000_000;
+  const originalNow = Date.now;
+  Date.now = () => now;
+  let exchangeBody: Record<string, unknown> | undefined;
+  const s = await fakeServer(undefined, undefined, undefined, undefined, async (_url, init) => {
+    exchangeBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(
+      JSON.stringify({
+        access_token: "u-at",
+        refresh_token: "u-rt",
+        expires_in: 7200,
+        scope: "contact:user.base offline_access",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  });
+  try {
+    const started = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=feishu");
+    assert.equal(started.status, 200);
+    const body = JSON.parse(started.body) as { url: string; state: string };
+    const authorize = new URL(body.url);
+    assert.equal(authorize.searchParams.get("state"), body.state);
+    assert.equal(authorize.searchParams.get("client_id"), "cli_feishu");
+    assert.equal(authorize.searchParams.get("response_type"), "code");
+
+    const callback = await raw(
+      s.base,
+      "GET",
+      `/api/connectors/oauth/callback?code=auth-code&state=${encodeURIComponent(body.state)}`,
+    );
+    assert.equal(callback.status, 200);
+    assert.match(callback.body, /tah:feishu-connected/);
+    assert.equal(exchangeBody?.grant_type, "authorization_code");
+    assert.equal(exchangeBody?.code, "auth-code");
+    assert.deepEqual(loadConnectors(s.home).accounts.map(({ id, provider, authKind, label }) => ({ id, provider, authKind, label })), [
+      { id: "feishu.oauth", provider: "feishu", authKind: "oauth", label: "飞书" },
+    ]);
+    assert.equal((await client(s.base, s.cookie).post("/api/connectors/remove", { id: "feishu.oauth" })).status, 204);
+  } finally {
+    Date.now = originalNow;
+    await s.close();
+    for (const k of envKeys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  }
+});
+
 test("Host, Origin and content-type are checked before anything else", async () => {
   const s = await fakeServer();
   try {
