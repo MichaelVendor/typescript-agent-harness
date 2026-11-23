@@ -120,6 +120,6 @@ OAuth 浏览器跳转、MCP OAuth、Linear/Notion 等 DSH 连接器插件。
 - `lazy` 模式下，未启用的 MCP 工具名不出现在首轮 LLM tools 数组里。
 - `DefaultLoop` / `packages/core` 无行为变更；回归 `pnpm test` 相关包通过。
 
-## P1（本设计不实施，仅占位）
+## P1（另文）
 
-- Code Review 页（绑 PR + diff + 聊）；未读会话；Timeline；具名 AgentTeam UX；OAuth 真流；钉钉/企微。
+见 [`2026-11-23-dsh-parity-p1-design.md`](./2026-11-23-dsh-parity-p1-design.md)（Code Review 绑定、未读、OAuth、钉钉/企微）。Timeline / AgentTeam 等为 P1.5。
