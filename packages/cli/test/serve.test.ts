@@ -8,6 +8,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { parseArgv } from "../dist/args.js";
 import { createAttachmentStore } from "../dist/attachments/store.js";
+import { loadConnectors } from "../dist/connectors.js";
 import type { ChatHost, HostEvent, QueuedMessage, SessionEvent } from "../dist/host.js";
 import { chooseFolder, UnsupportedError } from "../dist/serve/choose.js";
 import { createServeHandler } from "../dist/serve/http.js";
@@ -222,6 +223,7 @@ async function fakeServer(
   chooseFolder: (start?: string) => Promise<string | null> = async () => null,
   connectCdp?: (port: number) => Promise<unknown>,
   superAgentPanelDir?: string,
+  oauthFetch?: typeof fetch,
 ) {
   const fake = fakeHost();
   const hub = createHub(fake.host);
@@ -254,6 +256,7 @@ async function fakeServer(
     chooseFolder,
     ...(connectCdp ? { connectCdp } : {}),
     ...(superAgentPanelDir ? { superAgentPanelDir } : {}),
+    ...(oauthFetch ? { oauthFetch } : {}),
   });
   const server = createServer(handle);
   const base = await listen(server);
@@ -356,6 +359,62 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
     late.close();
   } finally {
     await serve.stop();
+  }
+});
+
+test("GitHub OAuth start and callback exchange the code and store the account", async () => {
+  const previousId = process.env.TAH_GITHUB_CLIENT_ID;
+  const previousSecret = process.env.TAH_GITHUB_CLIENT_SECRET;
+  process.env.TAH_GITHUB_CLIENT_ID = "client-123";
+  process.env.TAH_GITHUB_CLIENT_SECRET = "secret-456";
+  let exchangeBody: Record<string, unknown> | undefined;
+  const s = await fakeServer(undefined, undefined, undefined, undefined, async (_url, init) => {
+    exchangeBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(JSON.stringify({ access_token: "gho_callback_token", scope: "repo,read:user" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  try {
+    const started = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=github");
+    assert.equal(started.status, 200);
+    const body = JSON.parse(started.body) as { url: string; state: string };
+    const authorize = new URL(body.url);
+    assert.equal(authorize.searchParams.get("state"), body.state);
+    assert.equal(authorize.searchParams.get("client_id"), "client-123");
+
+    const callback = await raw(
+      s.base,
+      "GET",
+      `/api/connectors/oauth/callback?code=callback-code&state=${encodeURIComponent(body.state)}`,
+    );
+    assert.equal(callback.status, 200);
+    assert.match(callback.body, /GitHub connected/);
+    assert.equal(exchangeBody?.code, "callback-code");
+    assert.deepEqual(loadConnectors(s.home).accounts.map(({ provider, authKind }) => ({ provider, authKind })), [
+      { provider: "github", authKind: "oauth" },
+    ]);
+    const settings = JSON.parse((await client(s.base, s.cookie).get("/api/settings")).body) as {
+      connectors: { id: string; provider: string; authKind: string }[];
+    };
+    assert.deepEqual(settings.connectors, [
+      { id: "github.oauth", provider: "github", authKind: "oauth", label: "GitHub", keyHint: "gho…oken" },
+    ]);
+
+    const replay = await raw(
+      s.base,
+      "GET",
+      `/api/connectors/oauth/callback?code=callback-code&state=${encodeURIComponent(body.state)}`,
+    );
+    assert.equal(replay.status, 400);
+    assert.equal((await client(s.base, s.cookie).post("/api/connectors/remove", { id: "github.oauth" })).status, 204);
+    assert.deepEqual(loadConnectors(s.home), { accounts: [] });
+  } finally {
+    await s.close();
+    if (previousId === undefined) delete process.env.TAH_GITHUB_CLIENT_ID;
+    else process.env.TAH_GITHUB_CLIENT_ID = previousId;
+    if (previousSecret === undefined) delete process.env.TAH_GITHUB_CLIENT_SECRET;
+    else process.env.TAH_GITHUB_CLIENT_SECRET = previousSecret;
   }
 });
 

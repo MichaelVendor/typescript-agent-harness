@@ -64,6 +64,7 @@ export type ServeRequest = {
   activeModel: { id: string | null };
   /** Tavily API key; `null` removes it. */
   searchKey: { apiKey: string | null };
+  removeConnector: { id: string };
   /** IM channels for the open folder (partial patch). */
   channels: import("../channels-settings.js").ChannelsSettingsPatch;
   /** A skill folder, or a folder of skill folders (e.g. `~/.cursor/skills`), copied into `~/.tah/skills`. */
@@ -120,6 +121,8 @@ export type SettingsView = {
   search: { source: "settings" | "env"; keyHint: string } | null;
   /** Current folder's IM channels (`tah.channels.json` + secrets in ~/.tah/settings.json). */
   channels: import("../channels-settings.js").ChannelsSettingsView;
+  /** Saved connector accounts; only secret hints leave the server. */
+  connectors: import("../connectors.js").ConnectorAccount[];
 };
 
 /** `GET /api/skills`: what the open folder loads. `home` = `~/.tah/skills` (every folder); `folder` = inside the open folder. */

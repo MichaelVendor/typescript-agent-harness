@@ -9,6 +9,7 @@ export const settingsEn = {
     web: "Web search",
     skills: "Skills",
     channels: "Messaging",
+    integrations: "Integrations",
   },
   channels: {
     introBeforeSecrets: "Turn on a channel and paste bot credentials. Secrets stay on this computer in ",

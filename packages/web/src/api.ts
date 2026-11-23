@@ -116,6 +116,9 @@ export const api = {
     (await (await call("POST", "/api/settings/active", body)).json()) as SettingsView,
   searchKey: async (body: ServeRequest["searchKey"]) =>
     (await (await call("POST", "/api/settings/search", body)).json()) as SettingsView,
+  oauthStart: async () =>
+    (await (await call("GET", "/api/connectors/oauth/start?provider=github")).json()) as { url: string; state: string },
+  removeConnector: (body: ServeRequest["removeConnector"]) => post("/api/connectors/remove", body),
   fileStat: async (target: FileTarget) =>
     (await (await call("GET", `/api/files/stat?${fileQuery(target)}`)).json()) as FileStat,
   /** The first `limit` bytes as text. */

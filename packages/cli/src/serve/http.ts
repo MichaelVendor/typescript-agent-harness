@@ -6,6 +6,13 @@ import os from "node:os";
 import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import { AttachmentError, createAttachmentStore, MAX_FILE_BYTES } from "../attachments/store.js";
+import {
+  buildGithubOAuthUrl,
+  createGithubOAuthState,
+  exchangeGithubOAuthCode,
+  type OAuthFetch,
+} from "../connectors-oauth.js";
+import { loadConnectors, removeConnector, upsertConnectorOAuth } from "../connectors.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
 import { contentType, fileKind, matchFiles, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
 import { isPermissionMode } from "../permission-mode.js";
@@ -94,6 +101,8 @@ export type ServeOptions = {
   onChannelsApplied?: () => Promise<void>;
   /** Multi-worker orchestrator; when set, SSE is focus-aware and `/api/workers/*` is enabled. */
   orchestrator?: Orchestrator;
+  /** GitHub token exchange transport; tests inject a fake. */
+  oauthFetch?: OAuthFetch;
 };
 
 class HttpError extends Error {
@@ -187,6 +196,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const webDir = path.resolve(opts.webDir);
   let choosing = false;
   const previewToken = randomBytes(32).toString("base64url");
+  const oauthStates = new Map<string, { provider: "github"; redirectUri: string; expiresAt: number }>();
   const workerBrowsers = new Map<string, Browser>();
   const focusedBrowser = (): Browser | undefined => {
     const main = host().browser;
@@ -292,6 +302,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           ? { source: "env", keyHint: keyHint(searchKey(opts.home)!) }
           : null,
       channels: channelsSettingsView(workspaces.cwd, opts.home),
+      connectors: loadConnectors(opts.home).accounts,
     };
   };
   const skillsView = (): SkillsView => {
@@ -418,9 +429,56 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       res.setHeader("set-cookie", `${cookieName(req)}=${opts.token}; HttpOnly; SameSite=Strict; Path=/`);
       return json(res, 204);
     }
+    if (key === "GET /api/connectors/oauth/callback") {
+      const query = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+      const state = query.get("state") ?? "";
+      const pending = oauthStates.get(state);
+      oauthStates.delete(state);
+      if (!pending || pending.expiresAt < Date.now()) throw new HttpError(400, "invalid or expired OAuth state");
+      const error = query.get("error_description") ?? query.get("error");
+      if (error) throw new HttpError(400, `GitHub OAuth denied: ${error}`);
+      const code = query.get("code");
+      if (!code) throw new HttpError(400, "GitHub OAuth callback is missing code");
+      const clientId = process.env.TAH_GITHUB_CLIENT_ID?.trim();
+      const clientSecret = process.env.TAH_GITHUB_CLIENT_SECRET?.trim();
+      if (!clientId || !clientSecret) throw new HttpError(503, "GitHub OAuth is not configured");
+      const token = await exchangeGithubOAuthCode(
+        { clientId, clientSecret, code, redirectUri: pending.redirectUri },
+        opts.oauthFetch,
+      );
+      upsertConnectorOAuth(opts.home, {
+        id: "github.oauth",
+        provider: "github",
+        label: "GitHub",
+        accessToken: token.accessToken,
+        scopes: token.scopes,
+      });
+      res
+        .writeHead(200, {
+          "content-type": "text/html; charset=utf-8",
+          "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'",
+        })
+        .end(
+          '<!doctype html><title>GitHub connected</title><p>GitHub connected. You can close this window.</p><script>window.opener?.postMessage("tah:github-connected","*");window.close()</script>',
+        );
+      return;
+    }
     if (!authed) throw new HttpError(401, "not signed in — open the link tah serve printed");
 
     switch (key) {
+      case "GET /api/connectors/oauth/start": {
+        const provider = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("provider");
+        if (provider !== "github") throw new HttpError(400, 'provider must be "github"');
+        const clientId = process.env.TAH_GITHUB_CLIENT_ID?.trim();
+        const clientSecret = process.env.TAH_GITHUB_CLIENT_SECRET?.trim();
+        if (!clientId || !clientSecret) throw new HttpError(503, "GitHub OAuth is not configured");
+        const port = req.socket.localPort;
+        if (!port) throw new HttpError(503, "serve port is unavailable");
+        const redirectUri = `http://127.0.0.1:${port}/api/connectors/oauth/callback`;
+        const state = createGithubOAuthState();
+        oauthStates.set(state, { provider, redirectUri, expiresAt: Date.now() + 10 * 60_000 });
+        return json(res, 200, { url: buildGithubOAuthUrl({ clientId, redirectUri, state }), state });
+      }
       case "GET /api/info":
         return json(res, 200, opts.info);
       case "GET /api/events":
@@ -887,6 +945,9 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         await host().reload();
         return json(res, 200, settingsView());
       }
+      case "POST /api/connectors/remove":
+        removeConnector(opts.home, str(await readBody(req), "id"));
+        return json(res, 204);
       case "GET /api/settings/channels":
         return json(res, 200, channelsSettingsView(workspaces.cwd, opts.home) satisfies ChannelsSettingsView);
       case "POST /api/settings/channels": {

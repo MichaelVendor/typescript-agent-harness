@@ -73,12 +73,76 @@ export function Settings(props: {
             <WebSettings busy={props.busy} view={props.view} onChange={props.onChange} />
           ) : section === "channels" ? (
             <ChannelsSettings busy={props.busy} view={props.view} onChange={props.onChange} />
+          ) : section === "integrations" ? (
+            <IntegrationsSettings view={props.view} onChange={props.onChange} />
           ) : (
             <SkillsSettings busy={props.busy} />
           )}
         </section>
       </div>
     </div>
+  );
+}
+
+function IntegrationsSettings(props: { view: SettingsView; onChange(view: SettingsView): void }) {
+  const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+  const github = props.view.connectors.find((account) => account.id === "github.oauth");
+
+  useEffect(() => {
+    const connected = (event: MessageEvent) => {
+      if (event.data !== "tah:github-connected") return;
+      void api.settings().then(props.onChange, (err: unknown) => setError(text(err)));
+    };
+    window.addEventListener("message", connected);
+    return () => window.removeEventListener("message", connected);
+  }, [props.onChange]);
+
+  const connect = async () => {
+    setPending(true);
+    setError(undefined);
+    try {
+      const { url } = await api.oauthStart();
+      if (!window.open(url, "tah-github-oauth", "popup,width=720,height=760")) throw new Error("Allow popups to connect GitHub.");
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const disconnect = async () => {
+    setPending(true);
+    setError(undefined);
+    try {
+      await api.removeConnector({ id: "github.oauth" });
+      props.onChange(await api.settings());
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <>
+      <p className="settings-desc">Connect GitHub through the OAuth app configured for this local tah server.</p>
+      <ul className="model-cards">
+        <li className={github ? "model-card in-use" : "model-card"}>
+          <div className="model-main">
+            <div className="model-name">GitHub</div>
+            <div className="model-meta">{github ? `Connected · ${github.keyHint}` : "Not connected"}</div>
+          </div>
+          <button type="button" disabled={pending} onClick={() => void (github ? disconnect() : connect())}>
+            {github ? "Disconnect" : "Connect GitHub"}
+          </button>
+        </li>
+      </ul>
+      {error ? <div className="modal-error">{error}</div> : null}
+      <div className="settings-note">
+        Requires TAH_GITHUB_CLIENT_ID and TAH_GITHUB_CLIENT_SECRET in the serve environment.
+      </div>
+    </>
   );
 }
 
