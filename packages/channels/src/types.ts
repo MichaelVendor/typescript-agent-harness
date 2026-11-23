@@ -1,5 +1,5 @@
 /** P0 workplace IM sources. */
-export type ChannelSource = "telegram" | "slack" | "feishu" | "mock" | "web";
+export type ChannelSource = "telegram" | "slack" | "feishu" | "dingtalk" | "mock" | "web";
 
 /** Opaque outbound handle; adapters cast by `kind`. */
 export type ReplyHandle = {

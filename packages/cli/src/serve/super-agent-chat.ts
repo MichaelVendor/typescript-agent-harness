@@ -5,6 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  createDingTalkAdapter,
   createFeishuAdapter,
   createMockChannel,
   createSlackAdapter,
@@ -61,6 +62,18 @@ function buildConfigAdapters(cwd: string, homeDir?: string): ChannelAdapter[] {
         appId: cfg.feishu.appId,
         appSecret: cfg.feishu.appSecret,
         verificationToken: cfg.feishu.verificationToken,
+      }),
+    );
+  }
+  if (cfg.dingtalk.enabled) {
+    if (!cfg.dingtalk.verificationToken) {
+      throw new Error("DingTalk is enabled but verification token is missing");
+    }
+    adapters.push(
+      createDingTalkAdapter({
+        verificationToken: cfg.dingtalk.verificationToken,
+        ...(cfg.dingtalk.appKey ? { appKey: cfg.dingtalk.appKey } : {}),
+        ...(cfg.dingtalk.appSecret ? { appSecret: cfg.dingtalk.appSecret } : {}),
       }),
     );
   }

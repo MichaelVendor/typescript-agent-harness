@@ -3,7 +3,9 @@ import { createHmac } from "node:crypto";
 import { test } from "node:test";
 import {
   createMockChannel,
+  dingtalkThreadId,
   feishuThreadId,
+  ingestDingTalkPayload,
   ingestFeishuPayload,
   ingestSlackPayload,
   parseTelegramUpdates,
@@ -133,4 +135,37 @@ test("feishu challenge shape + message ingest", () => {
   );
   assert.equal(seen[0]?.threadId, feishuThreadId("oc_1", "om_1"));
   assert.equal(seen[0]?.text, "查库存");
+});
+
+test("dingtalk ingest text + bad token ignored", () => {
+  const seen: { threadId: string; text: string; isNewThread: boolean }[] = [];
+  ingestDingTalkPayload(
+    {
+      token: "test-token",
+      msgtype: "text",
+      text: { content: "修 bug" },
+      msgId: "m1",
+      conversationId: "c1",
+      sessionWebhook: "https://oapi.dingtalk.com/robot/sendBySession?session=x",
+    },
+    (m) => seen.push({ threadId: m.threadId, text: m.text, isNewThread: m.isNewThread }),
+    "test-token",
+  );
+  assert.equal(seen[0]?.threadId, dingtalkThreadId("c1", "m1"));
+  assert.equal(seen[0]?.text, "修 bug");
+  assert.equal(seen[0]?.isNewThread, true);
+
+  const bad: string[] = [];
+  ingestDingTalkPayload(
+    {
+      token: "wrong",
+      msgtype: "text",
+      text: { content: "nope" },
+      msgId: "m2",
+      conversationId: "c1",
+    },
+    (m) => bad.push(m.text),
+    "test-token",
+  );
+  assert.deepEqual(bad, []);
 });

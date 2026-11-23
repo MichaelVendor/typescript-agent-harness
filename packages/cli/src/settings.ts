@@ -13,6 +13,9 @@ export type ChannelSecrets = {
   feishuAppId?: string;
   feishuAppSecret?: string;
   feishuVerificationToken?: string;
+  dingtalkAppKey?: string;
+  dingtalkAppSecret?: string;
+  dingtalkVerificationToken?: string;
 };
 
 /** `<home>/.tah/settings.json`; the active model and the search key win over `.env`. */
@@ -34,6 +37,9 @@ function parseChannelSecrets(raw: unknown): ChannelSecrets | undefined {
     "feishuAppId",
     "feishuAppSecret",
     "feishuVerificationToken",
+    "dingtalkAppKey",
+    "dingtalkAppSecret",
+    "dingtalkVerificationToken",
   ];
   for (const k of keys) {
     const v = c[k];

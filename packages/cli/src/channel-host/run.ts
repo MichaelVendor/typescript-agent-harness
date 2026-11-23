@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import {
+  createDingTalkAdapter,
   createFeishuAdapter,
   createMockChannel,
   createSlackAdapter,
@@ -37,6 +38,7 @@ export async function startChannelHost(
   let mock: MockChannel | undefined;
   let slack: ReturnType<typeof createSlackAdapter> | undefined;
   let feishu: ReturnType<typeof createFeishuAdapter> | undefined;
+  let dingtalk: ReturnType<typeof createDingTalkAdapter> | undefined;
 
   if (mockChannel) {
     mock = createMockChannel({ name: "mock" });
@@ -67,6 +69,17 @@ export async function startChannelHost(
       });
       adapters.push(feishu);
     }
+    if (cfg.dingtalk.enabled) {
+      if (!cfg.dingtalk.verificationToken) {
+        throw new Error("DINGTALK_VERIFICATION_TOKEN required when dingtalk.enabled");
+      }
+      dingtalk = createDingTalkAdapter({
+        verificationToken: cfg.dingtalk.verificationToken,
+        ...(cfg.dingtalk.appKey ? { appKey: cfg.dingtalk.appKey } : {}),
+        ...(cfg.dingtalk.appSecret ? { appSecret: cfg.dingtalk.appSecret } : {}),
+      });
+      adapters.push(dingtalk);
+    }
     if (adapters.length === 0) {
       throw new Error(
         "no channels enabled — set tah.channels.json or pass --mock-channel for local demo",
@@ -81,7 +94,7 @@ export async function startChannelHost(
     mockLlm: flags.mock || mockChannel,
   });
 
-  const needHttp = Boolean(slack || feishu);
+  const needHttp = Boolean(slack || feishu || dingtalk);
   let server: Server | undefined;
   let port = cfg.port;
   const host = "127.0.0.1";
@@ -97,6 +110,10 @@ export async function startChannelHost(
           }
           if (req.method === "POST" && url.pathname === "/hooks/feishu" && feishu) {
             await feishu.handleHttp(req, res);
+            return;
+          }
+          if (req.method === "POST" && url.pathname === "/hooks/dingtalk" && dingtalk) {
+            await dingtalk.handleHttp(req, res);
             return;
           }
           if (req.method === "GET" && url.pathname === "/health") {
@@ -133,7 +150,7 @@ export async function runChannelHost(flags: CliFlags): Promise<void> {
   const started = await startChannelHost(flags);
   console.log(`[tah] channel-host persist → ${started.persistDir}`);
   if (started.url.startsWith("http")) {
-    console.log(`[tah] hooks on ${started.url}  (/hooks/slack /hooks/feishu)`);
+    console.log(`[tah] hooks on ${started.url}  (/hooks/slack /hooks/feishu /hooks/dingtalk)`);
   }
   if (flags.mockChannel) {
     console.log(`[tah] --mock-channel: inject via test or demo script`);

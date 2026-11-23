@@ -31,3 +31,10 @@ export {
   type FeishuAdapterOptions,
   type FeishuReplyHandle,
 } from "./feishu.js";
+export {
+  createDingTalkAdapter,
+  dingtalkThreadId,
+  ingestDingTalkPayload,
+  type DingTalkAdapterOptions,
+  type DingTalkReplyHandle,
+} from "./dingtalk.js";

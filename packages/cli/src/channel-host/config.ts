@@ -10,6 +10,7 @@ export type ChannelHostFileConfig = {
     telegram?: { enabled?: boolean; mirrorChatId?: number | string | null };
     slack?: { enabled?: boolean };
     feishu?: { enabled?: boolean };
+    dingtalk?: { enabled?: boolean };
   };
 };
 
@@ -21,6 +22,12 @@ export type ChannelHostResolved = {
   feishu: {
     enabled: boolean;
     appId: string;
+    appSecret: string;
+    verificationToken: string;
+  };
+  dingtalk: {
+    enabled: boolean;
+    appKey: string;
     appSecret: string;
     verificationToken: string;
   };
@@ -56,6 +63,12 @@ export function loadChannelHostConfig(
       appId: secrets.feishuAppId,
       appSecret: secrets.feishuAppSecret,
       verificationToken: secrets.feishuVerificationToken,
+    },
+    dingtalk: {
+      enabled: ch.dingtalk?.enabled === true,
+      appKey: secrets.dingtalkAppKey,
+      appSecret: secrets.dingtalkAppSecret,
+      verificationToken: secrets.dingtalkVerificationToken,
     },
   };
 }
