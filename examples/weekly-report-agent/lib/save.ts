@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isReportTemplate, renderReport } from "./render.ts";
+import { validateExtractResult } from "./schema.ts";
 import type { ExtractResult, ReportBatch, ReportTemplate } from "./schema.ts";
 
 export const PROJECT_ROOT = path.join(fileURLToPath(new URL(".", import.meta.url)), "..");
@@ -23,6 +24,11 @@ export function saveReport(
 ): { mdPath: string; jsonPath: string } {
   if (!isReportTemplate(batch.template)) {
     throw new Error("template required");
+  }
+
+  const problems = validateExtractResult(batch);
+  if (problems.length > 0) {
+    throw new Error(`validation failed: ${problems.join("; ")}`);
   }
 
   const { markdown } = renderReport(batch, batch.template);

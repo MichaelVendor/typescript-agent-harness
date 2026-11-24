@@ -48,3 +48,18 @@ test("selectTemplate + save writes md/json", () => {
     rmSync(outDir, { recursive: true, force: true });
   }
 });
+
+test("save rejects invalid batch (empty evidence) and writes nothing", () => {
+  const outDir = mkdtempSync(path.join(os.tmpdir(), "weekly-report-"));
+  try {
+    const bad = {
+      items: [{ id: "i1", section: "done" as const, text: "x", evidence: "" }],
+      gaps: [],
+      template: "ops" as const,
+    };
+    assert.throws(() => saveReport(bad, { outDir }), /validation failed.*evidence/i);
+    assert.equal(existsSync(path.join(outDir, "reports")), false);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});

@@ -34,11 +34,16 @@ for (const section of ["done", "wip", "risk", "next", "unclassified"] as const) 
   }
 }
 
-const fixtureOnlyForbidden = ["Jira"];
-const allText = JSON.stringify(extracted);
-for (const word of fixtureOnlyForbidden) {
-  if (!fixture.includes(word) && allText.includes(word)) {
-    fail(`抽取结果不应出现 fixture 外关键词 ${word}`);
+const fixtureLines = new Set(fixture.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== ""));
+for (const item of extracted.items) {
+  if (!fixtureLines.has(item.evidence)) {
+    fail(`item ${item.id} evidence 不是 fixture 的某一行: ${item.evidence}`);
+  }
+  if (!fixture.includes(item.text)) {
+    fail(`item ${item.id} text 不在 fixture 中: ${item.text}`);
+  }
+  if (item.section === "unclassified" && !extracted.gaps.some((g) => g.includes(item.id))) {
+    fail(`未归类 item ${item.id} 未出现在 gaps`);
   }
 }
 
@@ -47,6 +52,15 @@ const mainOps = ops.split("## 缺口")[0] ?? ops;
 if (mainOps.includes("拉面")) fail("ops 主表不应含未归类条目「拉面」");
 const exec = renderReport(extracted, "exec").markdown;
 if (!exec.includes("下周")) fail("exec 应含「下周」");
+const mainExec = exec.split("## 缺口")[0] ?? exec;
+for (const [name, main] of [["ops", mainOps], ["exec", mainExec]] as const) {
+  for (const line of main.split("\n")) {
+    if (!line.startsWith("- ")) continue;
+    if (!extracted.items.some((i) => line.includes(i.text))) {
+      fail(`${name} 主表 bullet 非来自 item.text: ${line}`);
+    }
+  }
+}
 
 const noTemplate = { ...extracted } as unknown as ReportBatch;
 let threw = false;

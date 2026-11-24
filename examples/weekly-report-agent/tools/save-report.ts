@@ -10,14 +10,13 @@ export default defineTool({
     properties: {
       result: { type: "object" },
       template: { type: "string", enum: ["ops", "exec"] },
-      outDir: { type: "string" },
     },
     required: ["result", "template"],
     additionalProperties: false,
   },
-  async execute(input: { result: ExtractResult; template: ReportTemplate; outDir?: string }) {
+  async execute(input: { result: ExtractResult; template: ReportTemplate }) {
     const batch = selectTemplate(input.result, input.template);
-    const out = saveReport(batch, input.outDir ? { outDir: input.outDir } : undefined);
+    const out = saveReport(batch);
     return { saved: true, jsonPath: out.jsonPath, mdPath: out.mdPath };
   },
 });
