@@ -12,6 +12,7 @@ import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
 import { ReviewTicketsPanel, useSuperAgentPanel } from "./components/ReviewTicketsPanel";
 import { TimelineView } from "./components/TimelineView";
+import { RoomView } from "./components/RoomView";
 import { ReviewPane } from "./components/ReviewPane";
 import { Messages } from "./components/Messages";
 import { ModelPicker } from "./components/ModelPicker";
@@ -215,9 +216,11 @@ export function App() {
   const [view, setView] = useState<"file" | "browser" | "diff">("file");
   const [mode, setMode] = useState<Mode>("manual");
   const [expandTools, setExpandTools] = useState(false);
-  const [mainView, setMainView] = useState<"chat" | "timeline">("chat");
+  const [mainView, setMainView] = useState<"chat" | "timeline" | "room">("chat");
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const superAgentEnabled = info?.superAgentPanel === true;
+  const roomEnabled = info?.room === true;
+  const mainViewTabs = roomEnabled || superAgentEnabled;
   const superAgentPanelState = useSuperAgentPanel(superAgentEnabled);
   const [diffOpen, setDiffOpen] = useState(false);
   const [diffFocus, setDiffFocus] = useState<string>();
@@ -542,18 +545,25 @@ export function App() {
           <span className="session-name">
             {sessionTitle(state.entries)}
           </span>
-          {superAgentEnabled ? (
+          {mainViewTabs ? (
             <div className="panes main-view-switch">
               <button type="button" className={mainView === "chat" ? "on" : ""} onClick={() => setMainView("chat")}>
                 Chat
               </button>
-              <button
-                type="button"
-                className={mainView === "timeline" ? "on" : ""}
-                onClick={() => setMainView("timeline")}
-              >
-                Timeline
-              </button>
+              {roomEnabled ? (
+                <button type="button" className={mainView === "room" ? "on" : ""} onClick={() => setMainView("room")}>
+                  Room
+                </button>
+              ) : null}
+              {superAgentEnabled ? (
+                <button
+                  type="button"
+                  className={mainView === "timeline" ? "on" : ""}
+                  onClick={() => setMainView("timeline")}
+                >
+                  Timeline
+                </button>
+              ) : null}
             </div>
           ) : null}
           <div className="panes">
@@ -603,6 +613,8 @@ export function App() {
             highlightId={highlightId}
             onHighlightConsumed={() => setHighlightId(null)}
           />
+        ) : mainView === "room" && roomEnabled ? (
+          <RoomView disabled={connection !== "open"} />
         ) : (
           <>
             <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse} expandTools={expandTools}>
@@ -671,7 +683,7 @@ export function App() {
             ) : null}
           </>
         )}
-        {mainView === "chat" || !superAgentEnabled ? (
+        {(mainView === "chat" || !mainViewTabs) && mainView !== "room" ? (
         <Composer
           cwd={activePath}
           mode={
@@ -713,7 +725,7 @@ export function App() {
         </Composer>
         ) : null}
       </main>
-      {side ? null : (
+      {side || mainView === "room" ? null : (
         <SessionRail
           tokens={state.tokens}
           percent={contextPercent(state.tokens, activeModelName)}

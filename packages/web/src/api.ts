@@ -17,10 +17,31 @@ import type {
   SettingsView,
   SkillsImport,
   SkillsView,
+  TeamMember,
+  TeamSettingsView,
   WorkerInfo,
   WorkspaceView,
 } from "@typescript-agent-harness/cli";
 import { fileQuery, type FileTarget } from "./preview-view";
+
+/** `GET /api/room` and room POST responses (when `tah serve --room`). */
+export type RoomSnapshot = {
+  meta: {
+    roomId: string;
+    status: string;
+    activeMember?: string;
+    goal: string;
+    members: TeamMember[];
+    createdAt: string;
+  };
+  messages: {
+    id: string;
+    at: string;
+    from: string;
+    kind: string;
+    text: string;
+  }[];
+};
 
 export class ApiError extends Error {
   constructor(
@@ -157,6 +178,16 @@ export const api = {
       ok: true;
       delivered: "live" | "queued";
     },
+  teamGet: async () => (await (await call("GET", "/api/settings/team")).json()) as TeamSettingsView,
+  teamSave: async (body: { members: TeamMember[] }) =>
+    (await (await call("POST", "/api/settings/team", body)).json()) as TeamSettingsView,
+  roomGet: async () => (await (await call("GET", "/api/room")).json()) as RoomSnapshot,
+  roomGoal: async (body: { text: string }) => (await (await call("POST", "/api/room/goal", body)).json()) as RoomSnapshot,
+  roomMessage: async (body: { text: string }) => {
+    const json = (await (await call("POST", "/api/room/message", body)).json()) as RoomSnapshot | { queued: true };
+    return "queued" in json ? api.roomGet() : json;
+  },
+  roomStep: async () => (await (await call("POST", "/api/room/step")).json()) as RoomSnapshot,
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";

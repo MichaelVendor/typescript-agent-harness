@@ -2430,6 +2430,180 @@ button.file-link {
   font-size: 12.5px;
 }
 
+.room-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.room-rail {
+  width: 200px;
+  flex: none;
+  border-right: 1px solid var(--border);
+  border-left: none;
+  padding: 12px 10px;
+  overflow: auto;
+}
+.room-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.room-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.room-status-pill {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  text-transform: lowercase;
+}
+.room-status-active {
+  color: var(--muted);
+}
+.room-transcript {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.room-msg {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: var(--card);
+  font-size: 13px;
+}
+.room-msg.kind-delegate,
+.room-msg.kind-result {
+  border-color: color-mix(in srgb, var(--border) 60%, var(--text));
+}
+.room-msg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.room-msg-from {
+  color: var(--text);
+  font-weight: 600;
+}
+.room-msg-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.room-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.room-member {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.room-member:last-child {
+  border-bottom: none;
+}
+.room-member.on .room-member-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.room-member-id {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.room-goal {
+  margin: 0;
+  font-size: 12px;
+  word-break: break-word;
+}
+.room-empty {
+  padding: 16px;
+  color: var(--muted);
+}
+.room-composer {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.room-composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 52px;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.room-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.room-goal-form {
+  display: flex;
+  gap: 8px;
+  padding: 0 14px 8px;
+  align-items: center;
+}
+.room-goal-form input {
+  flex: 1;
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.room-error {
+  margin: 0 14px 8px;
+}
+.team-cards .team-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+.team-fields {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+.team-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.team-fields input,
+.team-fields textarea {
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.team-persona textarea {
+  min-height: 52px;
+  resize: vertical;
+}
+
 @media (max-width: 900px) {
   .side-panel {
     position: fixed;

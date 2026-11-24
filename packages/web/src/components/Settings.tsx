@@ -5,6 +5,7 @@ import { TrashIcon } from "./icons";
 import { settingsMessages as t } from "../i18n/settings.en";
 import { ChannelsSettings } from "./ChannelsSettings";
 import { SkillsSettings } from "./SkillsSettings";
+import { TeamSettings } from "./TeamSettings";
 
 const text = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -75,6 +76,8 @@ export function Settings(props: {
             <ChannelsSettings busy={props.busy} view={props.view} onChange={props.onChange} />
           ) : section === "integrations" ? (
             <IntegrationsSettings view={props.view} onChange={props.onChange} />
+          ) : section === "team" ? (
+            <TeamSettings busy={props.busy} />
           ) : (
             <SkillsSettings busy={props.busy} />
           )}

@@ -10,6 +10,7 @@ export const settingsEn = {
     skills: "Skills",
     channels: "Messaging",
     integrations: "Integrations",
+    team: "Team",
   },
   integrations: {
     desc: "Connect accounts through the OAuth apps configured for this local tah server.",
