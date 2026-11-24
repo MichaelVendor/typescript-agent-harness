@@ -1,7 +1,7 @@
 {
   "name": "@typescript-agent-harness/cli",
   "version": "1.6.8",
-  "description": "typescript-agent-harness CLI (tah)",
+  "description": "tah — build agents by convention (AGENTS.md, tools/, skills/); TypeScript agent runtime CLI",
   "type": "module",
   "bin": {
     "tah": "./dist/cli.js"

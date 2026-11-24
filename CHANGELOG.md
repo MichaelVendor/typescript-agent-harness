@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Docs
+
+SDK narrative focus: root README L1 (`init`), docs site top nav **Build / Embed / Hosts**, getting-started one-hour checklist, `tah init` generated README, npm package descriptions, and `examples/convention-agent` advanced-sample label. Spec: `docs/superpowers/specs/2026-11-24-sdk-narrative-focus-design.md`.
+
 ## 1.6.8 — 2026-10-29
 
 **Web:** Page zoom applies to `#root` only, not `html`. Context menus portaled to `document.body` keep correct `position: fixed` coordinates under Cursor `zoomLevel: 2`.
