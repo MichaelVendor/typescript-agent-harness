@@ -150,4 +150,5 @@ MCP OAuth 全自动刷新产品化（可后续复用 refresh 工具函数）；�
 
 - **Timeline 任务树** — 设计见 [`2026-11-23-dsh-parity-p1.5-timeline-design.md`](./2026-11-23-dsh-parity-p1.5-timeline-design.md)（📐）
 - 飞书 OAuth — 设计见 [`2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md`](./2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md)（📐）
-- 另开：AgentTeam UX、GitLab、跨会话消息、Computer Use
+- 跨会话发消息 — 设计见 [`2026-11-23-cross-session-deliver-design.md`](./2026-11-23-cross-session-deliver-design.md)（📐）
+- 另开：AgentTeam UX、GitLab、Computer Use
