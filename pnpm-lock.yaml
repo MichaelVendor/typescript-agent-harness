@@ -118,6 +118,18 @@ importers:
         specifier: ^5.9.2
         version: 5.9.3
 
+  examples/meeting-actions-agent:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      '@typescript-agent-harness/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
   examples/multi-agent:
     dependencies:
       '@typescript-agent-harness/agent':
@@ -194,6 +206,18 @@ importers:
       '@typescript-agent-harness/core':
         specifier: workspace:*
         version: link:../../packages/core
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+
+  examples/weekly-report-agent:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.18.0
+        version: 22.20.5
+      '@typescript-agent-harness/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
       typescript:
         specifier: ^5.9.2
         version: 5.9.3

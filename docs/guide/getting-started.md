@@ -41,7 +41,7 @@ export default defineTool({
 - [ ] 输入 `/hello`（或技能菜单）能走到 hello skill
 - [ ] 能让 agent 调用你的 tool，并回答「这是我的 agent」
 
-进阶样板：`examples/convention-agent`（`pnpm demo:convention`）、`examples/brief-agent`（垂直业务）、`examples/meeting-actions-agent`（纪要→行动项）。可选宿主见 [Hosts](/guide/hosts)。
+进阶样板：`examples/convention-agent`（`pnpm demo:convention`）、`examples/brief-agent`（垂直业务）、`examples/meeting-actions-agent`（纪要→行动项）、`examples/weekly-report-agent`（杂记→周报）。可选宿主见 [Hosts](/guide/hosts)。
 
 ## 用 CLI 跑一轮（未建项目时的试跑）
 
