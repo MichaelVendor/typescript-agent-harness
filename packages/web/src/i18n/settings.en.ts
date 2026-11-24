@@ -17,6 +17,8 @@ export const settingsEn = {
     githubEnv: "Requires TAH_GITHUB_CLIENT_ID and TAH_GITHUB_CLIENT_SECRET in the serve environment.",
     feishuEnv:
       "Requires TAH_FEISHU_CLIENT_ID and TAH_FEISHU_CLIENT_SECRET (or FEISHU_APP_ID / FEISHU_APP_SECRET) in the serve environment.",
+    gitlabPat: "GitLab personal access token for MR review in the right rail (read_api scope). Optional host for self-managed GitLab.",
+    gitlabEnv: "GITLAB_TOKEN and GITLAB_HOST in the serve environment still work if no PAT is saved here.",
   },
   channels: {
     introBeforeSecrets: "Turn on a channel and paste bot credentials. Secrets stay on this computer in ",

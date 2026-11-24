@@ -140,6 +140,8 @@ export const api = {
   oauthStart: async (provider: "github" | "feishu" = "github") =>
     (await (await call("GET", `/api/connectors/oauth/start?provider=${provider}`)).json()) as { url: string; state: string },
   removeConnector: (body: ServeRequest["removeConnector"]) => post("/api/connectors/remove", body),
+  connectorToken: async (body: ServeRequest["connectorToken"]) =>
+    (await (await call("POST", "/api/connectors/token", body)).json()) as SettingsView,
   fileStat: async (target: FileTarget) =>
     (await (await call("GET", `/api/files/stat?${fileQuery(target)}`)).json()) as FileStat,
   /** The first `limit` bytes as text. */

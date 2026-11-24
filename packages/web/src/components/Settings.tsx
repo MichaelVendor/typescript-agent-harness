@@ -1,5 +1,5 @@
 import type { SettingsView } from "@typescript-agent-harness/cli";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
 import { TrashIcon } from "./icons";
 import { settingsMessages as t } from "../i18n/settings.en";
@@ -90,8 +90,11 @@ export function Settings(props: {
 function IntegrationsSettings(props: { view: SettingsView; onChange(view: SettingsView): void }) {
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
+  const [gitlabToken, setGitlabToken] = useState("");
+  const [gitlabHost, setGitlabHost] = useState("");
   const github = props.view.connectors.find((account) => account.id === "github.oauth");
   const feishu = props.view.connectors.find((account) => account.id === "feishu.oauth");
+  const gitlab = props.view.connectors.find((account) => account.id === "gitlab.pat");
 
   useEffect(() => {
     const connected = (event: MessageEvent) => {
@@ -117,12 +120,40 @@ function IntegrationsSettings(props: { view: SettingsView; onChange(view: Settin
     }
   };
 
-  const disconnect = async (id: "github.oauth" | "feishu.oauth") => {
+  const disconnect = async (id: "github.oauth" | "feishu.oauth" | "gitlab.pat") => {
     setPending(true);
     setError(undefined);
     try {
       await api.removeConnector({ id });
       props.onChange(await api.settings());
+      if (id === "gitlab.pat") {
+        setGitlabToken("");
+        setGitlabHost("");
+      }
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const saveGitlab = async (e: FormEvent) => {
+    e.preventDefault();
+    const token = gitlabToken.trim();
+    if (!token) return;
+    setPending(true);
+    setError(undefined);
+    try {
+      const host = gitlabHost.trim();
+      props.onChange(
+        await api.connectorToken({
+          id: "gitlab.pat",
+          provider: "gitlab",
+          token,
+          ...(host || gitlab?.host ? { host: host || null } : {}),
+        }),
+      );
+      setGitlabToken("");
     } catch (err) {
       setError(text(err));
     } finally {
@@ -160,10 +191,56 @@ function IntegrationsSettings(props: { view: SettingsView; onChange(view: Settin
             {feishu ? "Disconnect" : "Connect Feishu"}
           </button>
         </li>
+        <li className={gitlab ? "model-card in-use" : "model-card"}>
+          <div className="model-main">
+            <div className="model-name">GitLab</div>
+            <div className="model-meta">
+              {gitlab
+                ? `PAT · ${gitlab.keyHint}${gitlab.host ? ` · ${gitlab.host}` : ""}`
+                : "No PAT (MR review)"}
+            </div>
+          </div>
+          {gitlab ? (
+            <button type="button" disabled={pending} onClick={() => void disconnect("gitlab.pat")}>
+              Remove PAT
+            </button>
+          ) : null}
+        </li>
       </ul>
+      <form className="model-form" onSubmit={(e) => void saveGitlab(e)}>
+        <label>
+          <span>{gitlab ? "Replace GitLab PAT" : "GitLab PAT"}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={gitlabToken}
+            placeholder="glpat-…"
+            onChange={(e) => setGitlabToken(e.target.value)}
+          />
+          <small>{t.integrations.gitlabPat}</small>
+        </label>
+        <label>
+          <span>GitLab host (optional)</span>
+          <input
+            type="text"
+            autoComplete="off"
+            value={gitlabHost}
+            placeholder={gitlab?.host ?? "https://gitlab.com"}
+            onChange={(e) => setGitlabHost(e.target.value)}
+          />
+          <small>Default https://gitlab.com — omit when MR URLs include the host.</small>
+        </label>
+        <div className="card-actions">
+          <span className="spacer" />
+          <button type="submit" className="primary" disabled={pending || !gitlabToken.trim()}>
+            Save PAT
+          </button>
+        </div>
+      </form>
       {error ? <div className="modal-error">{error}</div> : null}
       <div className="settings-note">{t.integrations.githubEnv}</div>
       <div className="settings-note">{t.integrations.feishuEnv}</div>
+      <div className="settings-note">{t.integrations.gitlabEnv}</div>
     </>
   );
 }

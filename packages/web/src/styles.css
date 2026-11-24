@@ -942,6 +942,29 @@ main {
 .review-head h2 {
   margin-bottom: 0;
 }
+.review-head-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.review-provider {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.review-provider.github {
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.review-provider.gitlab {
+  color: #e24329;
+  border-color: color-mix(in srgb, #e24329 45%, transparent);
+}
 .review-state {
   color: var(--muted);
   font-size: 10px;
