@@ -19,7 +19,7 @@ function classifyLine(line: string): { kind: ActionKind; owner: string | null; t
   }
 
   if (/\d+\s*ms/.test(evidence)) {
-    return { kind: "info", owner: speaker, text: rowTextAfterSpeaker(evidence) };
+    return { kind: "info", owner: null, text: rowTextAfterSpeaker(evidence) };
   }
 
   if (/[？?]/.test(evidence) && (/谁|何人|哪位/.test(evidence) || /无人认领/.test(evidence))) {
@@ -32,7 +32,7 @@ function classifyLine(line: string): { kind: ActionKind; owner: string | null; t
     return { kind: "action", owner: speaker, text };
   }
 
-  return { kind: "action", owner: speaker, text: rowTextAfterSpeaker(evidence) };
+  return { kind: "action", owner: null, text: rowTextAfterSpeaker(evidence) };
 }
 
 function isTitleLine(line: string): boolean {

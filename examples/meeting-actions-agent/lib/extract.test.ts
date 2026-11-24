@@ -22,4 +22,7 @@ test("fixture: named owner vs null owner; no invented names", () => {
   assert.ok(r.gaps.some((g) => /帮助文档|负责人/.test(g)));
   assert.ok(r.rows.some((x) => x.kind === "decision" && /支付灰度/.test(x.text)));
   assert.ok(r.rows.some((x) => x.kind === "info" && /80ms/.test(x.text)));
+
+  const nonNullOwners = r.rows.map((x) => x.owner).filter((o): o is string => o !== null);
+  assert.deepEqual(nonNullOwners, ["李华"]);
 });
