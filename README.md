@@ -105,6 +105,8 @@ examples/
   basic-agent/       tool-use loop demo
 ```
 
+Full package and example list: [Ecosystem](./docs/guide/ecosystem.md).
+
 Phase history and plans: [Roadmap](./docs/guide/roadmap.md)
 
 ## Documentation

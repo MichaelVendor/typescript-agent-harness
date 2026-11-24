@@ -105,6 +105,8 @@ examples/
   basic-agent/       tool-use 演示
 ```
 
+完整包与示例列表见 [生态](./docs/guide/ecosystem.md)。
+
 阶段与计划：[路线图](./docs/guide/roadmap.md)
 
 ## 文档
