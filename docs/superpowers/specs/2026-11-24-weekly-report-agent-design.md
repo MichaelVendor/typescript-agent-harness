@@ -1,6 +1,6 @@
 # Weekly Report Agent（杂记→周报）设计
 
-状态：📝 设计已批准，待实现
+状态：✅ 已实现
 
 系列：WorkBuddy「专家」对标样板 · **B → A → D** 中的 **A**。  
 前序：B `meeting-actions-agent`（已实现）。后续：D `resume-jd-agent`（独立 example / spec）。
@@ -128,4 +128,4 @@ Skill `notes-to-weekly` 写死上述顺序；用户也可自然语言触发，�
 
 ## 后续
 
-用户批准本文 → `writing-plans` → 实现。完成 A 后再开 D 的独立 spec。
+A 已实现（`examples/weekly-report-agent`）。下一步：开 D 的独立 spec。
