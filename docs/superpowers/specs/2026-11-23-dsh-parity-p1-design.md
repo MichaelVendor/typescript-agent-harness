@@ -1,6 +1,6 @@
 # DSH 对照升级（P1）设计
 
-状态：📐 已设计（计划见 `docs/superpowers/plans/2026-11-23-dsh-parity-p1.md`）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-23-dsh-parity-p1.md`；分支 `feat/dsh-parity-p1`）
 
 在 P0（并行 worktree / 会话状态 / connectors token / MCP lazy）之上，对照 DeepSeek Harness 0.2.3 的下一批高价值工作流。**不**换 `packages/core`、**不**改 `DefaultLoop`、**不**引入 NestJS / Cordis。
 
@@ -146,6 +146,11 @@ MCP OAuth 全自动刷新产品化（可后续复用 refresh 工具函数）；�
 | channel-host design | D 扩展；钉钉企微原标 P1 |
 | parallel-sessions | B 的 workerId / attention 输入 |
 
-## P1.5 / 以后（仅占位）
+## P1.5 / 以后
 
-Timeline 任务树、AgentTeam UX、GitLab、跨会话消息、Computer Use。
+- **Timeline 任务树** — 设计见 [`2026-11-23-dsh-parity-p1.5-timeline-design.md`](./2026-11-23-dsh-parity-p1.5-timeline-design.md)（📐）
+- 飞书 OAuth — 设计见 [`2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md`](./2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md)（📐）
+- 跨会话发消息 — 设计见 [`2026-11-23-cross-session-deliver-design.md`](./2026-11-23-cross-session-deliver-design.md)（📐）
+- AgentTeam UX — 设计见 [`2026-11-24-agent-team-ux-design.md`](./2026-11-24-agent-team-ux-design.md)（📐）
+- GitLab MR — 设计见 [`2026-11-24-gitlab-mr-review-design.md`](./2026-11-24-gitlab-mr-review-design.md)（✅）
+- 另开：Computer Use

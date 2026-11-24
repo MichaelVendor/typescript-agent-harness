@@ -66,6 +66,8 @@ export type ReviewPanelSnapshot = {
   status: SuperAgentStatus;
   needsHuman: Ticket[];
   running: Ticket[];
+  /** 全量工单，按 createdAt 新→旧 */
+  tickets: Ticket[];
   recentReplies: string[];
   subscriptions: { threadId: ThreadId; ticketId: TicketId }[];
 };
@@ -168,11 +170,13 @@ export class SuperAgent {
 
   /** 人审 / 运维面板只读视图 */
   reviewPanel(): ReviewPanelSnapshot {
+    const tickets = [...this._tickets].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return {
       agentId: this.id,
       status: this._status,
       needsHuman: this._tickets.filter((t) => t.status === "needs_human"),
       running: this._tickets.filter((t) => t.status === "running"),
+      tickets,
       recentReplies: this._replies.slice(-10),
       subscriptions: [...this._subscriptions.entries()].map(([threadId, ticketId]) => ({ threadId, ticketId })),
     };

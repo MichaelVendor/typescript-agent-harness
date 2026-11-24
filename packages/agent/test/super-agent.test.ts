@@ -243,6 +243,54 @@ test("Worker throw → ticket failed", async () => {
   assert.match(sa.replies().join("\n"), /失败收口/);
 });
 
+test("reviewPanel tickets 含全量且 createdAt 降序", async () => {
+  let spawn = 0;
+  const sa = createSuperAgent({
+    defaultMandate: { scope: "demo", policyVersion: "s3" },
+    async routerDecide({ event }): Promise<RouterAction> {
+      if (event.kind === "user_message") {
+        spawn += 1;
+        return { type: "spawn_ticket", goal: `ticket-${spawn}` };
+      }
+      if (event.kind === "worker_report") return { type: "reply", text: event.text };
+      return { type: "reply", text: "ok" };
+    },
+    async workerRun({ ticket }): Promise<WorkerReport> {
+      if (ticket.goal === "ticket-1") return { text: "done", done: true };
+      if (ticket.goal === "ticket-2") return { text: "人审？", needsHuman: true };
+      return { text: "进行中", done: false };
+    },
+  });
+
+  sa.ingest({ kind: "user_message", text: "1" });
+  await sa.step();
+  await sa.step();
+  await sa.step();
+
+  sa.ingest({ kind: "user_message", text: "2" });
+  await sa.step();
+  await sa.step();
+  assert.equal(sa.meta.status, "needs_human");
+
+  sa.ingest({ kind: "user_message", text: "3" });
+  await sa.step();
+  await sa.step();
+
+  const panel = sa.reviewPanel();
+  const all = sa.tickets();
+  assert.equal(panel.tickets.length, all.length);
+  assert.equal(panel.tickets.length, 3);
+
+  const statuses = new Set(panel.tickets.map((t) => t.status));
+  assert.ok(statuses.has("done"));
+  assert.ok(statuses.has("running"));
+  assert.ok(statuses.has("needs_human"));
+
+  for (let i = 0; i < panel.tickets.length - 1; i++) {
+    assert.ok(panel.tickets[i]!.createdAt >= panel.tickets[i + 1]!.createdAt);
+  }
+});
+
 test("reviewPanel 人审只读形状", async () => {
   const sa = createSuperAgent({
     defaultMandate: { scope: "demo", policyVersion: "s3" },

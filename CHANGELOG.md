@@ -2,11 +2,23 @@
 
 ## Unreleased
 
+**AgentTeam UX:** `tah serve --room` embeds one `createRoom` with Chat | Room (and Timeline when Super-agent); Room HTTP (`/api/room`, goal / message / step) and persist under `.tah/room/`. Settings → **Team** edits `tah.team.json` via `/api/settings/team` (default `tl` + `researcher`; team applies on next goal). Without `--room`, no Room tab; Team settings still work. Spec: `docs/superpowers/specs/2026-11-24-agent-team-ux-design.md`.
+
+**DSH P1 (parity):** Worker unread dots (localStorage); session-bound GitHub PR review (`/api/review*`, ReviewPane, mock → PAT/OAuth via connectors); GitHub OAuth connect/disconnect in Settings (`TAH_GITHUB_CLIENT_*`); DingTalk + WeCom channel adapters + Messaging toggles (`/hooks/dingtalk`, `/hooks/wecom`). Does not change `DefaultLoop` / core. Spec: `docs/superpowers/specs/2026-11-23-dsh-parity-p1-design.md`.
+
+**DSH P1.5 (Timeline):** Super-agent web **Chat | Timeline** tab with grouped full ticket tree; right-rail summary click highlights row; `reviewPanel` / `GET /api/super-agent/panel` gains `tickets[]` with legacy fallback. Spec: `docs/superpowers/specs/2026-11-23-dsh-parity-p1.5-timeline-design.md`.
+
+**DSH P1.5 (Feishu OAuth):** Settings **Connect Feishu** via local OAuth (`GET /api/connectors/oauth/start?provider=feishu`); credentials `TAH_FEISHU_CLIENT_ID` / `TAH_FEISHU_CLIENT_SECRET` (fallback `FEISHU_APP_*`); connected account `feishu.oauth` in `~/.tah/connectors.json`. Messaging bot keys stay separate. Spec: `docs/superpowers/specs/2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md`.
+
+**Cross-session deliver:** Sidebar session ⋯ **Send to session…** delivers a system notice to another web session in the same workspace via `POST /api/sessions/deliver` (live emit or `.tah/session-delivers.json` queue drained on resume/switch); marks target unread; does not run agent. Spec: `docs/superpowers/specs/2026-11-23-cross-session-deliver-design.md`.
+
+**GitLab MR review:** Code Review bind supports GitLab MR (PAT): `ReviewBinding.provider` github|gitlab, `parseReviewRef`, `/api/review*` snapshot via GitLab REST v4; ReviewPane accepts MR URL or `group/project!iid` with provider badge; Settings → Connectors stores GitLab PAT (+ optional host) or `GITLAB_TOKEN` / `GITLAB_HOST`. GitHub unchanged. Spec: `docs/superpowers/specs/2026-11-24-gitlab-mr-review-design.md`.
+
 **Serve / parallel sessions:** `tah serve` orchestrates up to four busy `tah agent-worker` child processes (usually in git worktrees under `<repo>/.tah/worktrees/<name>/`, branch `tah/<name>`). Web: worker sidebar, single-focus transcript, attention banner for background approval / `ask_user`. Suggest ignoring `.tah/worktrees/` in the repo `.gitignore`. `tah chat` / TUI unchanged.
 
 **Session status:** `GET /api/session-status` returns focus cwd, busy/idle, pending approval or `ask_user`, orchestrator worker list, and optional Super-agent ticket count. The web **Session status** rail refreshes on turn / approval / focus events.
 
-**Connectors:** Messaging bot tokens (Telegram, Slack, 飞书) live in `~/.tah/connectors.json` (mode `0600`); Settings shows `keyHint` only. Env vars still win. Legacy `settings.channels` secrets migrate on first read.
+**Connectors:** Messaging bot tokens (Telegram, Slack, 飞书, 钉钉, 企微) live in `~/.tah/connectors.json` (mode `0600`); Settings shows `keyHint` only. Env vars still win. Legacy `settings.channels` secrets migrate on first read. GitHub accounts support `authKind: "oauth"` (access/refresh) in addition to PAT tokens.
 
 **MCP lazy:** `extensions.mcpToolExposure` or per-server `extensions.mcp.toolExposure` (`eager` default). In `lazy` mode only `mcp_list_tools` / `mcp_enable_tools` are in the first LLM tool list; other remote MCP tools register after enable.
 

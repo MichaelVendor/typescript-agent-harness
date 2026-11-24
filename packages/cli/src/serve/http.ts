@@ -6,6 +6,23 @@ import os from "node:os";
 import path from "node:path";
 import type { ApprovalAnswer } from "@typescript-agent-harness/permissions";
 import { AttachmentError, createAttachmentStore, MAX_FILE_BYTES } from "../attachments/store.js";
+import {
+  buildFeishuOAuthUrl,
+  buildGithubOAuthUrl,
+  createGithubOAuthState,
+  exchangeFeishuOAuthCode,
+  exchangeGithubOAuthCode,
+  resolveFeishuOAuthCredentials,
+  type OAuthFetch,
+} from "../connectors-oauth.js";
+import {
+  githubReviewToken,
+  gitlabReviewToken,
+  loadConnectors,
+  removeConnector,
+  upsertConnectorOAuth,
+  upsertConnectorToken,
+} from "../connectors.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
 import { contentType, fileKind, matchFiles, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
 import { isPermissionMode } from "../permission-mode.js";
@@ -17,6 +34,7 @@ import {
   saveChannelsSettings,
   type ChannelsSettingsPatch,
 } from "../channels-settings.js";
+import { saveTeamSettings, teamSettingsView } from "../team-settings.js";
 import {
   activeModel,
   addModel,
@@ -41,6 +59,25 @@ import { buildSessionStatus, type SessionStatusDto } from "./session-status.js";
 import { readSuperAgentPanel } from "./super-agent-panel.js";
 import { loadSuggestions } from "./suggestions.js";
 import { ConflictError, type Workspaces } from "./workspaces.js";
+import {
+  bindReview,
+  clearReviewBinding,
+  fetchReviewSnapshot,
+  loadReviewBinding,
+  parseReviewRef,
+  reviewBindingUrl,
+  type ReviewBinding,
+  type ReviewSnapshot,
+} from "./review.js";
+import {
+  DeliverValidationError,
+  drainDelivers,
+  enqueueDeliver,
+  formatDeliverNotice,
+  isSelfDeliver,
+  validateDeliverText,
+} from "./session-deliver.js";
+import type { RoomHost } from "./room-host.js";
 
 const COOKIE = "tah_token";
 const MAX_BODY = 1_000_000;
@@ -85,6 +122,10 @@ export type ServeOptions = {
   onChannelsApplied?: () => Promise<void>;
   /** Multi-worker orchestrator; when set, SSE is focus-aware and `/api/workers/*` is enabled. */
   orchestrator?: Orchestrator;
+  /** Embedded AgentRoom when `tah serve --room`. */
+  roomHost?: RoomHost;
+  /** GitHub token exchange transport; tests inject a fake. */
+  oauthFetch?: OAuthFetch;
 };
 
 class HttpError extends Error {
@@ -178,6 +219,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
   const webDir = path.resolve(opts.webDir);
   let choosing = false;
   const previewToken = randomBytes(32).toString("base64url");
+  const oauthStates = new Map<string, { provider: "github" | "feishu"; redirectUri: string; expiresAt: number }>();
   const workerBrowsers = new Map<string, Browser>();
   const focusedBrowser = (): Browser | undefined => {
     const main = host().browser;
@@ -283,6 +325,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           ? { source: "env", keyHint: keyHint(searchKey(opts.home)!) }
           : null,
       channels: channelsSettingsView(workspaces.cwd, opts.home),
+      connectors: loadConnectors(opts.home).accounts,
     };
   };
   const skillsView = (): SkillsView => {
@@ -306,6 +349,27 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     if (JSON.stringify(activeModel(opts.home)) !== before) await host().reload();
     return json(res, 200, settingsView());
   };
+  const reviewSnapshot = (binding: ReviewBinding): Promise<ReviewSnapshot> => {
+    const token =
+      binding.provider === "gitlab" ? gitlabReviewToken(opts.home) : githubReviewToken(opts.home);
+    const refLabel =
+      binding.provider === "gitlab"
+        ? `${binding.owner}/${binding.repo}!${binding.number}`
+        : `${binding.owner}/${binding.repo}#${binding.number}`;
+    return fetchReviewSnapshot(
+      binding,
+      token
+        ? { token, home: opts.home }
+        : {
+            mock: {
+              ...binding,
+              title: binding.title ?? refLabel,
+              state: "open",
+              files: [],
+            },
+          },
+    );
+  };
 
   const needPersist = () => {
     if (!opts.persist) throw new HttpError(409, "sessions are only saved with persist on (drop --no-persist)");
@@ -317,6 +381,13 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     const switched = await workspaces.activate(cwd);
     if (switched && orch) orch.setMain(workspaces.host, workspaces.cwd);
     return switched;
+  };
+
+  const emitDrainedDelivers = () => {
+    if (!opts.persist) return;
+    for (const item of drainDelivers(workspaces.cwd, host().sessionId)) {
+      hub.emit({ type: "notice", text: formatDeliverNotice(item) });
+    }
   };
 
   const events = (req: IncomingMessage, res: ServerResponse) => {
@@ -398,9 +469,105 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       res.setHeader("set-cookie", `${cookieName(req)}=${opts.token}; HttpOnly; SameSite=Strict; Path=/`);
       return json(res, 204);
     }
+    if (key === "GET /api/connectors/oauth/callback") {
+      const query = new URL(req.url ?? "/", "http://127.0.0.1").searchParams;
+      const state = query.get("state") ?? "";
+      const pending = oauthStates.get(state);
+      oauthStates.delete(state);
+      if (!pending || pending.expiresAt < Date.now()) throw new HttpError(400, "invalid or expired OAuth state");
+      const providerLabel = pending.provider === "feishu" ? "Feishu" : "GitHub";
+      const error = query.get("error_description") ?? query.get("error");
+      if (error) throw new HttpError(400, `${providerLabel} OAuth denied: ${error}`);
+      const code = query.get("code");
+      if (!code) throw new HttpError(400, `${providerLabel} OAuth callback is missing code`);
+      if (pending.provider === "feishu") {
+        const creds = resolveFeishuOAuthCredentials();
+        if (!creds) throw new HttpError(503, "Feishu OAuth is not configured");
+        const token = await exchangeFeishuOAuthCode(
+          {
+            clientId: creds.clientId,
+            clientSecret: creds.clientSecret,
+            code,
+            redirectUri: pending.redirectUri,
+            host: creds.host,
+          },
+          opts.oauthFetch,
+        );
+        upsertConnectorOAuth(opts.home, {
+          id: "feishu.oauth",
+          provider: "feishu",
+          label: "飞书",
+          accessToken: token.accessToken,
+          ...(token.refreshToken ? { refreshToken: token.refreshToken } : {}),
+          ...(token.expiresAt !== undefined ? { expiresAt: token.expiresAt } : {}),
+          scopes: token.scopes,
+        });
+        res
+          .writeHead(200, {
+            "content-type": "text/html; charset=utf-8",
+            "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'",
+          })
+          .end(
+            '<!doctype html><title>飞书 connected</title><p>飞书 connected. You can close this window.</p><script>window.opener?.postMessage("tah:feishu-connected","*");window.close()</script>',
+          );
+        return;
+      }
+      const clientId = process.env.TAH_GITHUB_CLIENT_ID?.trim();
+      const clientSecret = process.env.TAH_GITHUB_CLIENT_SECRET?.trim();
+      if (!clientId || !clientSecret) throw new HttpError(503, "GitHub OAuth is not configured");
+      const token = await exchangeGithubOAuthCode(
+        { clientId, clientSecret, code, redirectUri: pending.redirectUri },
+        opts.oauthFetch,
+      );
+      upsertConnectorOAuth(opts.home, {
+        id: "github.oauth",
+        provider: "github",
+        label: "GitHub",
+        accessToken: token.accessToken,
+        scopes: token.scopes,
+      });
+      res
+        .writeHead(200, {
+          "content-type": "text/html; charset=utf-8",
+          "content-security-policy": "default-src 'none'; script-src 'unsafe-inline'",
+        })
+        .end(
+          '<!doctype html><title>GitHub connected</title><p>GitHub connected. You can close this window.</p><script>window.opener?.postMessage("tah:github-connected","*");window.close()</script>',
+        );
+      return;
+    }
     if (!authed) throw new HttpError(401, "not signed in — open the link tah serve printed");
 
     switch (key) {
+      case "GET /api/connectors/oauth/start": {
+        const provider = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("provider");
+        if (provider !== "github" && provider !== "feishu") {
+          throw new HttpError(400, 'provider must be "github" or "feishu"');
+        }
+        const port = req.socket.localPort;
+        if (!port) throw new HttpError(503, "serve port is unavailable");
+        const redirectUri = `http://127.0.0.1:${port}/api/connectors/oauth/callback`;
+        const state = createGithubOAuthState();
+        if (provider === "feishu") {
+          const creds = resolveFeishuOAuthCredentials();
+          if (!creds) throw new HttpError(503, "Feishu OAuth is not configured");
+          oauthStates.set(state, { provider, redirectUri, expiresAt: Date.now() + 10 * 60_000 });
+          return json(res, 200, {
+            url: buildFeishuOAuthUrl({
+              clientId: creds.clientId,
+              redirectUri,
+              state,
+              host: creds.host,
+            }),
+            state,
+          });
+        }
+        const clientId = process.env.TAH_GITHUB_CLIENT_ID?.trim();
+        const clientSecret = process.env.TAH_GITHUB_CLIENT_SECRET?.trim();
+        if (!clientId || !clientSecret) throw new HttpError(503, "GitHub OAuth is not configured");
+        oauthStates.set(state, { provider, redirectUri, expiresAt: Date.now() + 10 * 60_000 });
+        return json(res, 200, { url: buildGithubOAuthUrl({ clientId, redirectUri, state }), state });
+      }
       case "GET /api/info":
         return json(res, 200, opts.info);
       case "GET /api/events":
@@ -408,6 +575,33 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "GET /api/sessions":
         needPersist();
         return json(res, 200, await host().listSessions());
+      case "POST /api/sessions/deliver": {
+        if (!opts.persist) throw new HttpError(503, "session deliver requires persist (drop --no-persist)");
+        const body = await readBody(req);
+        await enter(optStr(body, "cwd"));
+        let text: string;
+        try {
+          text = validateDeliverText(body.text);
+        } catch (err) {
+          if (err instanceof DeliverValidationError) throw new HttpError(400, err.message);
+          throw err;
+        }
+        const toSessionId = str(body, "toSessionId");
+        const fromSessionId = host().sessionId;
+        if (isSelfDeliver(toSessionId, fromSessionId)) {
+          throw new HttpError(400, "cannot deliver to the same session");
+        }
+        const rows = await host().listSessions();
+        if (!rows.some((row) => row.id === toSessionId)) throw new HttpError(404, `no session "${toSessionId}"`);
+        const fromRow = rows.find((row) => row.id === fromSessionId);
+        enqueueDeliver(workspaces.cwd, toSessionId, {
+          fromSessionId,
+          text,
+          at: Date.now(),
+          ...(fromRow?.title ? { fromTitle: fromRow.title } : fromRow?.preview ? { fromTitle: fromRow.preview } : {}),
+        });
+        return json(res, 200, { ok: true, delivered: "queued" });
+      }
       case "POST /api/attachments": {
         const nameHeader = req.headers["x-tah-filename"];
         const mimeHeader = req.headers["x-tah-mime"];
@@ -705,6 +899,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         hub.assertIdle();
         await enter(optStr(body, "cwd"));
         await host().resume(ref);
+        emitDrainedDelivers();
         return json(res, 204);
       }
       case "POST /api/fork": {
@@ -716,7 +911,10 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         const id = optStr(body, "id");
         hub.assertIdle();
         await enter(optStr(body, "cwd"));
-        if (id !== undefined && id !== host().sessionId) await host().resume(id);
+        if (id !== undefined && id !== host().sessionId) {
+          await host().resume(id);
+          emitDrainedDelivers();
+        }
         await host().fork(turns as number | undefined);
         return json(res, 204);
       }
@@ -867,6 +1065,45 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         await host().reload();
         return json(res, 200, settingsView());
       }
+      case "POST /api/connectors/remove":
+        removeConnector(opts.home, str(await readBody(req), "id"));
+        return json(res, 204);
+      case "POST /api/connectors/token": {
+        const body = await readBody(req);
+        const provider = str(body, "provider");
+        const token = str(body, "token");
+        const idRaw = body.id;
+        const id = idRaw === undefined || idRaw === null ? undefined : str(body, "id");
+        const labelRaw = body.label;
+        const label =
+          labelRaw === undefined || labelRaw === null
+            ? undefined
+            : typeof labelRaw === "string"
+              ? labelRaw
+              : (() => {
+                  throw new HttpError(400, '"label" must be a string or null');
+                })();
+        const hostRaw = body.host;
+        const host =
+          hostRaw === undefined
+            ? undefined
+            : hostRaw === null
+              ? null
+              : typeof hostRaw === "string"
+                ? hostRaw
+                : (() => {
+                    throw new HttpError(400, '"host" must be a string or null');
+                  })();
+        const tokenInput: Parameters<typeof upsertConnectorToken>[1] = {
+          provider,
+          token,
+          ...(id ? { id } : {}),
+          ...(label ? { label } : {}),
+        };
+        if (host !== undefined) tokenInput.host = host;
+        upsertConnectorToken(opts.home, tokenInput);
+        return json(res, 200, settingsView());
+      }
       case "GET /api/settings/channels":
         return json(res, 200, channelsSettingsView(workspaces.cwd, opts.home) satisfies ChannelsSettingsView);
       case "POST /api/settings/channels": {
@@ -880,8 +1117,42 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           throw new HttpError(400, err instanceof Error ? err.message : String(err));
         }
       }
+      case "GET /api/settings/team":
+        return json(res, 200, teamSettingsView(workspaces.cwd));
+      case "POST /api/settings/team": {
+        const body = await readBody(req);
+        try {
+          const members = body && typeof body === "object" ? (body as { members?: unknown }).members : undefined;
+          return json(res, 200, saveTeamSettings(workspaces.cwd, members));
+        } catch (err) {
+          throw new HttpError(400, err instanceof Error ? err.message : String(err));
+        }
+      }
       case "GET /api/suggestions":
         return json(res, 200, { suggestions: await loadSuggestions(workspaces.cwd) });
+      case "POST /api/review/bind": {
+        const parsed = parseReviewRef(str(await readBody(req), "ref"));
+        const binding: ReviewBinding = {
+          provider: parsed.provider,
+          owner: parsed.owner,
+          repo: parsed.repo,
+          number: parsed.number,
+          url: reviewBindingUrl(parsed),
+          boundAt: Date.now(),
+          ...(parsed.provider === "gitlab" && parsed.host ? { host: parsed.host } : {}),
+        };
+        const snapshot = await reviewSnapshot(binding);
+        bindReview(workspaces.cwd, { ...binding, ...(snapshot.title ? { title: snapshot.title } : {}) });
+        return json(res, 200, snapshot);
+      }
+      case "GET /api/review": {
+        const binding = loadReviewBinding(workspaces.cwd);
+        if (!binding) throw new HttpError(404, "no review is bound");
+        return json(res, 200, await reviewSnapshot(binding));
+      }
+      case "POST /api/review/clear":
+        clearReviewBinding(workspaces.cwd);
+        return json(res, 204);
       case "GET /api/skills":
         return json(res, 200, skillsView());
       case "POST /api/skills/import": {
@@ -925,6 +1196,27 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         } finally {
           choosing = false;
         }
+      }
+      case "GET /api/room": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        return json(res, 200, room.getSnapshot());
+      }
+      case "POST /api/room/goal": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        return json(res, 200, room.setGoal(str(await readBody(req), "text")));
+      }
+      case "POST /api/room/message": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        const out = room.postUserMessage(str(await readBody(req), "text"));
+        return json(res, 200, out);
+      }
+      case "POST /api/room/step": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        return json(res, 200, await room.step());
       }
       case "GET /api/super-agent/panel": {
         const dir = opts.superAgentPanelDir;

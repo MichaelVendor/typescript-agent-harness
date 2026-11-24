@@ -2,6 +2,7 @@ import type { WorkspaceView } from "@typescript-agent-harness/cli";
 import { useEffect, useRef, useState, type MouseEvent as ClickEvent } from "react";
 import { createPortal } from "react-dom";
 import { flatSessions, label, searchSessions, shownSessions, splitMatch, type Item } from "../sidebar-view";
+import { SendToSession } from "./SendToSession";
 
 type Flag = "pinned" | "archived";
 type GroupBy = "workspace" | "flat";
@@ -148,6 +149,7 @@ export function Sidebar(props: {
   workspaces: WorkspaceView[] | undefined;
   /** Why the list is unavailable (e.g. --no-persist). */
   unavailable: string | undefined;
+  unread: Record<string, true>;
   current: string;
   busy: boolean;
   /** Why the current session is waiting on the user ("needs approval", "needs answer"), if it is. */
@@ -160,10 +162,12 @@ export function Sidebar(props: {
   onOpenProject(): void;
   onNewFolder(): void;
   onRemoveFolder(path: string): void;
+  onDeliver(from: Item, toSessionId: string, text: string): Promise<void>;
   user: string | undefined;
   onSettings(): void;
 }) {
   const [editing, setEditing] = useState<string>();
+  const [deliverFrom, setDeliverFrom] = useState<Item>();
   const [draft, setDraft] = useState("");
   const [menu, setMenu] = useState<Menu>();
   const [collapsed, setCollapsed] = useState(loadCollapsed);
@@ -292,6 +296,8 @@ export function Sidebar(props: {
                 <span className="status-dot" aria-label={waiting} />
               ) : isCurrent && props.busy ? (
                 <span className="spinner" aria-label="running" />
+              ) : props.unread[s.id] && !isCurrent ? (
+                <span className="worker-unread-dot" aria-label="未读" title="有新消息" />
               ) : null}
             </span>
             <button
@@ -423,6 +429,16 @@ export function Sidebar(props: {
             onClick={act(() => props.onFork(menu.item.session.id, menu.item.ws.path))}
           >
             Fork
+          </button>
+        </li>
+        <li>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={props.busy || Boolean(props.unavailable)}
+            onClick={act(() => setDeliverFrom(menu.item))}
+          >
+            Send to session…
           </button>
         </li>
         <li>
@@ -625,6 +641,14 @@ export function Sidebar(props: {
             document.body,
           )
         : null}
+      {deliverFrom ? (
+        <SendToSession
+          from={deliverFrom}
+          busy={props.busy}
+          onClose={() => setDeliverFrom(undefined)}
+          onSend={(toSessionId, text) => props.onDeliver(deliverFrom, toSessionId, text)}
+        />
+      ) : null}
     </aside>
   );
 }

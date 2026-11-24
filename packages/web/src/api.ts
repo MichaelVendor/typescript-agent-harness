@@ -8,6 +8,7 @@ import type {
   HostEvent,
   RecentFolder,
   ReviewPanelSnapshot,
+  ReviewSnapshot,
   ServeError,
   ServeEvent,
   ServeInfo,
@@ -16,10 +17,31 @@ import type {
   SettingsView,
   SkillsImport,
   SkillsView,
+  TeamMember,
+  TeamSettingsView,
   WorkerInfo,
   WorkspaceView,
 } from "@typescript-agent-harness/cli";
 import { fileQuery, type FileTarget } from "./preview-view";
+
+/** `GET /api/room` and room POST responses (when `tah serve --room`). */
+export type RoomSnapshot = {
+  meta: {
+    roomId: string;
+    status: string;
+    activeMember?: string;
+    goal: string;
+    members: TeamMember[];
+    createdAt: string;
+  };
+  messages: {
+    id: string;
+    at: string;
+    from: string;
+    kind: string;
+    text: string;
+  }[];
+};
 
 export class ApiError extends Error {
   constructor(
@@ -115,6 +137,11 @@ export const api = {
     (await (await call("POST", "/api/settings/active", body)).json()) as SettingsView,
   searchKey: async (body: ServeRequest["searchKey"]) =>
     (await (await call("POST", "/api/settings/search", body)).json()) as SettingsView,
+  oauthStart: async (provider: "github" | "feishu" = "github") =>
+    (await (await call("GET", `/api/connectors/oauth/start?provider=${provider}`)).json()) as { url: string; state: string },
+  removeConnector: (body: ServeRequest["removeConnector"]) => post("/api/connectors/remove", body),
+  connectorToken: async (body: ServeRequest["connectorToken"]) =>
+    (await (await call("POST", "/api/connectors/token", body)).json()) as SettingsView,
   fileStat: async (target: FileTarget) =>
     (await (await call("GET", `/api/files/stat?${fileQuery(target)}`)).json()) as FileStat,
   /** The first `limit` bytes as text. */
@@ -126,6 +153,10 @@ export const api = {
   suggestions: async () =>
     ((await (await call("GET", "/api/suggestions")).json()) as { suggestions: { label: string; send: string; detail?: string }[] })
       .suggestions,
+  review: async () => (await (await call("GET", "/api/review")).json()) as ReviewSnapshot,
+  reviewBind: async (body: ServeRequest["reviewBind"]) =>
+    (await (await call("POST", "/api/review/bind", body)).json()) as ReviewSnapshot,
+  reviewClear: () => post("/api/review/clear"),
   skills: async () => (await (await call("GET", "/api/skills")).json()) as SkillsView,
   importSkills: async (body: ServeRequest["importSkills"]) =>
     (await (await call("POST", "/api/skills/import", body)).json()) as SkillsImport,
@@ -144,6 +175,21 @@ export const api = {
   browserClose: () => post("/api/browser/close"),
   superAgentPanel: async () =>
     (await (await call("GET", "/api/super-agent/panel")).json()) as ReviewPanelSnapshot,
+  deliverSession: async (body: { toSessionId: string; text: string; cwd?: string }) =>
+    (await (await call("POST", "/api/sessions/deliver", body)).json()) as {
+      ok: true;
+      delivered: "live" | "queued";
+    },
+  teamGet: async () => (await (await call("GET", "/api/settings/team")).json()) as TeamSettingsView,
+  teamSave: async (body: { members: TeamMember[] }) =>
+    (await (await call("POST", "/api/settings/team", body)).json()) as TeamSettingsView,
+  roomGet: async () => (await (await call("GET", "/api/room")).json()) as RoomSnapshot,
+  roomGoal: async (body: { text: string }) => (await (await call("POST", "/api/room/goal", body)).json()) as RoomSnapshot,
+  roomMessage: async (body: { text: string }) => {
+    const json = (await (await call("POST", "/api/room/message", body)).json()) as RoomSnapshot | { queued: true };
+    return "queued" in json ? api.roomGet() : json;
+  },
+  roomStep: async () => (await (await call("POST", "/api/room/step")).json()) as RoomSnapshot,
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";

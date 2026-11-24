@@ -8,6 +8,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { parseArgv } from "../dist/args.js";
 import { createAttachmentStore } from "../dist/attachments/store.js";
+import { loadConnectors } from "../dist/connectors.js";
 import type { ChatHost, HostEvent, QueuedMessage, SessionEvent } from "../dist/host.js";
 import { chooseFolder, UnsupportedError } from "../dist/serve/choose.js";
 import { createServeHandler } from "../dist/serve/http.js";
@@ -222,6 +223,7 @@ async function fakeServer(
   chooseFolder: (start?: string) => Promise<string | null> = async () => null,
   connectCdp?: (port: number) => Promise<unknown>,
   superAgentPanelDir?: string,
+  oauthFetch?: typeof fetch,
 ) {
   const fake = fakeHost();
   const hub = createHub(fake.host);
@@ -254,6 +256,7 @@ async function fakeServer(
     chooseFolder,
     ...(connectCdp ? { connectCdp } : {}),
     ...(superAgentPanelDir ? { superAgentPanelDir } : {}),
+    ...(oauthFetch ? { oauthFetch } : {}),
   });
   const server = createServer(handle);
   const base = await listen(server);
@@ -356,6 +359,169 @@ test("tah serve end to end: sign in, send, stream a turn, replay it to a new tab
     late.close();
   } finally {
     await serve.stop();
+  }
+});
+
+test("GitHub OAuth start and callback exchange the code and store the account", async () => {
+  const previousId = process.env.TAH_GITHUB_CLIENT_ID;
+  const previousSecret = process.env.TAH_GITHUB_CLIENT_SECRET;
+  process.env.TAH_GITHUB_CLIENT_ID = "client-123";
+  process.env.TAH_GITHUB_CLIENT_SECRET = "secret-456";
+  let exchangeBody: Record<string, unknown> | undefined;
+  const s = await fakeServer(undefined, undefined, undefined, undefined, async (_url, init) => {
+    exchangeBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(JSON.stringify({ access_token: "gho_callback_token", scope: "repo,read:user" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  try {
+    const started = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=github");
+    assert.equal(started.status, 200);
+    const body = JSON.parse(started.body) as { url: string; state: string };
+    const authorize = new URL(body.url);
+    assert.equal(authorize.searchParams.get("state"), body.state);
+    assert.equal(authorize.searchParams.get("client_id"), "client-123");
+
+    const callback = await raw(
+      s.base,
+      "GET",
+      `/api/connectors/oauth/callback?code=callback-code&state=${encodeURIComponent(body.state)}`,
+    );
+    assert.equal(callback.status, 200);
+    assert.match(callback.body, /GitHub connected/);
+    assert.equal(exchangeBody?.code, "callback-code");
+    assert.deepEqual(loadConnectors(s.home).accounts.map(({ provider, authKind }) => ({ provider, authKind })), [
+      { provider: "github", authKind: "oauth" },
+    ]);
+    const settings = JSON.parse((await client(s.base, s.cookie).get("/api/settings")).body) as {
+      connectors: { id: string; provider: string; authKind: string }[];
+    };
+    assert.deepEqual(settings.connectors, [
+      { id: "github.oauth", provider: "github", authKind: "oauth", label: "GitHub", keyHint: "gho…oken" },
+    ]);
+
+    const replay = await raw(
+      s.base,
+      "GET",
+      `/api/connectors/oauth/callback?code=callback-code&state=${encodeURIComponent(body.state)}`,
+    );
+    assert.equal(replay.status, 400);
+    assert.equal((await client(s.base, s.cookie).post("/api/connectors/remove", { id: "github.oauth" })).status, 204);
+    assert.deepEqual(loadConnectors(s.home), { accounts: [] });
+  } finally {
+    await s.close();
+    if (previousId === undefined) delete process.env.TAH_GITHUB_CLIENT_ID;
+    else process.env.TAH_GITHUB_CLIENT_ID = previousId;
+    if (previousSecret === undefined) delete process.env.TAH_GITHUB_CLIENT_SECRET;
+    else process.env.TAH_GITHUB_CLIENT_SECRET = previousSecret;
+  }
+});
+
+test("POST /api/connectors/token upserts GitLab PAT into settings view", async () => {
+  const s = await fakeServer();
+  try {
+    const saved = await client(s.base, s.cookie).post("/api/connectors/token", {
+      id: "gitlab.pat",
+      provider: "gitlab",
+      token: "glpat-integration",
+      host: "https://git.example.com",
+    });
+    assert.equal(saved.status, 200);
+    const settings = JSON.parse(saved.body) as {
+      connectors: { id: string; provider: string; keyHint: string; host?: string }[];
+    };
+    assert.deepEqual(settings.connectors, [
+      {
+        id: "gitlab.pat",
+        provider: "gitlab",
+        authKind: "token",
+        keyHint: "glp…tion",
+        host: "https://git.example.com",
+      },
+    ]);
+    assert.equal((await client(s.base, s.cookie).post("/api/connectors/remove", { id: "gitlab.pat" })).status, 204);
+  } finally {
+    await s.close();
+  }
+});
+
+test("Feishu OAuth start returns 503 when not configured", async () => {
+  const keys = ["TAH_FEISHU_CLIENT_ID", "TAH_FEISHU_CLIENT_SECRET", "FEISHU_APP_ID", "FEISHU_APP_SECRET"] as const;
+  const saved: Record<string, string | undefined> = {};
+  for (const k of keys) {
+    saved[k] = process.env[k];
+    delete process.env[k];
+  }
+  const s = await fakeServer();
+  try {
+    const started = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=feishu");
+    assert.equal(started.status, 503);
+    const bad = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=slack");
+    assert.equal(bad.status, 400);
+  } finally {
+    await s.close();
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  }
+});
+
+test("Feishu OAuth start and callback exchange the code and store the account", async () => {
+  const envKeys = ["TAH_FEISHU_CLIENT_ID", "TAH_FEISHU_CLIENT_SECRET", "FEISHU_APP_ID", "FEISHU_APP_SECRET"] as const;
+  const saved: Record<string, string | undefined> = {};
+  for (const k of envKeys) {
+    saved[k] = process.env[k];
+    delete process.env[k];
+  }
+  process.env.FEISHU_APP_ID = "cli_feishu";
+  process.env.FEISHU_APP_SECRET = "secret-feishu";
+  const now = 1_700_000_000_000;
+  const originalNow = Date.now;
+  Date.now = () => now;
+  let exchangeBody: Record<string, unknown> | undefined;
+  const s = await fakeServer(undefined, undefined, undefined, undefined, async (_url, init) => {
+    exchangeBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return new Response(
+      JSON.stringify({
+        access_token: "u-at",
+        refresh_token: "u-rt",
+        expires_in: 7200,
+        scope: "contact:user.base offline_access",
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  });
+  try {
+    const started = await client(s.base, s.cookie).get("/api/connectors/oauth/start?provider=feishu");
+    assert.equal(started.status, 200);
+    const body = JSON.parse(started.body) as { url: string; state: string };
+    const authorize = new URL(body.url);
+    assert.equal(authorize.searchParams.get("state"), body.state);
+    assert.equal(authorize.searchParams.get("client_id"), "cli_feishu");
+    assert.equal(authorize.searchParams.get("response_type"), "code");
+
+    const callback = await raw(
+      s.base,
+      "GET",
+      `/api/connectors/oauth/callback?code=auth-code&state=${encodeURIComponent(body.state)}`,
+    );
+    assert.equal(callback.status, 200);
+    assert.match(callback.body, /tah:feishu-connected/);
+    assert.equal(exchangeBody?.grant_type, "authorization_code");
+    assert.equal(exchangeBody?.code, "auth-code");
+    assert.deepEqual(loadConnectors(s.home).accounts.map(({ id, provider, authKind, label }) => ({ id, provider, authKind, label })), [
+      { id: "feishu.oauth", provider: "feishu", authKind: "oauth", label: "飞书" },
+    ]);
+    assert.equal((await client(s.base, s.cookie).post("/api/connectors/remove", { id: "feishu.oauth" })).status, 204);
+  } finally {
+    Date.now = originalNow;
+    await s.close();
+    for (const k of envKeys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
   }
 });
 

@@ -4,6 +4,7 @@ import type { HostEvent } from "../host.js";
 import type { PermissionMode } from "../permission-mode.js";
 import type { SessionRow } from "../sessions.js";
 import type { WorkerInfo } from "./orchestrator.js";
+import type { ReviewSnapshot } from "./review.js";
 
 export type { PermissionMode };
 export type { WorkerInfo };
@@ -25,6 +26,8 @@ export type ServeInfo = {
   superAgentPanel?: true;
   /** Present when `tah serve --super-agent` — composer send goes to embedded Super-agent. */
   superAgentChat?: true;
+  /** Present when `tah serve --room` — UI may use `/api/room`. */
+  room?: true;
 };
 
 /** `GET /api/super-agent/panel` body (read-only Super-agent snapshot). */
@@ -63,6 +66,9 @@ export type ServeRequest = {
   activeModel: { id: string | null };
   /** Tavily API key; `null` removes it. */
   searchKey: { apiKey: string | null };
+  removeConnector: { id: string };
+  /** PAT-style connector (e.g. GitLab MR review). */
+  connectorToken: { id?: string; provider: string; token: string; label?: string; host?: string | null };
   /** IM channels for the open folder (partial patch). */
   channels: import("../channels-settings.js").ChannelsSettingsPatch;
   /** A skill folder, or a folder of skill folders (e.g. `~/.cursor/skills`), copied into `~/.tah/skills`. */
@@ -74,6 +80,7 @@ export type ServeRequest = {
   addSkills: { source: string; project?: boolean; names?: string[] };
   /** Only skills in `~/.tah/skills` can be removed here. */
   removeSkill: { name: string };
+  reviewBind: { ref: string };
   /** System folder dialog starting at `start`; answers `{ path: string | null }` (null = cancelled), 501 when unavailable. */
   choose: { start?: string };
   /** `url`: http(s) (not tah itself), `about:blank`, or a `/preview/…` address; omitted = just start the browser. */
@@ -88,6 +95,7 @@ export type ServeRequest = {
 };
 
 export type { AttachmentMeta };
+export type { ReviewSnapshot };
 
 /** Body of every 4xx response. */
 export type ServeError = { error: string };
@@ -106,6 +114,9 @@ export type WorkspaceView = {
 /** `GET /api/settings` / `GET|POST /api/settings/channels` — IM toggles + key hints (never raw tokens). */
 export type { ChannelsSettingsView } from "../channels-settings.js";
 
+/** `GET|POST /api/settings/team` — `tah.team.json` roster. */
+export type { TeamMember, TeamSettingsView } from "../team-settings.js";
+
 /** `GET /api/settings`; API keys only ever leave the server as `keyHint`. `baseURL` is the effective one. */
 export type SettingsView = {
   user: string;
@@ -117,6 +128,8 @@ export type SettingsView = {
   search: { source: "settings" | "env"; keyHint: string } | null;
   /** Current folder's IM channels (`tah.channels.json` + secrets in ~/.tah/settings.json). */
   channels: import("../channels-settings.js").ChannelsSettingsView;
+  /** Saved connector accounts; only secret hints leave the server. */
+  connectors: import("../connectors.js").ConnectorAccount[];
 };
 
 /** `GET /api/skills`: what the open folder loads. `home` = `~/.tah/skills` (every folder); `folder` = inside the open folder. */

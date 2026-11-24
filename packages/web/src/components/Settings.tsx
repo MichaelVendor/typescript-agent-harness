@@ -1,10 +1,11 @@
 import type { SettingsView } from "@typescript-agent-harness/cli";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
 import { TrashIcon } from "./icons";
 import { settingsMessages as t } from "../i18n/settings.en";
 import { ChannelsSettings } from "./ChannelsSettings";
 import { SkillsSettings } from "./SkillsSettings";
+import { TeamSettings } from "./TeamSettings";
 
 const text = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -73,12 +74,174 @@ export function Settings(props: {
             <WebSettings busy={props.busy} view={props.view} onChange={props.onChange} />
           ) : section === "channels" ? (
             <ChannelsSettings busy={props.busy} view={props.view} onChange={props.onChange} />
+          ) : section === "integrations" ? (
+            <IntegrationsSettings view={props.view} onChange={props.onChange} />
+          ) : section === "team" ? (
+            <TeamSettings busy={props.busy} />
           ) : (
             <SkillsSettings busy={props.busy} />
           )}
         </section>
       </div>
     </div>
+  );
+}
+
+function IntegrationsSettings(props: { view: SettingsView; onChange(view: SettingsView): void }) {
+  const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
+  const [gitlabToken, setGitlabToken] = useState("");
+  const [gitlabHost, setGitlabHost] = useState("");
+  const github = props.view.connectors.find((account) => account.id === "github.oauth");
+  const feishu = props.view.connectors.find((account) => account.id === "feishu.oauth");
+  const gitlab = props.view.connectors.find((account) => account.id === "gitlab.pat");
+
+  useEffect(() => {
+    const connected = (event: MessageEvent) => {
+      if (event.data !== "tah:github-connected" && event.data !== "tah:feishu-connected") return;
+      void api.settings().then(props.onChange, (err: unknown) => setError(text(err)));
+    };
+    window.addEventListener("message", connected);
+    return () => window.removeEventListener("message", connected);
+  }, [props.onChange]);
+
+  const connect = async (provider: "github" | "feishu") => {
+    setPending(true);
+    setError(undefined);
+    try {
+      const { url } = await api.oauthStart(provider);
+      const popup = provider === "github" ? "tah-github-oauth" : "tah-feishu-oauth";
+      const label = provider === "github" ? "GitHub" : "Feishu";
+      if (!window.open(url, popup, "popup,width=720,height=760")) throw new Error(`Allow popups to connect ${label}.`);
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const disconnect = async (id: "github.oauth" | "feishu.oauth" | "gitlab.pat") => {
+    setPending(true);
+    setError(undefined);
+    try {
+      await api.removeConnector({ id });
+      props.onChange(await api.settings());
+      if (id === "gitlab.pat") {
+        setGitlabToken("");
+        setGitlabHost("");
+      }
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const saveGitlab = async (e: FormEvent) => {
+    e.preventDefault();
+    const token = gitlabToken.trim();
+    if (!token) return;
+    setPending(true);
+    setError(undefined);
+    try {
+      const host = gitlabHost.trim();
+      props.onChange(
+        await api.connectorToken({
+          id: "gitlab.pat",
+          provider: "gitlab",
+          token,
+          ...(host || gitlab?.host ? { host: host || null } : {}),
+        }),
+      );
+      setGitlabToken("");
+    } catch (err) {
+      setError(text(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <>
+      <p className="settings-desc">{t.integrations.desc}</p>
+      <ul className="model-cards">
+        <li className={github ? "model-card in-use" : "model-card"}>
+          <div className="model-main">
+            <div className="model-name">GitHub</div>
+            <div className="model-meta">{github ? `Connected · ${github.keyHint}` : "Not connected"}</div>
+          </div>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => void (github ? disconnect("github.oauth") : connect("github"))}
+          >
+            {github ? "Disconnect" : "Connect GitHub"}
+          </button>
+        </li>
+        <li className={feishu ? "model-card in-use" : "model-card"}>
+          <div className="model-main">
+            <div className="model-name">Feishu / Lark</div>
+            <div className="model-meta">{feishu ? `Connected · ${feishu.keyHint}` : "Not connected"}</div>
+          </div>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => void (feishu ? disconnect("feishu.oauth") : connect("feishu"))}
+          >
+            {feishu ? "Disconnect" : "Connect Feishu"}
+          </button>
+        </li>
+        <li className={gitlab ? "model-card in-use" : "model-card"}>
+          <div className="model-main">
+            <div className="model-name">GitLab</div>
+            <div className="model-meta">
+              {gitlab
+                ? `PAT · ${gitlab.keyHint}${gitlab.host ? ` · ${gitlab.host}` : ""}`
+                : "No PAT (MR review)"}
+            </div>
+          </div>
+          {gitlab ? (
+            <button type="button" disabled={pending} onClick={() => void disconnect("gitlab.pat")}>
+              Remove PAT
+            </button>
+          ) : null}
+        </li>
+      </ul>
+      <form className="model-form" onSubmit={(e) => void saveGitlab(e)}>
+        <label>
+          <span>{gitlab ? "Replace GitLab PAT" : "GitLab PAT"}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            value={gitlabToken}
+            placeholder="glpat-…"
+            onChange={(e) => setGitlabToken(e.target.value)}
+          />
+          <small>{t.integrations.gitlabPat}</small>
+        </label>
+        <label>
+          <span>GitLab host (optional)</span>
+          <input
+            type="text"
+            autoComplete="off"
+            value={gitlabHost}
+            placeholder={gitlab?.host ?? "https://gitlab.com"}
+            onChange={(e) => setGitlabHost(e.target.value)}
+          />
+          <small>Default https://gitlab.com — omit when MR URLs include the host.</small>
+        </label>
+        <div className="card-actions">
+          <span className="spacer" />
+          <button type="submit" className="primary" disabled={pending || !gitlabToken.trim()}>
+            Save PAT
+          </button>
+        </div>
+      </form>
+      {error ? <div className="modal-error">{error}</div> : null}
+      <div className="settings-note">{t.integrations.githubEnv}</div>
+      <div className="settings-note">{t.integrations.feishuEnv}</div>
+      <div className="settings-note">{t.integrations.gitlabEnv}</div>
+    </>
   );
 }
 

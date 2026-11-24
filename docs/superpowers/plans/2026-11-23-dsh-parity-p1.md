@@ -194,10 +194,12 @@ export async function fetchReviewSnapshot(
 
 ## Phase E — 文档
 
-- [ ] Spec 状态 → ✅（各 Phase 绿后）  
-- [ ] `CHANGELOG` Unreleased / 发版时条目  
-- [ ] `docs/guide/status.md` 一行  
-- [ ] Commit — `docs: DSH 对照 P1 已实现说明`
+- [x] Spec 状态 → ✅（各 Phase 绿后）  
+- [x] `CHANGELOG` Unreleased / 发版时条目  
+- [x] `docs/guide/status.md` 一行  
+- [x] Commit — `docs: DSH 对照 P1 已实现说明`
+
+**Note:** B2（侧栏 session 未读）跳过；A4 PAT 真源由 C3（oauth→PAT）覆盖。
 
 ---
 

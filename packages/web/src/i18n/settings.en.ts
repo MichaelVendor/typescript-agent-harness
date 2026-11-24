@@ -9,6 +9,16 @@ export const settingsEn = {
     web: "Web search",
     skills: "Skills",
     channels: "Messaging",
+    integrations: "Integrations",
+    team: "Team",
+  },
+  integrations: {
+    desc: "Connect accounts through the OAuth apps configured for this local tah server.",
+    githubEnv: "Requires TAH_GITHUB_CLIENT_ID and TAH_GITHUB_CLIENT_SECRET in the serve environment.",
+    feishuEnv:
+      "Requires TAH_FEISHU_CLIENT_ID and TAH_FEISHU_CLIENT_SECRET (or FEISHU_APP_ID / FEISHU_APP_SECRET) in the serve environment.",
+    gitlabPat: "GitLab personal access token for MR review in the right rail (read_api scope). Optional host for self-managed GitLab.",
+    gitlabEnv: "GITLAB_TOKEN and GITLAB_HOST in the serve environment still work if no PAT is saved here.",
   },
   channels: {
     introBeforeSecrets: "Turn on a channel and paste bot credentials. Secrets stay on this computer in ",
@@ -44,6 +54,21 @@ export const settingsEn = {
       appId: "App ID",
       appSecret: "App Secret",
       verificationToken: "Verification token",
+    },
+    dingtalk: {
+      title: "DingTalk",
+      hint: "Enterprise robot / callback app from the DingTalk Open Platform. Local hooks at /hooks/dingtalk.",
+      appKey: "App key",
+      appSecret: "App secret",
+      verificationToken: "Verification token",
+    },
+    wecom: {
+      title: "WeCom",
+      hint: "Enterprise WeChat self-built app; callback URL at /hooks/wecom (URL verification uses token + corp secret).",
+      corpId: "Corp ID",
+      agentId: "Agent ID",
+      secret: "Secret",
+      token: "Token",
     },
   },
 } as const;

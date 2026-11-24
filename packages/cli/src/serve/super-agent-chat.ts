@@ -5,6 +5,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  createDingTalkAdapter,
+  createWeComAdapter,
   createFeishuAdapter,
   createMockChannel,
   createSlackAdapter,
@@ -61,6 +63,31 @@ function buildConfigAdapters(cwd: string, homeDir?: string): ChannelAdapter[] {
         appId: cfg.feishu.appId,
         appSecret: cfg.feishu.appSecret,
         verificationToken: cfg.feishu.verificationToken,
+      }),
+    );
+  }
+  if (cfg.dingtalk.enabled) {
+    if (!cfg.dingtalk.verificationToken) {
+      throw new Error("DingTalk is enabled but verification token is missing");
+    }
+    adapters.push(
+      createDingTalkAdapter({
+        verificationToken: cfg.dingtalk.verificationToken,
+        ...(cfg.dingtalk.appKey ? { appKey: cfg.dingtalk.appKey } : {}),
+        ...(cfg.dingtalk.appSecret ? { appSecret: cfg.dingtalk.appSecret } : {}),
+      }),
+    );
+  }
+  if (cfg.wecom.enabled) {
+    if (!cfg.wecom.corpId || !cfg.wecom.agentId || !cfg.wecom.secret || !cfg.wecom.token) {
+      throw new Error("WeCom is enabled but credentials are incomplete");
+    }
+    adapters.push(
+      createWeComAdapter({
+        corpId: cfg.wecom.corpId,
+        agentId: cfg.wecom.agentId,
+        secret: cfg.wecom.secret,
+        token: cfg.wecom.token,
       }),
     );
   }

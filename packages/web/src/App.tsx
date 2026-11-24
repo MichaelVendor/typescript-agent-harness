@@ -1,6 +1,6 @@
-import type { HostEvent, ServeInfo, SettingsView, WorkerInfo, WorkspaceView } from "@typescript-agent-harness/cli";
+import type { HostEvent, ReviewSnapshot, ServeInfo, SettingsView, WorkerInfo, WorkspaceView } from "@typescript-agent-harness/cli";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { api, connect, type Connection } from "./api";
+import { api, ApiError, connect, type Connection } from "./api";
 import { agentBrowsing, opensBrowser } from "./browser-view";
 import { ApprovalCard } from "./components/ApprovalCard";
 import { QuestionCard } from "./components/QuestionCard";
@@ -11,6 +11,9 @@ import { QueueList } from "./components/QueueList";
 import { FilePreview } from "./components/FilePreview";
 import { TodoPanel } from "./components/TodoPanel";
 import { ReviewTicketsPanel, useSuperAgentPanel } from "./components/ReviewTicketsPanel";
+import { TimelineView } from "./components/TimelineView";
+import { RoomView } from "./components/RoomView";
+import { ReviewPane } from "./components/ReviewPane";
 import { Messages } from "./components/Messages";
 import { ModelPicker } from "./components/ModelPicker";
 import { NewFolder } from "./components/NewFolder";
@@ -23,6 +26,7 @@ import { contextPercent } from "./context-usage";
 import { fileChanges } from "./diff-view";
 import { fileQuery, touchesFiles, type FileTarget } from "./preview-view";
 import { applyEvent, initialState, type Action, type Attention, type Entry } from "./state";
+import { clearUnread, loadUnread, markUnread } from "./unread";
 
 function workerLabel(w: WorkerInfo): string {
   if (w.worktree?.name) return w.worktree.name;
@@ -70,22 +74,28 @@ function SessionRail(props: {
   onCompact: (() => void) | undefined;
   /** When true, show read-only Super-agent ticket card (polls separately). */
   superAgentPanel?: boolean;
+  superAgentPanelState: ReturnType<typeof useSuperAgentPanel>;
+  onSelectTicket?: (id: string) => void;
   workers: WorkerInfo[];
   focusId: string;
   attention: Attention[];
   onFocusWorker(id: string): void;
   onRemoveWorker(id: string): void;
   onParallel: (() => void) | undefined;
+  unread: Record<string, true>;
   /** Bumps when turn/approval/focus changes so SessionStatus refetches. */
   statusKey: string | number;
+  review: ReviewSnapshot | undefined;
+  onReviewChange(review?: ReviewSnapshot): void;
 }) {
   const tokens = props.tokens;
   const used = tokens ? tokens.promptTokens + tokens.completionTokens : 0;
-  const panel = useSuperAgentPanel(props.superAgentPanel === true);
+  const { panel } = props.superAgentPanelState;
   const attentionOf = (id: string) => props.attention.find((a) => a.workerId === id);
   return (
     <aside className="session-rail">
       <SessionStatus refreshKey={props.statusKey} />
+      <ReviewPane review={props.review} onChange={props.onReviewChange} />
       {props.workers.length > 0 ? (
         <div className="rail-card">
           <h2>Workers</h2>
@@ -101,6 +111,9 @@ function SessionRail(props: {
                     title={w.cwd}
                     onClick={() => props.onFocusWorker(w.id)}
                   >
+                    {props.unread[w.id] && !focused ? (
+                      <span className="worker-unread-dot" aria-label="未读" title="有新活动" />
+                    ) : null}
                     <span className="worker-name">{workerLabel(w)}</span>
                     {w.pendingWorktree ? (
                       <span className="worker-chip pending" title="首条消息后再创建 worktree">
@@ -178,7 +191,9 @@ function SessionRail(props: {
         <h2>正在跑</h2>
         {props.running.length ? props.running.join(" · ") : props.thinking ? "思考中" : "空闲"}
       </div>
-      {props.superAgentPanel ? <ReviewTicketsPanel panel={panel} /> : null}
+      {props.superAgentPanel ? (
+        <ReviewTicketsPanel panel={panel} onSelectTicket={props.onSelectTicket} />
+      ) : null}
     </aside>
   );
 }
@@ -192,6 +207,7 @@ export function App() {
   const [sessionsError, setSessionsError] = useState<string>();
   const [dialog, setDialog] = useState<"open" | "new" | "settings">();
   const [settings, setSettings] = useState<SettingsView>();
+  const [review, setReview] = useState<ReviewSnapshot>();
   const [preview, setPreview] = useState<FileTarget>();
   const [previewVersion, setPreviewVersion] = useState(0);
   const closePreview = useCallback(() => setPreview(undefined), []);
@@ -200,6 +216,12 @@ export function App() {
   const [view, setView] = useState<"file" | "browser" | "diff">("file");
   const [mode, setMode] = useState<Mode>("manual");
   const [expandTools, setExpandTools] = useState(false);
+  const [mainView, setMainView] = useState<"chat" | "timeline" | "room">("chat");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const superAgentEnabled = info?.superAgentPanel === true;
+  const roomEnabled = info?.room === true;
+  const mainViewTabs = roomEnabled || superAgentEnabled;
+  const superAgentPanelState = useSuperAgentPanel(superAgentEnabled);
   const [diffOpen, setDiffOpen] = useState(false);
   const [diffFocus, setDiffFocus] = useState<string>();
   const openFile = useCallback((target: FileTarget) => {
@@ -225,6 +247,44 @@ export function App() {
     });
   }, []);
 
+  const tahOrigin = typeof location !== "undefined" ? location.origin : "";
+  const [unreadTick, setUnreadTick] = useState(0);
+  const unread = useMemo(() => loadUnread(tahOrigin), [tahOrigin, unreadTick]);
+  const bumpUnread = useCallback(() => setUnreadTick((n) => n + 1), []);
+  const focusIdRef = useRef(state.focusId);
+  const workersBusyRef = useRef<Map<string, boolean>>(new Map());
+  useEffect(() => {
+    focusIdRef.current = state.focusId;
+  }, [state.focusId]);
+
+  const applyUnreadFromEvent = useCallback(
+    (event: Action) => {
+      const focus = focusIdRef.current;
+      let touched = false;
+      if (event.type === "attention" && event.workerId !== focus) {
+        markUnread(tahOrigin, event.workerId);
+        touched = true;
+      } else if (event.type === "turn.end") {
+        const wid = "workerId" in event && typeof event.workerId === "string" ? event.workerId : undefined;
+        if (wid && wid !== focus) {
+          markUnread(tahOrigin, wid);
+          touched = true;
+        }
+      } else if (event.type === "workers") {
+        clearUnread(tahOrigin, event.focusId);
+        touched = true;
+        for (const w of event.workers) {
+          if (w.id !== event.focusId && workersBusyRef.current.get(w.id) === true && !w.busy) {
+            markUnread(tahOrigin, w.id);
+          }
+          workersBusyRef.current.set(w.id, w.busy);
+        }
+      }
+      if (touched) bumpUnread();
+    },
+    [tahOrigin, bumpUnread],
+  );
+
   useEffect(() => {
     let stop = () => {};
     let cancelled = false;
@@ -240,6 +300,7 @@ export function App() {
           api.settings().then(setSettings, () => {});
         },
         onEvent(event) {
+          applyUnreadFromEvent(event as Action);
           enqueue(event as Action);
           if (isHostEvent(event as Action) && touchesFiles(event as HostEvent)) setPreviewVersion((v) => v + 1);
           if (isHostEvent(event as Action) && opensBrowser(event as HostEvent)) showBrowser();
@@ -251,7 +312,7 @@ export function App() {
       cancelled = true;
       stop();
     };
-  }, [enqueue, showBrowser]);
+  }, [enqueue, showBrowser, applyUnreadFromEvent]);
 
   const refresh = useCallback(
     () =>
@@ -276,6 +337,12 @@ export function App() {
     setDiffFocus(undefined);
     setExpandTools(false);
   }, [state.sessionId]);
+
+  useEffect(() => {
+    if (!state.sessionId) return;
+    clearUnread(tahOrigin, state.sessionId);
+    bumpUnread();
+  }, [state.sessionId, tahOrigin, bumpUnread]);
 
   const openDiff = useCallback((path?: string) => {
     setDiffFocus(path);
@@ -321,6 +388,23 @@ export function App() {
   useEffect(() => {
     if (connection !== "open") return;
     let cancelled = false;
+    setReview(undefined);
+    void api.review().then(
+      (snapshot) => {
+        if (!cancelled) setReview(snapshot);
+      },
+      (err: unknown) => {
+        if (!cancelled && err instanceof ApiError && err.status === 404) setReview(undefined);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, activePath]);
+
+  useEffect(() => {
+    if (connection !== "open") return;
+    let cancelled = false;
     api.browserState().then(
       (s) => {
         if (!cancelled) setBrowserAvailable(s.available);
@@ -341,6 +425,15 @@ export function App() {
 
   const run = (pending: Promise<unknown>) =>
     pending.catch((err: unknown) => enqueue({ type: "local.error", text: err instanceof Error ? err.message : String(err) }));
+
+  const focusWorker = useCallback(
+    (id: string) => {
+      clearUnread(tahOrigin, id);
+      bumpUnread();
+      run(api.workersFocus({ id }));
+    },
+    [tahOrigin, bumpUnread, run],
+  );
 
   const withWorker = <T extends Record<string, unknown>>(body: T): T & { workerId?: string } =>
     state.focusId ? { ...body, workerId: state.focusId } : body;
@@ -413,12 +506,22 @@ export function App() {
       <Sidebar
         workspaces={workspaces}
         unavailable={sessionsError}
+        unread={unread}
         current={state.sessionId}
         busy={state.busy}
         waiting={state.approval ? "needs approval" : state.question ? "needs answer" : undefined}
         onNew={(cwd) => run(api.reset(cwd ? { cwd } : {}))}
         onFork={(id, cwd) => run(api.fork({ id, ...(cwd ? { cwd } : {}) }))}
-        onPick={(id, cwd) => run(api.resume({ ref: id, cwd }))}
+        onPick={(id, cwd) => {
+          clearUnread(tahOrigin, id);
+          bumpUnread();
+          run(api.resume({ ref: id, cwd }));
+        }}
+        onDeliver={async (from, toSessionId, text) => {
+          await api.deliverSession({ toSessionId, text, cwd: from.ws.path });
+          markUnread(tahOrigin, toSessionId);
+          bumpUnread();
+        }}
         onRename={async (id, title, cwd) => {
           await api.rename({ id, title, cwd });
           await refresh();
@@ -442,6 +545,27 @@ export function App() {
           <span className="session-name">
             {sessionTitle(state.entries)}
           </span>
+          {mainViewTabs ? (
+            <div className="panes main-view-switch">
+              <button type="button" className={mainView === "chat" ? "on" : ""} onClick={() => setMainView("chat")}>
+                Chat
+              </button>
+              {roomEnabled ? (
+                <button type="button" className={mainView === "room" ? "on" : ""} onClick={() => setMainView("room")}>
+                  Room
+                </button>
+              ) : null}
+              {superAgentEnabled ? (
+                <button
+                  type="button"
+                  className={mainView === "timeline" ? "on" : ""}
+                  onClick={() => setMainView("timeline")}
+                >
+                  Timeline
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="panes">
             <button
               type="button"
@@ -476,71 +600,90 @@ export function App() {
         {connection === "reconnecting" ? <div className="banner">Reconnecting…</div> : null}
         {attentionBanner ? (
           <div className="banner attention">
-            <button type="button" className="link" onClick={() => run(api.workersFocus({ id: attentionBanner.workerId }))}>
+            <button type="button" className="link" onClick={() => focusWorker(attentionBanner.workerId)}>
               {attentionBanner.kind === "approval" ? "审批" : "提问"} · {attentionBanner.summary}
             </button>
             <span> — 点击切换焦点</span>
           </div>
         ) : null}
-        <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse} expandTools={expandTools}>
-          {state.retry ? (
-            <div className="thinking retry">
-              <span className="spinner" /> {state.retry}
-            </div>
-          ) : thinking ? (
-            <div className="thinking">
-              <span className="spinner" /> thinking…
-            </div>
-          ) : null}
-          {state.approval ? (
-            <ApprovalCard
-              approval={state.approval}
-              disabled={answerLocked(state.approval.workerId)}
-              onAnswer={(answer) =>
-                state.approval && run(api.answer(withWorker({ id: state.approval.id, answer })))
-              }
+        {mainView === "timeline" && superAgentEnabled ? (
+          <TimelineView
+            panel={superAgentPanelState.panel}
+            error={superAgentPanelState.error}
+            highlightId={highlightId}
+            onHighlightConsumed={() => setHighlightId(null)}
+          />
+        ) : mainView === "room" && roomEnabled ? (
+          <RoomView disabled={connection !== "open"} />
+        ) : (
+          <>
+            <Messages entries={state.entries} busy={state.busy} onOpen={openFile} onBrowse={browse} expandTools={expandTools}>
+              {state.retry ? (
+                <div className="thinking retry">
+                  <span className="spinner" /> {state.retry}
+                </div>
+              ) : thinking ? (
+                <div className="thinking">
+                  <span className="spinner" /> thinking…
+                </div>
+              ) : null}
+              {state.approval ? (
+                <ApprovalCard
+                  approval={state.approval}
+                  disabled={answerLocked(state.approval.workerId)}
+                  onAnswer={(answer) =>
+                    state.approval && run(api.answer(withWorker({ id: state.approval.id, answer })))
+                  }
+                />
+              ) : null}
+              {state.question ? (
+                <QuestionCard
+                  key={state.question.id}
+                  question={state.question}
+                  disabled={answerLocked(state.question.workerId)}
+                  onAnswer={(answers) =>
+                    state.question && run(api.question(withWorker({ id: state.question.id, answers })))
+                  }
+                  onSkip={() =>
+                    state.question && run(api.question(withWorker({ id: state.question.id, skip: true as const })))
+                  }
+                />
+              ) : null}
+              {state.stepLimit && !state.busy ? (
+                <div className="card">
+                  <div className="card-title">
+                    Step limit reached{info?.maxSteps ? ` (${info.maxSteps} rounds this turn)` : ""}.
+                  </div>
+                  <div className="card-actions">
+                    <button
+                      className="primary"
+                      onClick={() => {
+                        enqueue({ type: "local.continue" });
+                        run(api.continueTurn(withWorker({})));
+                      }}
+                    >
+                      Continue
+                    </button>
+                    <button onClick={() => enqueue({ type: "local.dismiss" })}>Stop</button>
+                  </div>
+                </div>
+              ) : null}
+            </Messages>
+            <TodoPanel todos={state.todos} />
+            <QueueList
+              items={state.queue}
+              busy={state.busy}
+              onSend={(id) => run(api.queue(withWorker({ id, send: true as const })))}
+              onRemove={(id) => run(api.queue(withWorker({ id, remove: true as const })))}
             />
-          ) : null}
-          {state.question ? (
-            <QuestionCard
-              key={state.question.id}
-              question={state.question}
-              disabled={answerLocked(state.question.workerId)}
-              onAnswer={(answers) =>
-                state.question && run(api.question(withWorker({ id: state.question.id, answers })))
-              }
-              onSkip={() =>
-                state.question && run(api.question(withWorker({ id: state.question.id, skip: true as const })))
-              }
-            />
-          ) : null}
-          {state.stepLimit && !state.busy ? (
-            <div className="card">
-              <div className="card-title">
-                Step limit reached{info?.maxSteps ? ` (${info.maxSteps} rounds this turn)` : ""}.
+            {review ? (
+              <div className="review-notice">
+                Reviewing {review.owner}/{review.repo}#{review.number}
               </div>
-              <div className="card-actions">
-                <button
-                  className="primary"
-                  onClick={() => {
-                    enqueue({ type: "local.continue" });
-                    run(api.continueTurn(withWorker({})));
-                  }}
-                >
-                  Continue
-                </button>
-                <button onClick={() => enqueue({ type: "local.dismiss" })}>Stop</button>
-              </div>
-            </div>
-          ) : null}
-        </Messages>
-        <TodoPanel todos={state.todos} />
-        <QueueList
-          items={state.queue}
-          busy={state.busy}
-          onSend={(id) => run(api.queue(withWorker({ id, send: true as const })))}
-          onRemove={(id) => run(api.queue(withWorker({ id, remove: true as const })))}
-        />
+            ) : null}
+          </>
+        )}
+        {(mainView === "chat" || !mainViewTabs) && mainView !== "room" ? (
         <Composer
           cwd={activePath}
           mode={
@@ -580,8 +723,9 @@ export function App() {
             onManage={() => setDialog("settings")}
           />
         </Composer>
+        ) : null}
       </main>
-      {side ? null : (
+      {side || mainView === "room" ? null : (
         <SessionRail
           tokens={state.tokens}
           percent={contextPercent(state.tokens, activeModelName)}
@@ -599,11 +743,17 @@ export function App() {
                 }
               : undefined
           }
-          superAgentPanel={info?.superAgentPanel === true}
+          superAgentPanel={superAgentEnabled}
+          superAgentPanelState={superAgentPanelState}
+          onSelectTicket={(id) => {
+            setMainView("timeline");
+            setHighlightId(id);
+          }}
           workers={state.workers}
           focusId={state.focusId}
           attention={state.attention}
-          onFocusWorker={(id) => run(api.workersFocus({ id }))}
+          onFocusWorker={focusWorker}
+          unread={unread}
           onRemoveWorker={(id) => run(api.workersRemove({ id }))}
           onParallel={
             connection === "open" && state.workers.length > 0
@@ -611,6 +761,8 @@ export function App() {
               : undefined
           }
           statusKey={`${state.turnsEnded}:${state.busy}:${state.approval?.id ?? ""}:${state.question?.id ?? ""}:${state.focusId}:${state.workers.length}`}
+          review={review}
+          onReviewChange={setReview}
         />
       )}
       {side ? (
