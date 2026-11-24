@@ -2,37 +2,56 @@
 
 [English](./README.md) | 中文
 
-**文档站：** [MichaelVendor.github.io/typescript-agent-harness](https://MichaelVendor.github.io/typescript-agent-harness/) · 本地：`pnpm docs:dev`
+**文档站：** https://MichaelVendor.github.io/typescript-agent-harness/ · 本地：`pnpm docs:dev`
 
-TypeScript **Agent Runtime** —— 设计思路接近 DeepSeek Harness 的核心理念：
+TypeScript **Agent Runtime / SDK** —— 按约定搭你自己的 Agent。
 
 > **Everything is a capability.（一切皆能力）**
 
-这不是把 LLM / tools / memory 塞进一个 `Agent` 类的 Agent SDK。
-而是一个 Runtime：用插件挂载能力，通过共享 Context 接线，再用 Event Bus 观察执行过程。
+## 搭建 Agent（从这里开始）
 
-```
-Application（Coding / Research / Personal Agent）
-        │
-  Agent Runtime
-        │
- ┌──────┼──────┐
- │      │      │
-Agent  Plugin  EventBus
- │      │      │
- └──────┼──────┘
-        │
-   LLM / Tools / Storage  （全部是插件）
+不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具，`skills/*/SKILL.md` 一个文件一个技能。
+
+```sh
+mkdir my-agent && cd my-agent
+npx @typescript-agent-harness/cli init
+npx tah --mock chat
 ```
 
-## v0.26（当前）
+然后：改 `AGENTS.md` → 加 `tools/*.ts`（`defineTool`）→ 可选 `skills/*/SKILL.md` → 继续聊（`/` 调技能）。
 
-从 Runtime 到 CLI：`tah chat` 是终端 UI，`tah serve` 是本机网页工作台。先用 npm：
+**一小时清单：** init 能跑 · 改 tool 保存即生效 · `/hello`（或你的技能）能调 · mock 一轮能证明「这是我的 agent」。
+
+完整说明：[快速开始](./docs/guide/getting-started.md) · [CLI · 约定式项目](./docs/guide/cli.md)
+
+## 嵌入 Runtime
+
+插件只通过 Context 通信（进阶）：
+
+```ts
+const runtime = new Runtime();
+runtime.use(llmPlugin({ provider: "mock" }));
+runtime.use(toolsPlugin({ tools: [listFilesTool(process.cwd())] }));
+runtime.use(agentPlugin());
+await runtime.start();
+const session = await runtime.get(SESSION).create();
+await session.run("列出当前目录并总结");
+```
+
+见 [设计哲学](./docs/guide/philosophy.md) · [整体架构](./docs/guide/architecture.md) · [API](./docs/api/core.md)
+
+## 高级宿主（可选）
+
+本机 TUI/网页、桌面端、无头 host、内网控制面、Super-agent / IM —— 搭 Agent 不依赖这些：
+
+- `tah chat` / `tah serve` — [CLI](./docs/guide/cli.md)
+- 索引：[Hosts（宿主形态）](./docs/guide/hosts.md)
+
+## 安装 / 从源码
 
 ```sh
 npx @typescript-agent-harness/cli --help
 npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
-npx @typescript-agent-harness/cli --mock chat
 ```
 
 全局安装后命令是 `tah`：
@@ -45,43 +64,9 @@ tah run --mock "列出当前目录并说明这个项目"
 
 找不到 `tah` 时，把 `$(npm prefix -g)/bin` 加进 `PATH`。不要用 `sudo npm`。
 
-### 做自己的 Agent
+需要 Node.js ≥ 22。
 
-不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具。
-
-```sh
-mkdir my-agent && cd my-agent
-npx @typescript-agent-harness/cli init   # 生成文件并装依赖
-npx tah --mock chat
-```
-
-```text
-my-agent/
-├── AGENTS.md              # 人设和规则（替换默认的 coding 角色）
-├── tools/query-order.ts   # export default defineTool({...}) → 工具 query_order
-├── plugins/audit-log.ts   # export default definePlugin({...})（可选）
-├── lib/                   # 工具共用的代码（可选）
-└── package.json           # 依赖 @typescript-agent-harness/cli
-```
-
-`tah chat` 和 `tah serve` 运行时改这些文件，保存即生效，对话不断。规则见 [CLI · 约定式项目](./docs/guide/cli.md)；完整示例 [`examples/convention-agent`](examples/convention-agent)（`pnpm demo:convention`）。
-
-能力仍然是插件：
-
-```ts
-const runtime = new Runtime();
-
-runtime.use(llmPlugin({ provider: "mock" }));
-runtime.use(toolsPlugin({ tools: [listFilesTool(process.cwd())] }));
-runtime.use(agentPlugin());
-
-await runtime.start();
-
-const session = await runtime.get(SESSION).create();
-await session.run("列出当前目录并总结");
-```
-
-从源码（演示和文档站）：
+从仓库（演示和文档站）：
 
 ```sh
 pnpm install
@@ -90,18 +75,9 @@ pnpm tah -- run --mock "列出当前目录并说明这个项目"
 pnpm tah -- --mock chat
 ```
 
-`pnpm dev` 仍跑 [`examples/basic-agent`](examples/basic-agent)。接 DeepSeek：复制 [`examples/basic-agent/.env.example`](examples/basic-agent/.env.example) 为同目录 `.env`。
+`pnpm dev` 跑 [`examples/basic-agent`](examples/basic-agent)。接 DeepSeek：复制 [`examples/basic-agent/.env.example`](examples/basic-agent/.env.example) 为同目录 `.env`。
 
 其它演示：`pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi` · `pnpm demo:convention`
-
-## 快速开始
-
-```sh
-npx @typescript-agent-harness/cli run --mock "列出当前目录"
-tah run --mock "列出当前目录"
-```
-
-需要 Node.js ≥ 22。仓库内：`pnpm install && pnpm build && pnpm tah -- run --mock "列出当前目录"`
 
 ### 文档站
 
@@ -119,37 +95,17 @@ pnpm docs:preview
 packages/
   core/     Runtime / Plugin / Context / Service / EventBus
   llm/      mock + OpenAI-compatible
-  tools/        registry + list/read/write/exec + 权限闸门
-  agent/        Session + DefaultLoop + resume + 子 agent tool
-  storage/      SQLite 事件日志 + checkpoint
-  permissions/  allow / deny
-  mcp/          MCP backend → Tool（ping + stdio）
-  scheduler/    once / every
-  cli/          tah run / tah chat（TUI）/ tah serve / tah init + 约定式项目加载
-  web/          tah serve 的网页（React + Vite，私有包，随 cli 发布）
+  tools/    registry + list/read/write/exec + 权限闸门
+  agent/    Session + DefaultLoop + resume + 子 agent tool
+  storage/  SQLite 事件日志 + checkpoint
+  cli/      tah run / tah chat（TUI）/ tah serve / tah init + 约定式项目加载
+  web/      tah serve 的网页（React + Vite，随 cli 发布）
 examples/
-  basic-runtime/     Phase 1 冒烟
-  basic-agent/       Phase 2 tool-use
-  resume-agent/      Phase 3 崩溃后续跑
-  multi-agent/       Phase 4 权限 + MCP + 调度
-  convention-agent/  Phase 8 AGENTS.md + tools/ + plugins/
+  convention-agent/  AGENTS.md + tools/ + plugins/
+  basic-agent/       tool-use 演示
 ```
 
-## 路线图
-
-| Phase | 范围 |
-| --- | --- |
-| **1** | Runtime 骨架 |
-| **2** | LLM + Tools + Agent Loop + Session |
-| **3** | SQLite 持久化、checkpoint / resume |
-| **4** | MCP、scheduler、子 agent、权限 |
-| **5** | CLI `tah run` / `tah chat` |
-| **6** | 测试 + CI + stdio MCP |
-| **7** | `llm.stream` 流式 + `tah` 增量输出 |
-| **8** | 约定式项目：`AGENTS.md` + `tools/` + `plugins/` + `tah init` |
-| **9** | `tah chat` 终端 UI（Ink） |
-| **10** | `tah serve` 本机网页工作台 |
-| **11** | 约定式项目热更新（当前） |
+阶段与计划：[路线图](./docs/guide/roadmap.md)
 
 ## 文档
 
@@ -157,20 +113,3 @@ examples/
 - **源码目录：** [`docs/`](./docs/)（VitePress）
 
 常用入口：[快速开始](./docs/guide/getting-started.md) · [CLI](./docs/guide/cli.md) · [设计哲学](./docs/guide/philosophy.md) · [整体架构](./docs/guide/architecture.md)
-
-## 核心哲学
-
-插件之间不互相 import，只通过 Context 通信：
-
-```ts
-// LLM plugin
-ctx.provide(LLM, impl);
-
-// Agent plugin
-const llm = ctx.get(LLM);
-
-// Trace plugin
-ctx.on("llm.response", (e) => { /* ... */ });
-```
-
-这样 Agent 才不会最终变成垃圾场。
