@@ -2,37 +2,56 @@
 
 English | [中文](./README.zh-CN.md)
 
-**Docs:** [MichaelVendor.github.io/typescript-agent-harness](https://MichaelVendor.github.io/typescript-agent-harness/) · local: `pnpm docs:dev`
+**Docs:** https://MichaelVendor.github.io/typescript-agent-harness/ · local: `pnpm docs:dev`
 
-TypeScript **Agent Runtime** — inspired by DeepSeek Harness's core idea:
+TypeScript **Agent Runtime / SDK** — build your own agent by convention.
 
 > **Everything is a capability.**
 
-Not an Agent SDK that stuffs LLM / tools / memory into one `Agent` class.
-A Runtime that mounts capabilities as plugins, wires them through a shared Context, and observes them through an Event Bus.
+## Build an agent (start here)
 
-```
-Application (Coding / Research / Personal Agent)
-        │
-  Agent Runtime
-        │
- ┌──────┼──────┐
- │      │      │
-Agent  Plugin  EventBus
- │      │      │
- └──────┼──────┘
-        │
-   LLM / Tools / Storage  (all plugins)
+No startup code: `AGENTS.md` is the role, each file in `tools/` is a tool, each `skills/*/SKILL.md` is a skill.
+
+```sh
+mkdir my-agent && cd my-agent
+npx @typescript-agent-harness/cli init
+npx tah --mock chat
 ```
 
-## v0.26 (current)
+Then: edit `AGENTS.md` → add `tools/*.ts` (`defineTool`) → optional `skills/*/SKILL.md` → keep chatting (`/` invokes skills).
 
-Runtime through CLI: `tah chat` is a terminal UI, `tah serve` a local web workbench. Start with npm:
+**One-hour checklist:** init works · tool hot-reloads on save · `/hello` (or your skill) works · mock round proves “this is my agent”.
+
+Full guide: [Getting started](./docs/guide/getting-started.md) · [CLI · convention projects](./docs/guide/cli.md)
+
+## Embed the Runtime
+
+Plugins talk only through Context (advanced):
+
+```ts
+const runtime = new Runtime();
+runtime.use(llmPlugin({ provider: "mock" }));
+runtime.use(toolsPlugin({ tools: [listFilesTool(process.cwd())] }));
+runtime.use(agentPlugin());
+await runtime.start();
+const session = await runtime.get(SESSION).create();
+await session.run("列出当前目录并总结");
+```
+
+See [Philosophy](./docs/guide/philosophy.md) · [Architecture](./docs/guide/architecture.md) · [API](./docs/api/core.md)
+
+## Advanced hosts (optional)
+
+Local TUI/web, desktop, headless host, intranet control plane, Super-agent / IM — not required to build an agent:
+
+- `tah chat` / `tah serve` — [CLI](./docs/guide/cli.md)
+- Index: [Hosts](./docs/guide/hosts.md)
+
+## Install / from source
 
 ```sh
 npx @typescript-agent-harness/cli --help
 npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
-npx @typescript-agent-harness/cli --mock chat
 ```
 
 Install globally to get the `tah` command:
@@ -45,43 +64,9 @@ tah run --mock "列出当前目录并说明这个项目"
 
 If `tah` is not found, add `$(npm prefix -g)/bin` to `PATH`. Do not use `sudo npm`.
 
-### Build your own agent
+Node.js ≥ 22.
 
-No startup code: `AGENTS.md` is the role, every file in `tools/` is a tool.
-
-```sh
-mkdir my-agent && cd my-agent
-npx @typescript-agent-harness/cli init   # scaffolds and installs
-npx tah --mock chat
-```
-
-```text
-my-agent/
-├── AGENTS.md              # role and rules (replaces the default coding role)
-├── tools/query-order.ts   # export default defineTool({...}) → tool query_order
-├── plugins/audit-log.ts   # export default definePlugin({...}) (optional)
-├── lib/                   # shared code, imported by tools (optional)
-└── package.json           # depends on @typescript-agent-harness/cli
-```
-
-`tah chat` and `tah serve` reload these files on save and keep the conversation. Rules: [CLI · 约定式项目](./docs/guide/cli.md). Full example: [`examples/convention-agent`](examples/convention-agent) (`pnpm demo:convention`).
-
-Capabilities are plugins:
-
-```ts
-const runtime = new Runtime();
-
-runtime.use(llmPlugin({ provider: "mock" }));
-runtime.use(toolsPlugin({ tools: [listFilesTool(process.cwd())] }));
-runtime.use(agentPlugin());
-
-await runtime.start();
-
-const session = await runtime.get(SESSION).create();
-await session.run("列出当前目录并总结");
-```
-
-From source (demos and docs):
+From the repo (demos and docs):
 
 ```sh
 pnpm install
@@ -90,18 +75,9 @@ pnpm tah -- run --mock "列出当前目录并说明这个项目"
 pnpm tah -- --mock chat
 ```
 
-`pnpm dev` still runs [`examples/basic-agent`](examples/basic-agent). DeepSeek: copy [`examples/basic-agent/.env.example`](examples/basic-agent/.env.example) to `.env` in that folder.
+`pnpm dev` runs [`examples/basic-agent`](examples/basic-agent). DeepSeek: copy [`examples/basic-agent/.env.example`](examples/basic-agent/.env.example) to `.env` in that folder.
 
 Other demos: `pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi` · `pnpm demo:convention`
-
-## Quick start
-
-```sh
-npx @typescript-agent-harness/cli run --mock "列出当前目录"
-tah run --mock "列出当前目录"
-```
-
-Node.js ≥ 22. From the repo: `pnpm install && pnpm build && pnpm tah -- run --mock "列出当前目录"`
 
 ### Documentation site
 
@@ -119,37 +95,17 @@ Pushing to `main` deploys docs via GitHub Actions → GitHub Pages. Enable **Set
 packages/
   core/     Runtime / Plugin / Context / Service / EventBus
   llm/      mock + OpenAI-compatible
-  tools/        registry + list/read/write/exec + permission gate
-  agent/        Session + DefaultLoop + resume + subagent tool
-  storage/      SQLite event log + checkpoints
-  permissions/  allow / deny
-  mcp/          MCP backend → Tool (in-process ping + stdio)
-  scheduler/    once / every
-  cli/          tah run / tah chat (TUI) / tah serve / tah init + project loader
-  web/          tah serve page (React + Vite, private; shipped inside cli)
+  tools/    registry + list/read/write/exec + permission gate
+  agent/    Session + DefaultLoop + resume + subagent tool
+  storage/  SQLite event log + checkpoints
+  cli/      tah run / tah chat (TUI) / tah serve / tah init + project loader
+  web/      tah serve page (React + Vite, shipped inside cli)
 examples/
-  basic-runtime/     Phase 1 smoke
-  basic-agent/       Phase 2 tool-use loop
-  resume-agent/      Phase 3 crash + resume
-  multi-agent/       Phase 4 permissions + MCP + scheduler
-  convention-agent/  Phase 8 AGENTS.md + tools/ + plugins/
+  convention-agent/  AGENTS.md + tools/ + plugins/
+  basic-agent/       tool-use loop demo
 ```
 
-## Roadmap
-
-| Phase | Scope |
-| --- | --- |
-| **1** | Runtime skeleton |
-| **2** | LLM + Tools + Agent Loop + Session |
-| **3** | SQLite persistence, checkpoint / resume |
-| **4** | MCP, scheduler, subagent-as-tool, permissions |
-| **5** | CLI `tah run` / `tah chat` |
-| **6** | Tests + CI + stdio MCP |
-| **7** | Streaming `llm.stream` + incremental `tah` output |
-| **8** | Convention projects: `AGENTS.md` + `tools/` + `plugins/` + `tah init` |
-| **9** | Terminal UI (Ink) for `tah chat` |
-| **10** | `tah serve`: local web workbench |
-| **11** | Hot reload for convention projects (current) |
+Phase history and plans: [Roadmap](./docs/guide/roadmap.md)
 
 ## Documentation
 
@@ -157,20 +113,3 @@ examples/
 - **Source:** [`docs/`](./docs/) (VitePress, Chinese)
 
 Start here: [Getting started](./docs/guide/getting-started.md) · [CLI](./docs/guide/cli.md) · [Philosophy](./docs/guide/philosophy.md) · [Architecture](./docs/guide/architecture.md)
-
-## Core philosophy
-
-Plugins do not import each other. They only talk through Context:
-
-```ts
-// LLM plugin
-ctx.provide(LLM, impl);
-
-// Agent plugin
-const llm = ctx.get(LLM);
-
-// Trace plugin
-ctx.on("llm.response", (e) => { /* ... */ });
-```
-
-That is what keeps Agent from becoming a junk drawer.
