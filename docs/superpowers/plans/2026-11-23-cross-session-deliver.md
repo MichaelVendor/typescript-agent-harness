@@ -43,10 +43,10 @@ export function formatDeliverNotice(item: DeliverItem): string; // `[from «titl
 export const DELIVER_TEXT_MAX = 2000;
 ```
 
-- [ ] 单测 enqueue/drain/format；自投/空文本校验 helper
-- [ ] `POST /api/sessions/deliver`：live（当前 sessionId）emit notice；else enqueue；404/400/503
-- [ ] resume/switch session 时 drain + emit
-- [ ] Commit — `feat(cli): 跨会话 notice 投递 API`
+- [x] 单测 enqueue/drain/format；自投/空文本校验 helper
+- [x] `POST /api/sessions/deliver`：live（当前 sessionId）emit notice；else enqueue；404/400/503
+- [x] resume/switch session 时 drain + emit
+- [x] Commit — `feat(cli): 跨会话 notice 投递 API`
 
 ---
 
@@ -56,16 +56,18 @@ export const DELIVER_TEXT_MAX = 2000;
 - Modify: `packages/web/src/components/Sidebar.tsx`、`api.ts`、`App.tsx`（若需接 unread）
 - Optional: small modal component
 
-- [ ] 菜单项 + 弹层选目标/输入/Send
-- [ ] 成功 markUnread；切会话 clearUnread；session 行未读点
-- [ ] Commit — `feat(web): 会话菜单跨会话投递`
+- [x] 菜单项 + 弹层选目标/输入/Send
+- [x] 成功 markUnread；切会话 clearUnread；session 行未读点
+- [x] Commit — `feat(web): 会话菜单跨会话投递`
 
 ---
 
 ### Task D3: Docs
 
-- Spec ✅；CHANGELOG；status 可选
-- Commit — `docs: 跨会话发消息已实现说明`
+- [x] Spec ✅
+- [x] CHANGELOG Unreleased 一行
+- [x] `docs/guide/status.md` 可选
+- [x] Commit — `docs: 跨会话发消息已实现说明`
 
 ---
 

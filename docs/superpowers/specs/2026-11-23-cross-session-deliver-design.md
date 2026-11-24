@@ -1,6 +1,6 @@
 # 跨会话发消息（网页会话 → 网页会话）
 
-状态：📐 已设计（待计划 / 实现）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-23-cross-session-deliver.md`；分支 `feat/dsh-parity-p1`）
 
 DSH 对照剩余能力之一。同 workspace 内把一条 **系统 notice** 投到另一会话；标未读；**不**自动跑 agent。不改 `DefaultLoop` / `packages/core`。
 
