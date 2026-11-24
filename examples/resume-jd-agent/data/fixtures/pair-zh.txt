@@ -1,0 +1,12 @@
+===简历===
+- 3 年 TypeScript / Node.js 后端开发
+- 主导过支付灰度上线，错误率 <0.1%
+- 熟悉 PostgreSQL 与 Redis
+- 带过 2 人小组做周报自动化
+
+===JD===
+【必须】精通 TypeScript
+【必须】有分布式系统或支付相关经验
+【必须】Kubernetes 生产运维经验
+【加分】带队或 mentorship 经验
+【加分】熟悉 Go
