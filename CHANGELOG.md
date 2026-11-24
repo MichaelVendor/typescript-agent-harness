@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Docs
+
+SDK narrative focus: root README L1 (`init`), docs site top nav **Build / Embed / Hosts**, getting-started one-hour checklist, `tah init` generated README, npm package descriptions, and `examples/convention-agent` advanced-sample label. Spec: `docs/superpowers/specs/2026-11-24-sdk-narrative-focus-design.md`.
+
 ## 1.7.5 — 2026-11-24
 
 **AgentTeam UX:** `tah serve --room` embeds one `createRoom` with Chat | Room (and Timeline when Super-agent); Room HTTP (`/api/room`, goal / message / step) and persist under `.tah/room/`. Settings → **Team** edits `tah.team.json` via `/api/settings/team` (default `tl` + `researcher`; team applies on next goal). Without `--room`, no Room tab; Team settings still work. Spec: `docs/superpowers/specs/2026-11-24-agent-team-ux-design.md`.

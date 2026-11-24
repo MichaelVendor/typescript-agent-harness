@@ -2,7 +2,7 @@
   "name": "typescript-agent-harness",
   "private": true,
   "version": "1.7.5",
-  "description": "TypeScript Agent Runtime — everything is a capability",
+  "description": "TypeScript Agent Runtime / SDK — build agents by convention; everything is a capability",
   "packageManager": "pnpm@10.33.0",
   "bin": {
     "tah": "./packages/cli/dist/cli.js"
