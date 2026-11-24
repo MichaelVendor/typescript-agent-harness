@@ -264,4 +264,10 @@ test("tah init scaffolds a project and never overwrites", () => {
   const pkg = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8"));
   assert.ok(pkg.devDependencies["@typescript-agent-harness/cli"]);
   assert.doesNotMatch(out, /does not depend on/);
+  assert.match(out, /create {2}README\.md/);
+  assert.match(
+    readFileSync(path.join(cwd, "README.md"), "utf8"),
+    /npx tah --mock chat/,
+  );
+  assert.match(nextSteps().join("\n"), /One-hour checklist|一小时/);
 });

@@ -68,6 +68,32 @@ description: Tiny example skill. Use when the user asks to try skills or says he
 2. Mention they invoked the hello skill.
 `;
 
+const PROJECT_README = `# My tah agent
+
+Convention project for [typescript-agent-harness](https://github.com/MichaelVendor/typescript-agent-harness).
+
+## Golden path
+
+1. Edit \`AGENTS.md\` (role).
+2. Add or edit \`tools/*.ts\` (\`defineTool\`).
+3. Optional: add \`skills/<name>/SKILL.md\`.
+4. Run:
+
+\`\`\`sh
+npx tah --mock chat
+# or: copy .env.example → .env and \`npx tah chat\`
+\`\`\`
+
+## One-hour checklist
+
+- [ ] init files present (\`AGENTS.md\`, \`tools/\`, \`skills/hello/\`)
+- [ ] mock chat works; saving a tool reloads (or follow CLI hint)
+- [ ] \`/hello\` skill works
+- [ ] your tool is called in a round
+
+Docs: https://MichaelVendor.github.io/typescript-agent-harness/guide/getting-started
+`;
+
 function packageJson(cwd: string, version: string): string {
   const pkg = {
     name: path.basename(path.resolve(cwd)).toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
@@ -85,6 +111,7 @@ export function initProject(cwd: string): string[] {
   ).version;
   const files: Array<[string, string]> = [
     ["package.json", packageJson(cwd, version)],
+    ["README.md", PROJECT_README],
     ["AGENTS.md", AGENTS_MD],
     ["tools/current-time.ts", EXAMPLE_TOOL],
     ["skills/hello/SKILL.md", HELLO_SKILL],
@@ -119,6 +146,7 @@ export function nextSteps(install?: string): string[] {
     "Next:",
     ...(install ? [`  ${install}`] : []),
     "  cp .env.example .env    # fill in DEEPSEEK_API_KEY, or skip and use --mock",
-    "  npx tah chat",
+    "  npx tah --mock chat     # or: npx tah chat",
+    "  One-hour checklist: edit AGENTS.md → tools/ → /hello → prove it is your agent (see README.md)",
   ];
 }
