@@ -155,7 +155,7 @@ After the proxied response ends, `store.audit({ userId, projectId, route, status
 
 **Behaviour:**
 - Container name `tah-project-<id>`
-- No `-p` publish. `docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'` then `http://<ip>:7800`
+- No `-p` publish. <code v-pre>docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}'</code> then `http://<ip>:7800`
 - `docker start` if the container exists and is stopped; `docker run -d` otherwise
 - Volume `<data>/projects/<id>/workspace` → `/workspace`
 - Command and env exactly as the spec (`--yes`, secret, project id, model keys if present)
