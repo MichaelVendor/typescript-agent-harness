@@ -1,6 +1,6 @@
 # Meeting Actions Agent（纪要→行动项）设计
 
-状态：📐 已设计（约定式 example；不改 Runtime API）
+状态：✅ 已实现（约定式 example；不改 Runtime API）
 
 系列：WorkBuddy「专家」对标样板 · **B → A → D** 中的 **B（先做）**。  
 后续：A `weekly-report-agent`、D `resume-jd-agent`（各自独立 example / spec）。
