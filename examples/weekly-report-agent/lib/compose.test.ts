@@ -12,6 +12,9 @@ test("compose lists sections and unclassified ids", () => {
     gaps: ["i2 无法归类"],
   });
   assert.deepEqual(unclassifiedIds, ["i2"]);
+  assert.doesNotMatch(markdown, /## 未归类/);
+  const bodyBeforeGaps = markdown.split("## 缺口")[0] ?? "";
+  assert.doesNotMatch(bodyBeforeGaps, /拉面/);
   assert.match(markdown, /待选模板|ops|exec/);
   assert.match(markdown, /支付灰度/);
   assert.match(markdown, /缺口|无法归类|拉面/);

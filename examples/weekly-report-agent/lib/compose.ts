@@ -5,7 +5,6 @@ const SECTIONS: { key: ItemSection; title: string }[] = [
   { key: "wip", title: "进行中" },
   { key: "risk", title: "风险" },
   { key: "next", title: "下周计划" },
-  { key: "unclassified", title: "未归类" },
 ];
 
 export function composeDraft(
