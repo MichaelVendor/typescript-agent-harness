@@ -60,6 +60,14 @@ import {
   type ReviewBinding,
   type ReviewSnapshot,
 } from "./review.js";
+import {
+  DeliverValidationError,
+  drainDelivers,
+  enqueueDeliver,
+  formatDeliverNotice,
+  isSelfDeliver,
+  validateDeliverText,
+} from "./session-deliver.js";
 
 const COOKIE = "tah_token";
 const MAX_BODY = 1_000_000;
@@ -358,6 +366,13 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     return switched;
   };
 
+  const emitDrainedDelivers = () => {
+    if (!opts.persist) return;
+    for (const item of drainDelivers(workspaces.cwd, host().sessionId)) {
+      hub.emit({ type: "notice", text: formatDeliverNotice(item) });
+    }
+  };
+
   const events = (req: IncomingMessage, res: ServerResponse) => {
     res.writeHead(200, {
       "content-type": "text/event-stream; charset=utf-8",
@@ -543,6 +558,33 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "GET /api/sessions":
         needPersist();
         return json(res, 200, await host().listSessions());
+      case "POST /api/sessions/deliver": {
+        if (!opts.persist) throw new HttpError(503, "session deliver requires persist (drop --no-persist)");
+        const body = await readBody(req);
+        await enter(optStr(body, "cwd"));
+        let text: string;
+        try {
+          text = validateDeliverText(body.text);
+        } catch (err) {
+          if (err instanceof DeliverValidationError) throw new HttpError(400, err.message);
+          throw err;
+        }
+        const toSessionId = str(body, "toSessionId");
+        const fromSessionId = host().sessionId;
+        if (isSelfDeliver(toSessionId, fromSessionId)) {
+          throw new HttpError(400, "cannot deliver to the same session");
+        }
+        const rows = await host().listSessions();
+        if (!rows.some((row) => row.id === toSessionId)) throw new HttpError(404, `no session "${toSessionId}"`);
+        const fromRow = rows.find((row) => row.id === fromSessionId);
+        enqueueDeliver(workspaces.cwd, toSessionId, {
+          fromSessionId,
+          text,
+          at: Date.now(),
+          ...(fromRow?.title ? { fromTitle: fromRow.title } : fromRow?.preview ? { fromTitle: fromRow.preview } : {}),
+        });
+        return json(res, 200, { ok: true, delivered: "queued" });
+      }
       case "POST /api/attachments": {
         const nameHeader = req.headers["x-tah-filename"];
         const mimeHeader = req.headers["x-tah-mime"];
@@ -840,6 +882,7 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         hub.assertIdle();
         await enter(optStr(body, "cwd"));
         await host().resume(ref);
+        emitDrainedDelivers();
         return json(res, 204);
       }
       case "POST /api/fork": {
@@ -851,7 +894,10 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         const id = optStr(body, "id");
         hub.assertIdle();
         await enter(optStr(body, "cwd"));
-        if (id !== undefined && id !== host().sessionId) await host().resume(id);
+        if (id !== undefined && id !== host().sessionId) {
+          await host().resume(id);
+          emitDrainedDelivers();
+        }
         await host().fork(turns as number | undefined);
         return json(res, 204);
       }

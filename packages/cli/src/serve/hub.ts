@@ -16,6 +16,8 @@ export type Hub = {
   start(run: () => Promise<void>): void;
   /** Moves every tab to `host`; `buffered` are the events it emitted while opening. Throws `BusyError` while a turn runs. */
   swap(host: ChatHost, buffered: HostEvent[]): void;
+  /** Injects an event into every live subscriber (e.g. cross-session deliver notice). */
+  emit(event: HostEvent): void;
 };
 
 /** One `ChatHost` shared by every browser tab; subscribe before `host.open()`. */
@@ -117,5 +119,6 @@ export function createHub(first: ChatHost): Hub {
       for (const event of notices) for (const listener of listeners) listener(event);
       unsubscribe = host.on(forward);
     },
+    emit: forward,
   };
 }
