@@ -79,6 +79,14 @@ pnpm tah -- --mock chat
 
 Other demos: `pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi` · `pnpm demo:convention`
 
+**Expert examples (try locally on branch `v1.7`):** clone → `git checkout v1.7` → `pnpm install && pnpm build` → pick one of:
+
+- [`examples/meeting-actions-agent`](examples/meeting-actions-agent) — meeting notes → actions (`pnpm start` / `tah serve`)
+- [`examples/weekly-report-agent`](examples/weekly-report-agent) — weekly notes → report
+- [`examples/resume-jd-agent`](examples/resume-jd-agent) — resume × JD
+
+Fixtures live under each `data/fixtures/`. Steps: [Getting started · expert examples](./docs/guide/getting-started.md).
+
 ### Documentation site
 
 ```sh
@@ -101,8 +109,11 @@ packages/
   cli/      tah run / tah chat (TUI) / tah serve / tah init + project loader
   web/      tah serve page (React + Vite, shipped inside cli)
 examples/
-  convention-agent/  AGENTS.md + tools/ + plugins/
-  basic-agent/       tool-use loop demo
+  convention-agent/       AGENTS.md + tools/ + plugins/
+  basic-agent/             tool-use loop demo
+  meeting-actions-agent/   meeting notes → actions
+  weekly-report-agent/     weekly notes → report
+  resume-jd-agent/         resume × JD
 ```
 
 Full package and example list: [Ecosystem](./docs/guide/ecosystem.md).
