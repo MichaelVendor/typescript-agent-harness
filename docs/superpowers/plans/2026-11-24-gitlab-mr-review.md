@@ -20,11 +20,11 @@
 
 **Files:** `packages/cli/src/serve/review.ts`；`connectors.ts`（gitlabReviewToken helper）；tests
 
-- [ ] `ReviewBinding.provider: "github"|"gitlab"`；可选 `host`
-- [ ] `parseReviewRef` / `parseGitlabMrRef`
-- [ ] `fetchGitlabSnapshot` REST v4
-- [ ] `gitlabReviewToken(home)` / host resolve
-- [ ] Commit — `feat(cli): GitLab MR 解析与快照`
+- [x] `ReviewBinding.provider: "github"|"gitlab"`；可选 `host`
+- [x] `parseReviewRef` / `parseGitlabMrRef`
+- [x] `fetchGitlabSnapshot` REST v4
+- [x] `gitlabReviewToken(home)` / host resolve
+- [x] Commit — `feat(cli): GitLab MR 解析与快照`
 
 ---
 
@@ -32,9 +32,9 @@
 
 **Files:** http review routes；tests
 
-- [ ] bind 用 parseReviewRef；snapshot 按 provider
-- [ ] GitHub 回归
-- [ ] Commit — `feat(cli): review API 支持 GitLab`
+- [x] bind 用 parseReviewRef；snapshot 按 provider
+- [x] GitHub 回归
+- [x] Commit — `feat(cli): review API 支持 GitLab`
 
 ---
 
@@ -42,16 +42,18 @@
 
 **Files:** ReviewPane.tsx；Settings connectors GitLab；api 文案
 
-- [ ] 绑 PR/MR；provider 徽章
-- [ ] GitLab token (+ optional host) 存 connectors
-- [ ] Commit — `feat(web): GitLab MR 审阅 UI`
+- [x] 绑 PR/MR；provider 徽章
+- [x] GitLab token (+ optional host) 存 connectors
+- [x] Commit — `feat(web): GitLab MR 审阅 UI`
 
 ---
 
 ### Task G4: Docs
 
-- Spec ✅；CHANGELOG；status
-- Commit — `docs: GitLab MR 审阅已实现说明`
+- [x] Spec ✅
+- [x] CHANGELOG Unreleased 一行
+- [x] `docs/guide/status.md` 可选
+- [x] Commit — `docs: GitLab MR 审阅已实现说明`
 
 ---
 

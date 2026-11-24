@@ -152,5 +152,5 @@ MCP OAuth 全自动刷新产品化（可后续复用 refresh 工具函数）；�
 - 飞书 OAuth — 设计见 [`2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md`](./2026-11-23-dsh-parity-p1.5-feishu-oauth-design.md)（📐）
 - 跨会话发消息 — 设计见 [`2026-11-23-cross-session-deliver-design.md`](./2026-11-23-cross-session-deliver-design.md)（📐）
 - AgentTeam UX — 设计见 [`2026-11-24-agent-team-ux-design.md`](./2026-11-24-agent-team-ux-design.md)（📐）
-- GitLab MR — 设计见 [`2026-11-24-gitlab-mr-review-design.md`](./2026-11-24-gitlab-mr-review-design.md)（📐）
+- GitLab MR — 设计见 [`2026-11-24-gitlab-mr-review-design.md`](./2026-11-24-gitlab-mr-review-design.md)（✅）
 - 另开：Computer Use

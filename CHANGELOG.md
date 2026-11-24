@@ -12,6 +12,8 @@
 
 **Cross-session deliver:** Sidebar session ⋯ **Send to session…** delivers a system notice to another web session in the same workspace via `POST /api/sessions/deliver` (live emit or `.tah/session-delivers.json` queue drained on resume/switch); marks target unread; does not run agent. Spec: `docs/superpowers/specs/2026-11-23-cross-session-deliver-design.md`.
 
+**GitLab MR review:** Code Review bind supports GitLab MR (PAT): `ReviewBinding.provider` github|gitlab, `parseReviewRef`, `/api/review*` snapshot via GitLab REST v4; ReviewPane accepts MR URL or `group/project!iid` with provider badge; Settings → Connectors stores GitLab PAT (+ optional host) or `GITLAB_TOKEN` / `GITLAB_HOST`. GitHub unchanged. Spec: `docs/superpowers/specs/2026-11-24-gitlab-mr-review-design.md`.
+
 **Serve / parallel sessions:** `tah serve` orchestrates up to four busy `tah agent-worker` child processes (usually in git worktrees under `<repo>/.tah/worktrees/<name>/`, branch `tah/<name>`). Web: worker sidebar, single-focus transcript, attention banner for background approval / `ask_user`. Suggest ignoring `.tah/worktrees/` in the repo `.gitignore`. `tah chat` / TUI unchanged.
 
 **Session status:** `GET /api/session-status` returns focus cwd, busy/idle, pending approval or `ask_user`, orchestrator worker list, and optional Super-agent ticket count. The web **Session status** rail refreshes on turn / approval / focus events.

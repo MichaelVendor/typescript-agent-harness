@@ -1,10 +1,10 @@
 # GitLab MR 审阅
 
-状态：📐 已设计（待计划 / 实现）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-24-gitlab-mr-review.md`；分支 `feat/dsh-parity-p1`）
 
 对称扩展现有 GitHub Code Review 绑定：支持 GitLab MR（PAT）。不改 `DefaultLoop` / `packages/core`。不做 GitLab OAuth。
 
-系列：① 跨会话 ✅ → ② AgentTeam ✅ → ③ 本文。
+系列：① 跨会话 ✅ → ② AgentTeam ✅ → ③ 本文 ✅。
 
 ## 目标
 
