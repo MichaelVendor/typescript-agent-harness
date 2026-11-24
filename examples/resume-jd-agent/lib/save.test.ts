@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { composeRewrites } from "./rewrite.ts";
 import { saveReport, selectIncludeRewrites } from "./save.ts";
 
 const base = {
@@ -50,36 +51,27 @@ test("selectIncludeRewrites + save writes md/json", () => {
   }
 });
 
-test("save rejects provided rewrites for missing null or mismatched evidence", () => {
+test("save ignores caller rewrites and uses composed ones", () => {
+  const match = {
+    rows: [
+      { id: "r2", priority: "nice" as const, requirement: "带队经验", status: "partial" as const, evidence: "带过 2 人小组" },
+    ],
+    gaps: [],
+  };
   const outDir = mkdtempSync(path.join(os.tmpdir(), "resume-jd-"));
   try {
-    assert.throws(
-      () =>
-        saveReport({
-          includeRewrites: true,
-          gaps: ["缺 TS"],
-          rows: [
-            { id: "r1", priority: "must", requirement: "TypeScript", status: "missing", evidence: null },
-          ],
-          rewrites: [{ reqId: "r1", before: "x", after: "y", evidence: "x" }],
-        }, { outDir }),
-      /validation failed/,
+    const saved = saveReport(
+      {
+        ...match,
+        includeRewrites: true,
+        rewrites: [{ reqId: "r2", before: "x", after: "编造内容", evidence: "x" }],
+      },
+      { outDir },
     );
-    assert.equal(existsSync(path.join(outDir, "match")), false);
-
-    assert.throws(
-      () =>
-        saveReport({
-          includeRewrites: true,
-          gaps: [],
-          rows: [
-            { id: "r2", priority: "nice", requirement: "带队", status: "partial", evidence: "带过 2 人" },
-          ],
-          rewrites: [{ reqId: "r2", before: "wrong", after: "z", evidence: "wrong" }],
-        }, { outDir }),
-      /validation failed/,
-    );
-    assert.equal(existsSync(path.join(outDir, "match")), false);
+    const json = JSON.parse(readFileSync(saved.jsonPath, "utf8"));
+    assert.deepEqual(json.rewrites, composeRewrites(match).rewrites);
+    assert.doesNotMatch(saved.markdown, /编造内容/);
+    assert.doesNotMatch(readFileSync(saved.mdPath, "utf8"), /编造内容/);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }
@@ -96,13 +88,12 @@ test("includeRewrites gate: true composes, false drops rewrites", () => {
   try {
     const on = saveReport(selectIncludeRewrites(match, true), { outDir, now: new Date(1) });
     assert.match(readFileSync(on.mdPath, "utf8"), /改写建议/);
+    assert.equal(on.markdown, readFileSync(on.mdPath, "utf8"));
     assert.ok(JSON.parse(readFileSync(on.jsonPath, "utf8")).rewrites.length === 1);
 
-    const off = saveReport(
-      selectIncludeRewrites(match, false, [{ reqId: "r2", before: "a", after: "b", evidence: "a" }]),
-      { outDir, now: new Date(2) },
-    );
+    const off = saveReport(selectIncludeRewrites(match, false), { outDir, now: new Date(2) });
     assert.doesNotMatch(readFileSync(off.mdPath, "utf8"), /改写建议/);
+    assert.equal(off.markdown, readFileSync(off.mdPath, "utf8"));
     assert.equal(JSON.parse(readFileSync(off.jsonPath, "utf8")).rewrites, undefined);
   } finally {
     rmSync(outDir, { recursive: true, force: true });

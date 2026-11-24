@@ -65,7 +65,7 @@ const outDir = mkdtempSync(path.join(os.tmpdir(), "resume-jd-eval-"));
 try {
   for (const include of [false, true]) {
     const saved = saveReport(
-      selectIncludeRewrites(match, include, include ? rewrites : undefined),
+      selectIncludeRewrites(match, include),
       { outDir, now: new Date(Date.now() + (include ? 1 : 0)) },
     );
     if (!existsSync(saved.mdPath) || !existsSync(saved.jsonPath)) {

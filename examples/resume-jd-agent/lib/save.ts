@@ -36,20 +36,14 @@ function validateRewrites(rows: MatchRow[], rewrites: RewriteItem[]): string[] {
   return problems;
 }
 
-export function selectIncludeRewrites(
-  match: MatchResult,
-  includeRewrites: boolean,
-  rewrites?: RewriteItem[],
-): MatchBatch {
-  return rewrites === undefined
-    ? { ...match, includeRewrites }
-    : { ...match, includeRewrites, rewrites };
+export function selectIncludeRewrites(match: MatchResult, includeRewrites: boolean): MatchBatch {
+  return { ...match, includeRewrites };
 }
 
 export function saveReport(
   batch: MatchBatch,
   opts?: { outDir?: string; now?: Date },
-): { mdPath: string; jsonPath: string } {
+): { mdPath: string; jsonPath: string; markdown: string } {
   if (typeof batch.includeRewrites !== "boolean") {
     throw new Error("includeRewrites required");
   }
@@ -59,8 +53,8 @@ export function saveReport(
     throw new Error(`validation failed: ${problems.join("; ")}`);
   }
 
-  const { includeRewrites, rewrites: provided, ...match } = batch;
-  const rewrites = includeRewrites ? (provided ?? composeRewrites(match).rewrites) : null;
+  const { includeRewrites, rewrites: _ignored, ...match } = batch;
+  const rewrites = includeRewrites ? composeRewrites(match).rewrites : null;
   if (includeRewrites && rewrites) {
     const rewriteProblems = validateRewrites(match.rows, rewrites);
     if (rewriteProblems.length > 0) {
@@ -80,5 +74,5 @@ export function saveReport(
   writeFileSync(jsonPath, `${JSON.stringify(saved, null, 2)}\n`, "utf8");
   writeFileSync(mdPath, markdown, "utf8");
 
-  return { mdPath, jsonPath };
+  return { mdPath, jsonPath, markdown };
 }
