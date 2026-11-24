@@ -5,9 +5,11 @@ import path from "node:path";
 import { test } from "node:test";
 import {
   githubReviewToken,
+  gitlabReviewToken,
   loadConnectors,
   readConnectorSecret,
   removeConnector,
+  resolveGitlabHost,
   upsertConnectorOAuth,
   upsertConnectorToken,
 } from "../dist/connectors.js";
@@ -85,6 +87,25 @@ test("githubReviewToken: oauth github.oauth then PAT token account", () => {
   assert.equal(githubReviewToken(home), "gho_oauthWins");
   removeConnector(home, "github.oauth");
   assert.equal(githubReviewToken(home), "ghp_patOnly");
+});
+
+test("gitlab PAT: gitlab.pat host and resolveGitlabHost", () => {
+  const home = mkdtempSync(path.join(tmpdir(), "tah-connectors-"));
+  const account = upsertConnectorToken(home, {
+    id: "gitlab.pat",
+    provider: "gitlab",
+    token: "glpat-test",
+    host: "https://git.example.com/",
+  });
+  assert.equal(account.host, "https://git.example.com/");
+  assert.equal(gitlabReviewToken(home), "glpat-test");
+  assert.equal(resolveGitlabHost({}, home), "https://git.example.com");
+  const keptHost = upsertConnectorToken(home, {
+    id: "gitlab.pat",
+    provider: "gitlab",
+    token: "glpat-new",
+  });
+  assert.equal(keptHost.host, "https://git.example.com/");
 });
 
 test("connectors: token and oauth accounts coexist", () => {

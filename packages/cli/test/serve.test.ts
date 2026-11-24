@@ -418,6 +418,34 @@ test("GitHub OAuth start and callback exchange the code and store the account", 
   }
 });
 
+test("POST /api/connectors/token upserts GitLab PAT into settings view", async () => {
+  const s = await fakeServer();
+  try {
+    const saved = await client(s.base, s.cookie).post("/api/connectors/token", {
+      id: "gitlab.pat",
+      provider: "gitlab",
+      token: "glpat-integration",
+      host: "https://git.example.com",
+    });
+    assert.equal(saved.status, 200);
+    const settings = JSON.parse(saved.body) as {
+      connectors: { id: string; provider: string; keyHint: string; host?: string }[];
+    };
+    assert.deepEqual(settings.connectors, [
+      {
+        id: "gitlab.pat",
+        provider: "gitlab",
+        authKind: "token",
+        keyHint: "glp…tion",
+        host: "https://git.example.com",
+      },
+    ]);
+    assert.equal((await client(s.base, s.cookie).post("/api/connectors/remove", { id: "gitlab.pat" })).status, 204);
+  } finally {
+    await s.close();
+  }
+});
+
 test("Feishu OAuth start returns 503 when not configured", async () => {
   const keys = ["TAH_FEISHU_CLIENT_ID", "TAH_FEISHU_CLIENT_SECRET", "FEISHU_APP_ID", "FEISHU_APP_SECRET"] as const;
   const saved: Record<string, string | undefined> = {};

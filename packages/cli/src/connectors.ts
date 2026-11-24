@@ -9,6 +9,8 @@ export type ConnectorAccount = {
   authKind: "token" | "oauth";
   label?: string;
   keyHint: string;
+  /** Self-hosted GitLab origin when stored on a gitlab PAT connector. */
+  host?: string;
 };
 
 type StoredTokenConnector = {
@@ -17,6 +19,7 @@ type StoredTokenConnector = {
   authKind: "token";
   label?: string;
   token: string;
+  host?: string;
 };
 
 type StoredOAuthConnector = {
@@ -42,7 +45,11 @@ function isStoredConnector(account: unknown): account is StoredConnector {
   const a = account as Record<string, unknown>;
   if (typeof a.id !== "string" || typeof a.provider !== "string") return false;
   if (a.label !== undefined && typeof a.label !== "string") return false;
-  if (a.authKind === "token") return typeof a.token === "string";
+  if (a.authKind === "token") {
+    if (typeof a.token !== "string") return false;
+    if (a.host !== undefined && typeof a.host !== "string") return false;
+    return true;
+  }
   if (a.authKind === "oauth") {
     if (typeof a.accessToken !== "string") return false;
     if (a.refreshToken !== undefined && typeof a.refreshToken !== "string") return false;
@@ -93,7 +100,7 @@ export function loadConnectors(home: string): { accounts: ConnectorAccount[] } {
 
 export function upsertConnectorToken(
   home: string,
-  input: { id?: string; provider: string; token: string; label?: string },
+  input: { id?: string; provider: string; token: string; label?: string; host?: string | null },
 ): ConnectorAccount {
   const provider = input.provider.trim();
   const token = input.token.trim();
@@ -101,15 +108,26 @@ export function upsertConnectorToken(
   if (!token) throw new Error("token is required");
   const id = input.id?.trim() || `c_${randomBytes(4).toString("hex")}`;
   const label = input.label?.trim();
+  const data = readStored(home);
+  const index = data.accounts.findIndex((item) => item.id === id);
+  const prev = index === -1 ? undefined : data.accounts[index];
+  const hostRaw = input.host;
+  const host =
+    hostRaw === null
+      ? undefined
+      : hostRaw !== undefined
+        ? hostRaw.trim() || undefined
+        : prev && prev.authKind === "token"
+          ? prev.host
+          : undefined;
   const account: StoredTokenConnector = {
     id,
     provider,
     authKind: "token",
     ...(label ? { label } : {}),
     token,
+    ...(host ? { host } : {}),
   };
-  const data = readStored(home);
-  const index = data.accounts.findIndex((item) => item.id === id);
   if (index === -1) data.accounts.push(account);
   else data.accounts[index] = account;
   writeStored(home, data);
@@ -175,15 +193,24 @@ export function githubReviewToken(home: string): string | undefined {
 
 /** GitLab MR review: PAT token connector for provider gitlab, then env GITLAB_TOKEN. */
 export function gitlabReviewToken(home: string): string | undefined {
-  const pat = readStored(home).accounts.find(
-    (account) => account.provider === "gitlab" && account.authKind === "token",
-  );
+  const accounts = readStored(home).accounts;
+  const pat =
+    accounts.find((account) => account.id === "gitlab.pat" && account.authKind === "token") ??
+    accounts.find((account) => account.provider === "gitlab" && account.authKind === "token");
   if (pat) return secretOf(pat);
   const env = process.env.GITLAB_TOKEN?.trim();
   return env || undefined;
 }
 
-export function resolveGitlabHost(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveGitlabHost(env: NodeJS.ProcessEnv = process.env, home?: string): string {
+  if (home) {
+    const stored = readStored(home).accounts.find(
+      (account) => account.id === "gitlab.pat" && account.authKind === "token" && account.host?.trim(),
+    );
+    if (stored?.authKind === "token" && stored.host) {
+      return stored.host.replace(/\/$/, "");
+    }
+  }
   const host = env.GITLAB_HOST?.trim();
   return host?.replace(/\/$/, "") || "https://gitlab.com";
 }

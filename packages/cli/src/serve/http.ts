@@ -21,6 +21,7 @@ import {
   loadConnectors,
   removeConnector,
   upsertConnectorOAuth,
+  upsertConnectorToken,
 } from "../connectors.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
 import { contentType, fileKind, matchFiles, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
@@ -1067,6 +1068,42 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "POST /api/connectors/remove":
         removeConnector(opts.home, str(await readBody(req), "id"));
         return json(res, 204);
+      case "POST /api/connectors/token": {
+        const body = await readBody(req);
+        const provider = str(body, "provider");
+        const token = str(body, "token");
+        const idRaw = body.id;
+        const id = idRaw === undefined || idRaw === null ? undefined : str(body, "id");
+        const labelRaw = body.label;
+        const label =
+          labelRaw === undefined || labelRaw === null
+            ? undefined
+            : typeof labelRaw === "string"
+              ? labelRaw
+              : (() => {
+                  throw new HttpError(400, '"label" must be a string or null');
+                })();
+        const hostRaw = body.host;
+        const host =
+          hostRaw === undefined
+            ? undefined
+            : hostRaw === null
+              ? null
+              : typeof hostRaw === "string"
+                ? hostRaw
+                : (() => {
+                    throw new HttpError(400, '"host" must be a string or null');
+                  })();
+        const tokenInput: Parameters<typeof upsertConnectorToken>[1] = {
+          provider,
+          token,
+          ...(id ? { id } : {}),
+          ...(label ? { label } : {}),
+        };
+        if (host !== undefined) tokenInput.host = host;
+        upsertConnectorToken(opts.home, tokenInput);
+        return json(res, 200, settingsView());
+      }
       case "GET /api/settings/channels":
         return json(res, 200, channelsSettingsView(workspaces.cwd, opts.home) satisfies ChannelsSettingsView);
       case "POST /api/settings/channels": {

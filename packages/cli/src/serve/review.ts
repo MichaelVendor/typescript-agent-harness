@@ -143,8 +143,8 @@ function truncateDiff(text: string | undefined): string | undefined {
   return `${text.slice(0, DIFF_PREVIEW_MAX)}\n…`;
 }
 
-function gitlabApiOrigin(binding: ReviewBinding): string {
-  return binding.host?.replace(/\/$/, "") ?? resolveGitlabHost();
+function gitlabApiOrigin(binding: ReviewBinding, home?: string): string {
+  return binding.host?.replace(/\/$/, "") ?? resolveGitlabHost(process.env, home);
 }
 
 function gitlabChangeStatus(change: {
@@ -162,8 +162,9 @@ export async function fetchGitlabSnapshot(
   binding: ReviewBinding,
   token: string,
   fetchFn: typeof fetch = fetch,
+  home?: string,
 ): Promise<ReviewSnapshot> {
-  const origin = gitlabApiOrigin(binding);
+  const origin = gitlabApiOrigin(binding, home);
   const project = encodeURIComponent(`${binding.owner}/${binding.repo}`);
   const headers = { "PRIVATE-TOKEN": token };
   const base = `${origin}/api/v4/projects/${project}/merge_requests/${binding.number}`;
@@ -268,7 +269,7 @@ export async function fetchReviewSnapshot(
     throw new Error("connect GitHub (oauth or PAT) or GitLab PAT, or pass a mock snapshot");
   }
   if (binding.provider === "gitlab") {
-    return fetchGitlabSnapshot(binding, token, opts.fetch);
+    return fetchGitlabSnapshot(binding, token, opts.fetch, home || undefined);
   }
   return fetchGithubSnapshot(binding, token);
 }

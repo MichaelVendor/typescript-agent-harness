@@ -67,6 +67,8 @@ export type ServeRequest = {
   /** Tavily API key; `null` removes it. */
   searchKey: { apiKey: string | null };
   removeConnector: { id: string };
+  /** PAT-style connector (e.g. GitLab MR review). */
+  connectorToken: { id?: string; provider: string; token: string; label?: string; host?: string | null };
   /** IM channels for the open folder (partial patch). */
   channels: import("../channels-settings.js").ChannelsSettingsPatch;
   /** A skill folder, or a folder of skill folders (e.g. `~/.cursor/skills`), copied into `~/.tah/skills`. */
