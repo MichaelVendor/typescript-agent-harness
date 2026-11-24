@@ -5,38 +5,6 @@
 - Node.js ≥ 22（SQLite 用 `node:sqlite`）
 - 跑 CLI 不需要 clone；改框架才需要 [pnpm](https://pnpm.io) ≥ 10
 
-## 用 CLI 跑一轮（推荐）
-
-```sh
-npx @typescript-agent-harness/cli --help
-npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
-npx @typescript-agent-harness/cli --mock chat
-```
-
-全局安装：
-
-```sh
-npm install -g @typescript-agent-harness/cli
-tah --help
-tah run --mock "列出当前目录并说明这个项目"
-```
-
-找不到 `tah` 时把 `$(npm prefix -g)/bin` 加入 `PATH`。不要 `sudo npm`。
-
-不加 `--mock` 时需要 `DEEPSEEK_API_KEY`（`<cwd>/.env`），否则退出码 1。有 key 时走 DeepSeek。`--mock` 的「说明项目」是套话，测语义不要加 `--mock`。
-
-默认带 `execute_command` 和 SQLite 持久化，`tah chat` 会续上一次会话；关掉用 `--no-exec` / `--no-persist`。写文件、跑命令前会先问你（允许一次 / 总是允许 / 拒绝），`--yes` 跳过。每轮默认不限步数（Ctrl+C 停，`--max-steps` 设上限）；长会话自动裁剪上下文；`--system-file` 换角色。
-
-在终端里 `tah chat` 是交互界面（TUI）；想在浏览器里用，跑 `tah serve`（只监听本机）：
-
-```sh
-tah serve --mock    # 打开 http://127.0.0.1:7420/?token=…
-```
-
-详见 [CLI](/guide/cli)。踩坑对照：[版本踩坑与改动](/guide/lessons)。
-
-公司内网让多人登录、按项目使用 Agent：见 [教程：把控制面接到公司内网](/guide/tutorial-intranet)。
-
 ## 做自己的 Agent
 
 不用写启动代码：`AGENTS.md` 写人设，`tools/` 里一个文件一个工具；官方能力（coding / vision / MCP 等）写在根目录可选的 `tah.config.json`（v0.28）。
@@ -65,6 +33,43 @@ export default defineTool({
 - 约定与命令：[CLI · 约定式项目](/guide/cli)
 - 配置参考（查键）：[tah.config.json](/design/config)
 - 完整示例：`pnpm demo:convention`；从零上线见 [教程：做一个文档问答 Agent](/guide/tutorial-docs-agent)
+
+### 一小时验收清单
+
+- [ ] `npx @typescript-agent-harness/cli init` 成功，目录含 `AGENTS.md`、`tools/`、`skills/hello/`
+- [ ] `npx tah --mock chat` 能聊；改 `tools/` 保存后热更新（或见提示）
+- [ ] 输入 `/hello`（或技能菜单）能走到 hello skill
+- [ ] 能让 agent 调用你的 tool，并回答「这是我的 agent」
+
+进阶样板：`examples/convention-agent`（`pnpm demo:convention`）、`examples/brief-agent`（垂直业务）。可选宿主见 [Hosts](/guide/hosts)。
+
+## 用 CLI 跑一轮（未建项目时的试跑）
+
+```sh
+npx @typescript-agent-harness/cli --help
+npx @typescript-agent-harness/cli run --mock "列出当前目录并说明这个项目"
+npx @typescript-agent-harness/cli --mock chat
+```
+
+全局安装：
+
+```sh
+npm install -g @typescript-agent-harness/cli
+tah --help
+tah run --mock "列出当前目录并说明这个项目"
+```
+
+找不到 `tah` 时把 `$(npm prefix -g)/bin` 加入 `PATH`。不要 `sudo npm`。
+
+不加 `--mock` 时需要 `DEEPSEEK_API_KEY`（`<cwd>/.env`），否则退出码 1。有 key 时走 DeepSeek。`--mock` 的「说明项目」是套话，测语义不要加 `--mock`。
+
+默认带 `execute_command` 和 SQLite 持久化，`tah chat` 会续上一次会话；关掉用 `--no-exec` / `--no-persist`。写文件、跑命令前会先问你（允许一次 / 总是允许 / 拒绝），`--yes` 跳过。每轮默认不限步数（Ctrl+C 停，`--max-steps` 设上限）；长会话自动裁剪上下文；`--system-file` 换角色。
+
+在终端里 `tah chat` 是交互界面（TUI）。想在浏览器里用或其它宿主：见 [Hosts](/guide/hosts)。
+
+详见 [CLI](/guide/cli)。踩坑对照：[版本踩坑与改动](/guide/lessons)。
+
+公司内网让多人登录、按项目使用 Agent：见 [Hosts](/guide/hosts)、[教程：把控制面接到公司内网](/guide/tutorial-intranet)。
 
 ## 从源码开发
 
