@@ -15,7 +15,13 @@ import {
   resolveFeishuOAuthCredentials,
   type OAuthFetch,
 } from "../connectors-oauth.js";
-import { githubReviewToken, loadConnectors, removeConnector, upsertConnectorOAuth } from "../connectors.js";
+import {
+  githubReviewToken,
+  gitlabReviewToken,
+  loadConnectors,
+  removeConnector,
+  upsertConnectorOAuth,
+} from "../connectors.js";
 import { chooseFolder, UnsupportedError } from "./choose.js";
 import { contentType, fileKind, matchFiles, NotInFolderError, resolveInFolder, sendFile } from "./files.js";
 import { isPermissionMode } from "../permission-mode.js";
@@ -57,7 +63,8 @@ import {
   clearReviewBinding,
   fetchReviewSnapshot,
   loadReviewBinding,
-  parseGithubPrRef,
+  parseReviewRef,
+  reviewBindingUrl,
   type ReviewBinding,
   type ReviewSnapshot,
 } from "./review.js";
@@ -342,15 +349,20 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
     return json(res, 200, settingsView());
   };
   const reviewSnapshot = (binding: ReviewBinding): Promise<ReviewSnapshot> => {
-    const token = githubReviewToken(opts.home);
+    const token =
+      binding.provider === "gitlab" ? gitlabReviewToken(opts.home) : githubReviewToken(opts.home);
+    const refLabel =
+      binding.provider === "gitlab"
+        ? `${binding.owner}/${binding.repo}!${binding.number}`
+        : `${binding.owner}/${binding.repo}#${binding.number}`;
     return fetchReviewSnapshot(
       binding,
       token
-        ? { token }
+        ? { token, home: opts.home }
         : {
             mock: {
               ...binding,
-              title: binding.title ?? `${binding.owner}/${binding.repo}#${binding.number}`,
+              title: binding.title ?? refLabel,
               state: "open",
               files: [],
             },
@@ -1082,12 +1094,15 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
       case "GET /api/suggestions":
         return json(res, 200, { suggestions: await loadSuggestions(workspaces.cwd) });
       case "POST /api/review/bind": {
-        const parsed = parseGithubPrRef(str(await readBody(req), "ref"));
+        const parsed = parseReviewRef(str(await readBody(req), "ref"));
         const binding: ReviewBinding = {
-          provider: "github",
-          ...parsed,
-          url: `https://github.com/${parsed.owner}/${parsed.repo}/pull/${parsed.number}`,
+          provider: parsed.provider,
+          owner: parsed.owner,
+          repo: parsed.repo,
+          number: parsed.number,
+          url: reviewBindingUrl(parsed),
           boundAt: Date.now(),
+          ...(parsed.provider === "gitlab" && parsed.host ? { host: parsed.host } : {}),
         };
         const snapshot = await reviewSnapshot(binding);
         bindReview(workspaces.cwd, { ...binding, ...(snapshot.title ? { title: snapshot.title } : {}) });

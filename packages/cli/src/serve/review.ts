@@ -92,6 +92,14 @@ export function parseReviewRef(input: string): ParsedReviewRef {
   }
 }
 
+export function reviewBindingUrl(parsed: ParsedReviewRef): string {
+  if (parsed.provider === "github") {
+    return `https://github.com/${parsed.owner}/${parsed.repo}/pull/${parsed.number}`;
+  }
+  const origin = parsed.host?.replace(/\/$/, "") ?? "https://gitlab.com";
+  return `${origin}/${parsed.owner}/${parsed.repo}/-/merge_requests/${parsed.number}`;
+}
+
 function isReviewBinding(raw: unknown): raw is ReviewBinding {
   if (!raw || typeof raw !== "object") return false;
   const b = raw as Partial<ReviewBinding>;
