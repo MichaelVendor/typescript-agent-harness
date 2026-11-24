@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.7.5 — 2026-11-24
+
 **AgentTeam UX:** `tah serve --room` embeds one `createRoom` with Chat | Room (and Timeline when Super-agent); Room HTTP (`/api/room`, goal / message / step) and persist under `.tah/room/`. Settings → **Team** edits `tah.team.json` via `/api/settings/team` (default `tl` + `researcher`; team applies on next goal). Without `--room`, no Room tab; Team settings still work. Spec: `docs/superpowers/specs/2026-11-24-agent-team-ux-design.md`.
 
 **DSH P1 (parity):** Worker unread dots (localStorage); session-bound GitHub PR review (`/api/review*`, ReviewPane, mock → PAT/OAuth via connectors); GitHub OAuth connect/disconnect in Settings (`TAH_GITHUB_CLIENT_*`); DingTalk + WeCom channel adapters + Messaging toggles (`/hooks/dingtalk`, `/hooks/wecom`). Does not change `DefaultLoop` / core. Spec: `docs/superpowers/specs/2026-11-23-dsh-parity-p1-design.md`.
