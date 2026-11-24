@@ -152,6 +152,11 @@ export const api = {
   browserClose: () => post("/api/browser/close"),
   superAgentPanel: async () =>
     (await (await call("GET", "/api/super-agent/panel")).json()) as ReviewPanelSnapshot,
+  deliverSession: async (body: { toSessionId: string; text: string; cwd?: string }) =>
+    (await (await call("POST", "/api/sessions/deliver", body)).json()) as {
+      ok: true;
+      delivered: "live" | "queued";
+    },
 };
 
 export type Connection = "connecting" | "open" | "reconnecting" | "signed-out";

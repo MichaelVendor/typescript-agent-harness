@@ -562,6 +562,19 @@ pre {
   color: var(--fail);
   font-size: 13px;
 }
+.send-to-session-text {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--panel);
+}
+.dirs button.on {
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
 .sidebar-user {
   display: flex;
   align-items: center;

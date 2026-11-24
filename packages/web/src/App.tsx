@@ -335,6 +335,12 @@ export function App() {
     setExpandTools(false);
   }, [state.sessionId]);
 
+  useEffect(() => {
+    if (!state.sessionId) return;
+    clearUnread(tahOrigin, state.sessionId);
+    bumpUnread();
+  }, [state.sessionId, tahOrigin, bumpUnread]);
+
   const openDiff = useCallback((path?: string) => {
     setDiffFocus(path);
     setDiffOpen(true);
@@ -497,12 +503,22 @@ export function App() {
       <Sidebar
         workspaces={workspaces}
         unavailable={sessionsError}
+        unread={unread}
         current={state.sessionId}
         busy={state.busy}
         waiting={state.approval ? "needs approval" : state.question ? "needs answer" : undefined}
         onNew={(cwd) => run(api.reset(cwd ? { cwd } : {}))}
         onFork={(id, cwd) => run(api.fork({ id, ...(cwd ? { cwd } : {}) }))}
-        onPick={(id, cwd) => run(api.resume({ ref: id, cwd }))}
+        onPick={(id, cwd) => {
+          clearUnread(tahOrigin, id);
+          bumpUnread();
+          run(api.resume({ ref: id, cwd }));
+        }}
+        onDeliver={async (from, toSessionId, text) => {
+          await api.deliverSession({ toSessionId, text, cwd: from.ws.path });
+          markUnread(tahOrigin, toSessionId);
+          bumpUnread();
+        }}
         onRename={async (id, title, cwd) => {
           await api.rename({ id, title, cwd });
           await refresh();
