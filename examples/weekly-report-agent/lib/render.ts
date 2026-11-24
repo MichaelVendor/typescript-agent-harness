@@ -47,10 +47,22 @@ function renderOps(result: ExtractResult): string {
   return lines.join("\n");
 }
 
+const EXEC_SUMMARY_SECTIONS = ["done", "wip", "risk"] as const;
+
+function execSummaryItems(result: ExtractResult): ReportItem[] {
+  const buckets = EXEC_SUMMARY_SECTIONS.map((key) => bySection(result, key));
+  const summary: ReportItem[] = [];
+  for (let round = 0; round < SUMMARY_PER_SECTION && summary.length < SUMMARY_MAX; round++) {
+    for (let s = 0; s < EXEC_SUMMARY_SECTIONS.length && summary.length < SUMMARY_MAX; s++) {
+      const item = buckets[s]![round];
+      if (item) summary.push(item);
+    }
+  }
+  return summary;
+}
+
 function renderExec(result: ExtractResult): string {
-  const summary = (["done", "wip", "risk"] as const)
-    .flatMap((key) => bySection(result, key).slice(0, SUMMARY_PER_SECTION))
-    .slice(0, SUMMARY_MAX);
+  const summary = execSummaryItems(result);
   const lines = header(result, "周报（管理层一页）");
   lines.push("## 摘要", "", ...bullets(summary), "");
   lines.push("## 下周", "", ...bullets(bySection(result, "next")), "");

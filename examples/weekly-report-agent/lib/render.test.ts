@@ -52,6 +52,15 @@ test("exec summary caps at 5 bullets from done/wip/risk only", () => {
   assert.equal(bullets.length, 5);
   assert.doesNotMatch(summary, /next-a/);
   assert.doesNotMatch(summary, /done-c|wip-c|risk-c/);
+  // round-robin: each section gets a first slot before any second slot
+  assert.match(summary, /done-a/);
+  assert.match(summary, /wip-a/);
+  assert.match(summary, /risk-a/);
+  assert.match(summary, /done-b/);
+  assert.match(summary, /wip-b/);
+  const idx = (text: string) => summary.indexOf(text);
+  assert.ok(idx("risk-a") < idx("done-b"), "risk first slot before done second");
+  assert.ok(idx("risk-a") < idx("wip-b"), "risk first slot before wip second");
 });
 
 test("exec summary lists only what exists", () => {

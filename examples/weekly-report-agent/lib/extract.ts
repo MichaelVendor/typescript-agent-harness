@@ -36,5 +36,7 @@ export function extractItems(text: string): ExtractResult {
     }
   }
 
-  return { periodHint, items, gaps };
+  const out: ExtractResult = { items, gaps };
+  if (periodHint !== undefined) out.periodHint = periodHint;
+  return out;
 }
