@@ -57,6 +57,8 @@ export type CliFlags = {
   superAgent: boolean;
   /** `tah channel-host`: use in-process mock IM instead of real bots. */
   mockChannel: boolean;
+  /** `tah serve`: embed AgentRoom + `/api/room` (uses `tah.team.json`). */
+  room: boolean;
 };
 
 export function parseArgv(argv: string[]): CliFlags {
@@ -96,6 +98,7 @@ export function parseArgv(argv: string[]): CliFlags {
     superAgentPanel: "",
     superAgent: false,
     mockChannel: false,
+    room: false,
   };
   const rest: string[] = [];
   let help = false;
@@ -154,6 +157,8 @@ export function parseArgv(argv: string[]): CliFlags {
       flags.superAgent = true;
     } else if (arg === "--mock-channel") {
       flags.mockChannel = true;
+    } else if (arg === "--room") {
+      flags.room = true;
     } else if (arg === "--host") {
       const next = argv[i + 1];
       if (!next) throw new Error("--host requires a bind address");
@@ -289,6 +294,7 @@ Flags:
   --super-agent       tah serve: chat via embedded Super-agent (web local channel); implies panel
   --super-agent-panel <dir>
                       tah serve: read-only Super-agent ticket panel from persistDir (panel.json)
+  --room              tah serve: embed AgentRoom (GET/POST /api/room; roster from tah.team.json)
   --mock-channel      tah channel-host: in-process mock IM (no real bot tokens)
   --host <addr>       tah agent-host: bind address (default 0.0.0.0)
   --project-id <id>   tah agent-host: project id (or TAH_PROJECT_ID)

@@ -26,6 +26,8 @@ export type ServeInfo = {
   superAgentPanel?: true;
   /** Present when `tah serve --super-agent` — composer send goes to embedded Super-agent. */
   superAgentChat?: true;
+  /** Present when `tah serve --room` — UI may use `/api/room`. */
+  room?: true;
 };
 
 /** `GET /api/super-agent/panel` body (read-only Super-agent snapshot). */

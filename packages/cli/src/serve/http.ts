@@ -69,6 +69,7 @@ import {
   isSelfDeliver,
   validateDeliverText,
 } from "./session-deliver.js";
+import type { RoomHost } from "./room-host.js";
 
 const COOKIE = "tah_token";
 const MAX_BODY = 1_000_000;
@@ -113,6 +114,8 @@ export type ServeOptions = {
   onChannelsApplied?: () => Promise<void>;
   /** Multi-worker orchestrator; when set, SSE is focus-aware and `/api/workers/*` is enabled. */
   orchestrator?: Orchestrator;
+  /** Embedded AgentRoom when `tah serve --room`. */
+  roomHost?: RoomHost;
   /** GitHub token exchange transport; tests inject a fake. */
   oauthFetch?: OAuthFetch;
 };
@@ -1141,6 +1144,27 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
         } finally {
           choosing = false;
         }
+      }
+      case "GET /api/room": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        return json(res, 200, room.getSnapshot());
+      }
+      case "POST /api/room/goal": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        return json(res, 200, room.setGoal(str(await readBody(req), "text")));
+      }
+      case "POST /api/room/message": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        const out = room.postUserMessage(str(await readBody(req), "text"));
+        return json(res, 200, out);
+      }
+      case "POST /api/room/step": {
+        const room = opts.roomHost;
+        if (!room) throw new HttpError(404, "room not enabled — pass --room");
+        return json(res, 200, await room.step());
       }
       case "GET /api/super-agent/panel": {
         const dir = opts.superAgentPanelDir;

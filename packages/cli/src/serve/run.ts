@@ -14,6 +14,7 @@ import { createServeHandler } from "./http.js";
 import { createHub } from "./hub.js";
 import { createOrchestrator } from "./orchestrator.js";
 import { createSuperAgentChat, type SuperAgentChat } from "./super-agent-chat.js";
+import { createRoomHost } from "./room-host.js";
 import { createWorkspaces, type Workspaces } from "./workspaces.js";
 
 /** When the folder already enabled an IM channel, turn on Super-agent chat without requiring the flag. */
@@ -101,6 +102,7 @@ export async function startServe(
       : saChat
         ? saChat.persistDir
         : "";
+    const roomHost = flags.room ? createRoomHost({ cwd: flags.cwd, mock: flags.mock }) : undefined;
     const info: {
       approve: boolean;
       maxSteps: number | null;
@@ -109,6 +111,7 @@ export async function startServe(
       desktop: string;
       superAgentPanel?: true;
       superAgentChat?: true;
+      room?: true;
     } = {
       approve: host.approve,
       maxSteps: Number.isFinite(flags.maxSteps) ? flags.maxSteps : null,
@@ -117,6 +120,7 @@ export async function startServe(
       desktop: existsSync(path.join(home, "Desktop")) ? path.join(home, "Desktop") : home,
       ...(panelDir ? { superAgentPanel: true as const } : {}),
       ...(flags.superAgent || saChat ? { superAgentChat: true as const } : {}),
+      ...(flags.room ? { room: true as const } : {}),
     };
     const serveOpts: Parameters<typeof createServeHandler>[0] = {
       workspaces,
@@ -128,6 +132,7 @@ export async function startServe(
       home,
       orchestrator: orch,
       ...(panelDir ? { superAgentPanelDir: panelDir } : {}),
+      ...(roomHost ? { roomHost } : {}),
       async onChannelsApplied() {
         const panel = flags.superAgentPanel || ".tah/super-agent";
         if (!saChat) {
