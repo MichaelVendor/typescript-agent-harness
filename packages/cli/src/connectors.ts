@@ -172,3 +172,18 @@ export function githubReviewToken(home: string): string | undefined {
   );
   return pat ? secretOf(pat) : undefined;
 }
+
+/** GitLab MR review: PAT token connector for provider gitlab, then env GITLAB_TOKEN. */
+export function gitlabReviewToken(home: string): string | undefined {
+  const pat = readStored(home).accounts.find(
+    (account) => account.provider === "gitlab" && account.authKind === "token",
+  );
+  if (pat) return secretOf(pat);
+  const env = process.env.GITLAB_TOKEN?.trim();
+  return env || undefined;
+}
+
+export function resolveGitlabHost(env: NodeJS.ProcessEnv = process.env): string {
+  const host = env.GITLAB_HOST?.trim();
+  return host?.replace(/\/$/, "") || "https://gitlab.com";
+}
