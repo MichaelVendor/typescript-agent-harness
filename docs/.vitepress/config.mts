@@ -22,25 +22,19 @@ const repo =
 function sidebarGuide() {
   return [
     {
-      text: "开始",
+      text: "Build",
       items: [
         { text: "快速开始", link: "/guide/getting-started" },
         { text: "教程：文档问答 Agent", link: "/guide/tutorial-docs-agent" },
-        { text: "教程：内网控制面", link: "/guide/tutorial-intranet" },
-        { text: "文档状态说明", link: "/guide/status" },
-        { text: "版本踩坑与改动", link: "/guide/lessons" },
+        { text: "CLI", link: "/guide/cli" },
+        { text: "配置 tah.config.json", link: "/design/config" },
       ],
     },
     {
-      text: "概念",
+      text: "Embed",
       items: [
         { text: "设计哲学", link: "/guide/philosophy" },
         { text: "整体架构", link: "/guide/architecture" },
-      ],
-    },
-    {
-      text: "核心",
-      items: [
         { text: "Runtime", link: "/guide/runtime" },
         { text: "Agent 与 Session", link: "/guide/agent-session" },
         { text: "LLM", link: "/guide/llm" },
@@ -48,14 +42,22 @@ function sidebarGuide() {
         { text: "Storage 与 Checkpoint", link: "/guide/storage" },
         { text: "事件目录", link: "/guide/events" },
         { text: "生态", link: "/guide/ecosystem" },
+        { text: "编写插件", link: "/guide/plugins" },
+        { text: "API：core", link: "/api/core" },
       ],
     },
     {
-      text: "使用",
+      text: "Hosts",
       items: [
-        { text: "CLI", link: "/guide/cli" },
-        { text: "配置 tah.config.json", link: "/design/config" },
-        { text: "编写插件", link: "/guide/plugins" },
+        { text: "Hosts 索引", link: "/guide/hosts" },
+        { text: "教程：内网控制面", link: "/guide/tutorial-intranet" },
+      ],
+    },
+    {
+      text: "其它",
+      items: [
+        { text: "文档状态说明", link: "/guide/status" },
+        { text: "版本踩坑与改动", link: "/guide/lessons" },
         { text: "路线图", link: "/guide/roadmap" },
       ],
     },
@@ -65,6 +67,10 @@ function sidebarGuide() {
 /** Design notes + config reference (separate from day-1 guide). */
 function sidebarDesign() {
   return [
+    {
+      text: "Hosts",
+      items: [{ text: "Hosts 索引", link: "/guide/hosts" }],
+    },
     {
       text: "配置参考",
       items: [{ text: "tah.config.json", link: "/design/config" }],
@@ -120,7 +126,7 @@ export default defineConfig({
   lang: "zh-CN",
   title: "typescript-agent-harness",
   description:
-    "TypeScript Agent Runtime — Everything is a capability. 开源 Agent Runtime 框架文档。",
+    "约定式项目 / Build agents by convention — Runtime / SDK。Everything is a capability. 开源 Agent 框架文档。",
   base,
   cleanUrls: true,
   lastUpdated: true,
@@ -173,10 +179,10 @@ export default defineConfig({
     },
 
     nav: [
-      { text: "指南", link: "/guide/getting-started", activeMatch: "/guide/" },
-      { text: "CLI", link: "/guide/cli" },
+      { text: "Build", link: "/guide/getting-started", activeMatch: "/guide/" },
+      { text: "Embed", link: "/guide/runtime", activeMatch: "/api/" },
+      { text: "Hosts", link: "/guide/hosts" },
       { text: "配置", link: "/design/config", activeMatch: "/design/" },
-      { text: "API", link: "/api/core", activeMatch: "/api/" },
       { text: "路线图", link: "/guide/roadmap" },
     ],
 

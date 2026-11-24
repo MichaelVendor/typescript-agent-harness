@@ -2,11 +2,11 @@
 layout: home
 hero:
   name: typescript-agent-harness
-  text: TypeScript Agent Runtime
-  tagline: Everything is a capability. 先设计 Runtime，再长出 Agent。
+  text: 用约定造自己的 Agent
+  tagline: Runtime / SDK — Everything is a capability. 默认入口：tah init。
   actions:
     - theme: brand
-      text: 快速开始
+      text: 快速开始（init）
       link: /guide/getting-started
     - theme: alt
       text: 设计哲学
@@ -15,39 +15,26 @@ hero:
       text: GitHub
       link: https://github.com/MichaelVendor/typescript-agent-harness
 features:
-  - title: Runtime 第一公民
-    details: 不是 new Agent({ model, tools })，而是用 Plugin 挂载能力，再创建 Session。
+  - title: Build — 约定式项目
+    details: AGENTS.md + tools/ + skills/，不用写启动代码；热更新保持对话。
+  - title: Embed — Runtime API
+    details: Plugin + Context + EventBus；嵌进自家服务时再打开。
+  - title: Hosts — 可选宿主
+    details: tah chat / serve、desktop、agent-host、控制面、Super-agent — 造 Agent 不必须。
   - title: 一切皆 Capability
     details: LLM、Tools、Storage、Scheduler、Permission、Agent 本身都是可替换能力。
-  - title: 插件互不耦合
-    details: 通过 Context 的 provide / get 与 EventBus 协作，避免 Agent 变成垃圾场。
-  - title: 为 Resume 留空间
-    details: Session 不只存 messages；Step、Event、Checkpoint 支撑回放与恢复。
 ---
 
-## 当前进度
+## 从哪开始
 
-| Phase | 主题 | 状态 |
-| --- | --- | --- |
-| 1 | Runtime 骨架 | ✅ 已完成 |
-| 2 | LLM + Tools + Session + Loop | ✅ 已完成 |
-| 3 | SQLite / Checkpoint / Resume | ✅ 已完成 |
-| 4 | MCP / Scheduler / Permissions | ✅ 已完成 |
-| 5 | CLI | ✅ 已完成 |
-| 6 | 测试 / CI / stdio MCP | ✅ 已完成 |
-| 7 | stream → tah | ✅ 已完成 |
-| 8 | 约定式项目（`AGENTS.md` + `tools/` + `tah init`） | ✅ 已完成 |
-| 9 | 终端 UI（`tah chat`） | ✅ 已完成 |
-| 10 | 本机网页工作台（`tah serve`） | ✅ 已完成 |
-| 11 | 约定式项目热更新 | ✅ 已完成（v0.26） |
-| 12 | 附件（`tah serve`） | ✅ 已完成（v0.27） |
-| 13 | 项目配置（`tah.config.json`） | ✅ 已完成（v0.28） |
+- **[Build](/guide/getting-started)** — `tah init`，约定式造自己的 Agent。
+- **[Embed](/guide/philosophy)** — 设计哲学与 [Runtime](/guide/runtime) API，嵌进自家服务时用。
+- **[Hosts](/guide/hosts)** — 终端 TUI、本机网页、desktop、无头 API 等可选宿主。
 
-入口：
+完整 Phase 进度见 [路线图](/guide/roadmap)。
+
+本地预览文档站：
 
 ```sh
-pnpm build
-pnpm test
-pnpm tah -- run --mock "列出当前目录"
 pnpm docs:dev
 ```
