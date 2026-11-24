@@ -50,6 +50,41 @@ test("selectIncludeRewrites + save writes md/json", () => {
   }
 });
 
+test("save rejects provided rewrites for missing null or mismatched evidence", () => {
+  const outDir = mkdtempSync(path.join(os.tmpdir(), "resume-jd-"));
+  try {
+    assert.throws(
+      () =>
+        saveReport({
+          includeRewrites: true,
+          gaps: ["缺 TS"],
+          rows: [
+            { id: "r1", priority: "must", requirement: "TypeScript", status: "missing", evidence: null },
+          ],
+          rewrites: [{ reqId: "r1", before: "x", after: "y", evidence: "x" }],
+        }, { outDir }),
+      /validation failed/,
+    );
+    assert.equal(existsSync(path.join(outDir, "match")), false);
+
+    assert.throws(
+      () =>
+        saveReport({
+          includeRewrites: true,
+          gaps: [],
+          rows: [
+            { id: "r2", priority: "nice", requirement: "带队", status: "partial", evidence: "带过 2 人" },
+          ],
+          rewrites: [{ reqId: "r2", before: "wrong", after: "z", evidence: "wrong" }],
+        }, { outDir }),
+      /validation failed/,
+    );
+    assert.equal(existsSync(path.join(outDir, "match")), false);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
 test("includeRewrites gate: true composes, false drops rewrites", () => {
   const match = {
     rows: [
