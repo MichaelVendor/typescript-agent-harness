@@ -1,6 +1,6 @@
 # Resume × JD Agent（简历×JD 匹配）设计
 
-状态：📝 设计已批准，待实现
+状态：✅ 已实现
 
 系列：WorkBuddy「专家」对标样板 · **B → A → D** 中的 **D**。  
 前序：B `meeting-actions-agent`、A `weekly-report-agent`（已实现）。
