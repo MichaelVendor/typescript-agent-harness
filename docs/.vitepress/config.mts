@@ -179,9 +179,22 @@ export default defineConfig({
     },
 
     nav: [
-      { text: "Build", link: "/guide/getting-started", activeMatch: "/guide/" },
-      { text: "Embed", link: "/guide/runtime", activeMatch: "/api/" },
-      { text: "Hosts", link: "/guide/hosts" },
+      {
+        text: "Build",
+        link: "/guide/getting-started",
+        activeMatch: "^/guide/(getting-started|tutorial-docs-agent|cli)",
+      },
+      {
+        text: "Embed",
+        link: "/guide/runtime",
+        activeMatch:
+          "/(api/|guide/(philosophy|architecture|runtime|agent-session|llm|tools|storage|events|ecosystem|plugins))",
+      },
+      {
+        text: "Hosts",
+        link: "/guide/hosts",
+        activeMatch: "^/guide/(hosts|tutorial-intranet)",
+      },
       { text: "配置", link: "/design/config", activeMatch: "/design/" },
       { text: "路线图", link: "/guide/roadmap" },
     ],
