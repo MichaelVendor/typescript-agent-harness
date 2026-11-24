@@ -27,6 +27,7 @@ import {
   saveChannelsSettings,
   type ChannelsSettingsPatch,
 } from "../channels-settings.js";
+import { saveTeamSettings, teamSettingsView } from "../team-settings.js";
 import {
   activeModel,
   addModel,
@@ -1060,6 +1061,17 @@ export function createServeHandler(opts: ServeOptions): { handle: RequestListene
           const channels = saveChannelsSettings(workspaces.cwd, opts.home, body);
           if (opts.onChannelsApplied) await opts.onChannelsApplied();
           return json(res, 200, { ...settingsView(), channels });
+        } catch (err) {
+          throw new HttpError(400, err instanceof Error ? err.message : String(err));
+        }
+      }
+      case "GET /api/settings/team":
+        return json(res, 200, teamSettingsView(workspaces.cwd));
+      case "POST /api/settings/team": {
+        const body = await readBody(req);
+        try {
+          const members = body && typeof body === "object" ? (body as { members?: unknown }).members : undefined;
+          return json(res, 200, saveTeamSettings(workspaces.cwd, members));
         } catch (err) {
           throw new HttpError(400, err instanceof Error ? err.message : String(err));
         }

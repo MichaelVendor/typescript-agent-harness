@@ -110,6 +110,9 @@ export type WorkspaceView = {
 /** `GET /api/settings` / `GET|POST /api/settings/channels` — IM toggles + key hints (never raw tokens). */
 export type { ChannelsSettingsView } from "../channels-settings.js";
 
+/** `GET|POST /api/settings/team` — `tah.team.json` roster. */
+export type { TeamMember, TeamSettingsView } from "../team-settings.js";
+
 /** `GET /api/settings`; API keys only ever leave the server as `keyHint`. `baseURL` is the effective one. */
 export type SettingsView = {
   user: string;

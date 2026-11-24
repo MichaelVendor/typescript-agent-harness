@@ -24,6 +24,8 @@ export type {
   ServeError,
   ServeEvent,
   ChannelsSettingsView,
+  TeamMember,
+  TeamSettingsView,
   ServeInfo,
   ServeRequest,
   SettingsView,
