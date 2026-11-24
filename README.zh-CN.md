@@ -79,6 +79,14 @@ pnpm tah -- --mock chat
 
 其它演示：`pnpm demo:runtime` · `pnpm demo:resume` · `pnpm demo:multi` · `pnpm demo:convention`
 
+**专家样板（本地体验，分支 `v1.7`）：** clone 仓库 → `git checkout v1.7` → `pnpm install && pnpm build` → 进入其一：
+
+- [`examples/meeting-actions-agent`](examples/meeting-actions-agent) — 纪要→行动项（`pnpm start` / `tah serve`）
+- [`examples/weekly-report-agent`](examples/weekly-report-agent) — 杂记→周报
+- [`examples/resume-jd-agent`](examples/resume-jd-agent) — 简历×JD
+
+fixture 在各自 `data/fixtures/`；步骤详见 [快速开始 · 专家样板](./docs/guide/getting-started.md)。
+
 ### 文档站
 
 ```sh
@@ -101,8 +109,11 @@ packages/
   cli/      tah run / tah chat（TUI）/ tah serve / tah init + 约定式项目加载
   web/      tah serve 的网页（React + Vite，随 cli 发布）
 examples/
-  convention-agent/  AGENTS.md + tools/ + plugins/
-  basic-agent/       tool-use 演示
+  convention-agent/       AGENTS.md + tools/ + plugins/
+  basic-agent/            tool-use 演示
+  meeting-actions-agent/  纪要→行动项（专家样板）
+  weekly-report-agent/    杂记→周报（专家样板）
+  resume-jd-agent/        简历×JD（专家样板）
 ```
 
 完整包与示例列表见 [生态](./docs/guide/ecosystem.md)。

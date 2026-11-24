@@ -43,6 +43,28 @@ export default defineTool({
 
 进阶样板：`examples/convention-agent`（`pnpm demo:convention`）、`examples/brief-agent`（垂直业务）。可选宿主见 [Hosts](/guide/hosts)。
 
+### 专家样板（从 GitHub 克隆本地体验）
+
+三个约定式「专家」example（纪要→行动项 / 杂记→周报 / 简历×JD）在分支 **`v1.7`**（尚未全部合入 `main` 时请显式切分支）：
+
+```sh
+git clone https://github.com/MichaelVendor/typescript-agent-harness.git
+cd typescript-agent-harness
+git checkout v1.7
+pnpm install
+pnpm build
+```
+
+任选一个目录体验（需 `DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`，可写在仓库根或该 example 的 `.env`；先摸流程可加 `--mock`）：
+
+```sh
+cd examples/meeting-actions-agent && pnpm start          # 或: pnpm exec tah serve --yes
+# cd examples/weekly-report-agent && pnpm start
+# cd examples/resume-jd-agent && pnpm start
+```
+
+试聊时可粘贴各目录 `data/fixtures/` 下的中文样例。无模型验收：`pnpm smoke` / `pnpm eval` / `pnpm test`。说明见各 example 的 `README.md`。
+
 ## 用 CLI 跑一轮（未建项目时的试跑）
 
 ```sh
