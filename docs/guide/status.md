@@ -2,7 +2,7 @@
 
 文档按 **已落地代码** 写。尚未做的能力会标 📐 / 🧭，不再把愿景写成现成 API。
 
-对外叙事：**Build** / **Embed** / **Hosts**（spec [`2026-11-24-sdk-narrative-focus`](../../superpowers/specs/2026-11-24-sdk-narrative-focus-design.md)）。
+对外叙事：**Build** / **Embed** / **Hosts**（spec [`2026-11-24-sdk-narrative-focus`](../superpowers/specs/2026-11-24-sdk-narrative-focus-design.md)）。
 
 | 标记 | 含义 |
 | --- | --- |
