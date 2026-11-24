@@ -30,8 +30,8 @@
 
 **Files:** `team-settings.ts`；http GET/POST `/api/settings/team`；protocol；tests
 
-- [ ] 默认 tl+researcher；校验必有 tl
-- [ ] Commit — `feat(cli): Team 配置 tah.team.json`
+- [x] 默认 tl+researcher；校验必有 tl
+- [x] Commit — `feat(cli): Team 配置 tah.team.json`
 
 ---
 
@@ -39,9 +39,9 @@
 
 **Files:** `room-host.ts`；args `--room`；info.room；GET/POST room routes；mock turnRunner when `--mock`
 
-- [ ] goal / message / step / get snapshot
-- [ ] persist `.tah/room`
-- [ ] Commit — `feat(cli): serve --room 内嵌 AgentRoom`
+- [x] goal / message / step / get snapshot
+- [x] persist `.tah/room`
+- [x] Commit — `feat(cli): serve --room 内嵌 AgentRoom`
 
 ---
 
@@ -49,16 +49,16 @@
 
 **Files:** RoomView、TeamSettings、Settings section、App 顶栏、api.ts
 
-- [ ] Chat|Room（+ Timeline 若有）
-- [ ] Settings Team 卡
-- [ ] Commit — `feat(web): Room 页与 Team 设置`
+- [x] Chat|Room（+ Timeline 若有）
+- [x] Settings Team 卡
+- [x] Commit — `feat(web): Room 页与 Team 设置`
 
 ---
 
 ### Task R4: Docs
 
-- Spec ✅；CHANGELOG；status
-- Commit — `docs: AgentTeam UX 已实现说明`
+- [x] Spec ✅；CHANGELOG；status
+- [x] Commit — `docs: AgentTeam UX 已实现说明`
 
 ---
 

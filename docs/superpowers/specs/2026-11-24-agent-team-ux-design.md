@@ -1,6 +1,6 @@
 # AgentTeam UX（Room 网页面）
 
-状态：📐 已设计（待计划 / 实现）
+状态：✅ 已实现（计划见 `docs/superpowers/plans/2026-11-24-agent-team-ux.md`；分支 `feat/dsh-parity-p1`）
 
 在已有 `createRoom` 旁路上做具名团队 + 群聊网页；Settings 最小建队。不改 `DefaultLoop` / `packages/core`。
 
