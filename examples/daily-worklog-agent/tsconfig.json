@@ -5,5 +5,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["tools/**/*.ts", "lib/**/*.ts"]
+  "include": ["tools/**/*.ts", "lib/**/*.ts", "scripts/**/*.ts", "eval/**/*.ts"]
 }
