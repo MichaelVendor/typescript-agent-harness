@@ -1,0 +1,19 @@
+{
+  "name": "@typescript-agent-harness/example-daily-worklog-agent",
+  "private": true,
+  "version": "1.7.5",
+  "type": "module",
+  "scripts": {
+    "start": "tah chat",
+    "run-daily": "node --experimental-strip-types scripts/run-daily.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "smoke": "node --experimental-strip-types scripts/smoke.ts",
+    "eval": "node --experimental-strip-types eval/run-eval.ts",
+    "test": "node --test --experimental-strip-types \"lib/**/*.test.ts\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "@typescript-agent-harness/cli": "workspace:*",
+    "typescript": "^5.9.2"
+  }
+}

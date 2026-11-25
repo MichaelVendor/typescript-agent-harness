@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-25",
+  "git": [
+    {
+      "repo": "/Users/example/Desktop/AgentHarness",
+      "commits": [{ "hash": "abc1234", "subject": "feat: sample commit" }]
+    }
+  ],
+  "cursor": [
+    {
+      "workspace": "AgentHarness",
+      "note": "daily worklog task",
+      "evidence": "agent-transcripts/sample.jsonl"
+    }
+  ],
+  "browser": [
+    {
+      "url": "https://github.com/foo",
+      "title": "foo on GitHub"
+    }
+  ],
+  "gaps": ["browser: history partial"]
+}

@@ -1,0 +1,9 @@
+{
+  "repos": ["~/Desktop/AgentHarness"],
+  "cursor": { "projectsRoot": "~/.cursor/projects" },
+  "browser": {
+    "historyDb": "auto",
+    "domainAllowlist": ["github.com", "localhost"]
+  },
+  "timezone": "Asia/Shanghai"
+}
