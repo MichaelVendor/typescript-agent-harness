@@ -12,11 +12,20 @@ function assertValid(bundle: DayBundle): void {
 }
 
 const HEX_RE = /\b(?=[0-9a-f]*\d)[0-9a-f]{7,40}\b/gi;
-const URL_RE = /https?:\/\/[^\s)>\]"'`]+/g;
+// Stop at whitespace, common delimiters, and non-ASCII (CJK / full-width punct in Chinese summaries).
+const URL_RE = /https?:\/\/[^\s)>\]"'`\u0080-\uFFFF]+/g;
 
 /** A summary URL is allowed iff a bundle URL equals it or extends it at a /, ?, # boundary. */
 function urlAllowed(m: string, urls: string[]): boolean {
-  return urls.some((u) => u === m || (u.startsWith(m) && "/?#".includes(u[m.length]!)));
+  const needle = m.replace(/\/$/, "");
+  return urls.some((u) => {
+    const base = u.replace(/\/$/, "");
+    return (
+      base === needle ||
+      (u.startsWith(needle) && "/?#".includes(u[needle.length]!)) ||
+      (base.startsWith(needle) && "/?#".includes(base[needle.length]!))
+    );
+  });
 }
 
 /** Simple scan: URLs / 7+ hex tokens in summary must appear in the bundle. */

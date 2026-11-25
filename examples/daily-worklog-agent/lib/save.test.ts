@@ -120,6 +120,13 @@ test("saveDayCard allows exact bundle URL, trailing punctuation, and boundary pr
   assert.doesNotThrow(() => saveDayCard(b, "https://github.com/foo", { outDir: tmp() }));
 });
 
+test("saveDayCard allows URLs next to CJK / full-width punctuation and trailing slash", () => {
+  assert.doesNotThrow(() => saveDayCard(bundle, "见 https://github.com/foo，随后", { outDir: tmp() }));
+  assert.doesNotThrow(() => saveDayCard(bundle, "（https://github.com/foo）", { outDir: tmp() }));
+  assert.doesNotThrow(() => saveDayCard(bundle, "https://github.com/foo。", { outDir: tmp() }));
+  assert.doesNotThrow(() => saveDayCard(bundle, "https://github.com/foo/", { outDir: tmp() }));
+});
+
 test("loadBundle returns saved bundle, null when missing or date malformed", () => {
   const out = tmp();
   assert.equal(loadBundle("2026-11-25", { outDir: out }), null);
