@@ -70,8 +70,10 @@ export function collectBrowser(opts: {
       "from visits v join urls u on u.id = v.url " +
       `where v.visit_time >= ${toWebkit(start)} and v.visit_time < ${toWebkit(end)} ` +
       "order by v.visit_time;";
+    // Default maxBuffer (~1 MiB) is too small for busy History days (ENOBUFS → false gaps).
     const out = execFileSync("sqlite3", ["-readonly", "-json", copy, sql], {
       encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
       stdio: ["ignore", "pipe", "pipe"],
     }).trim();
     const raw = (out ? JSON.parse(out) : []) as Array<{ url: string; title: string | null; t: number }>;
