@@ -1,6 +1,6 @@
 import { defineTool } from "@typescript-agent-harness/cli";
 import type { DayBundle } from "../lib/schema.ts";
-import { saveDayCard } from "../lib/save.ts";
+import { loadBundle, saveDayCard } from "../lib/save.ts";
 
 export default defineTool({
   description:
@@ -12,7 +12,9 @@ export default defineTool({
     additionalProperties: false,
   },
   async execute(input: { bundle: DayBundle; summary: string }) {
-    const out = saveDayCard(input.bundle, input.summary);
+    // Prefer the bundle persisted by compose_bundle over model-supplied evidence.
+    const bundle = (input.bundle && loadBundle(String(input.bundle.date))) || input.bundle;
+    const out = saveDayCard(bundle, input.summary);
     return { saved: true, jsonPath: out.jsonPath, mdPath: out.mdPath, markdown: out.markdown };
   },
 });

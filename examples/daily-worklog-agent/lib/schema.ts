@@ -33,9 +33,13 @@ export function validateDayBundle(bundle: DayBundle): string[] {
   if (!DATE_RE.test(bundle.date)) {
     problems.push(`invalid date "${bundle.date}"; expected YYYY-MM-DD`);
   }
+  for (const k of ["git", "cursor", "browser", "gaps"] as const) {
+    if (!Array.isArray(bundle[k])) problems.push(`${k} must be an array`);
+  }
+  if (!Array.isArray(bundle.browser)) return problems;
   for (let i = 0; i < bundle.browser.length; i++) {
     const row = bundle.browser[i]!;
-    if (!row.url || String(row.url).trim() === "") {
+    if (!row || !row.url || String(row.url).trim() === "") {
       problems.push(`browser[${i}]: url must be non-empty when present`);
     }
   }

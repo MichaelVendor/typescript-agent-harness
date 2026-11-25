@@ -18,3 +18,8 @@ test("rejects bad date", () => {
     git: [], cursor: [], browser: [], gaps: [],
   }).some((p) => /date/i.test(p)));
 });
+test("validateDayBundle reports missing arrays instead of throwing", () => {
+  const problems = validateDayBundle({ date: "2026-11-25" } as never);
+  assert.ok(problems.some((p) => p.includes("git")));
+  assert.ok(problems.some((p) => p.includes("browser")));
+});
