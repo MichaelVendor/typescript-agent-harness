@@ -34,9 +34,11 @@ pnpm start      # tah chat（可加 --mock）
 
 ```bash
 cp tah.worklog.json.example tah.worklog.json   # 改 repos / 域名白名单
-# 在本目录 .env 或环境变量里设 DEEPSEEK_API_KEY 或 OPENAI_API_KEY
+# 设 DEEPSEEK_API_KEY 或 OPENAI_API_KEY（查找顺序见下）
 pnpm run-daily                                 # 可加 --date YYYY-MM-DD --config <path>
 ```
+
+Key 查找顺序：进程环境变量 → 本目录 `.env` → 逐级祖先 `.env`（含 monorepo 根，止于仓库根）；先找到者优先，找到的值会传给 `tah run` 子进程。
 
 `run-daily`：采集 → `out/bundles/<date>.json` → 无 key 则 exit 1 → `tah run --quiet`（stdout 即摘要）→ 本地 `saveDayCard`。
 
@@ -49,6 +51,8 @@ cp deploy/launchd/com.tah.daily-worklog.plist.example ~/Library/LaunchAgents/com
 # 编辑里面的 pnpm 与 WorkingDirectory 绝对路径（Hour=23）
 launchctl load ~/Library/LaunchAgents/com.tah.daily-worklog.plist
 ```
+
+launchd 的默认 PATH 极简。示例 plist 已设 `EnvironmentVariables.PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`；若 node / pnpm 由 nvm / fnm / asdf 管理，需把对应 bin 目录加进该 PATH（`which node pnpm` 查看）。
 
 ## 铁律摘要
 

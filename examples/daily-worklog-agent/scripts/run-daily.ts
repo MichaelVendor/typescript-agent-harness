@@ -4,13 +4,13 @@
  *   pnpm run-daily [--date YYYY-MM-DD] [--config ./tah.worklog.json]
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { collectBrowser } from "../lib/collect-browser.ts";
 import { collectCursor } from "../lib/collect-cursor.ts";
 import { collectGit } from "../lib/collect-git.ts";
 import { composeBundle } from "../lib/compose.ts";
 import { loadWorklogConfig } from "../lib/config.ts";
+import { findApiKeys } from "../lib/env-keys.ts";
 import { saveBundle, saveDayCard } from "../lib/save.ts";
 
 const ROOT = path.join(import.meta.dirname, "..");
@@ -18,13 +18,6 @@ const ROOT = path.join(import.meta.dirname, "..");
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(name);
   return i >= 0 ? process.argv[i + 1] : undefined;
-}
-
-function hasKey(): boolean {
-  if (process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY) return true;
-  const envFile = path.join(ROOT, ".env");
-  if (!existsSync(envFile)) return false;
-  return /^\s*(DEEPSEEK_API_KEY|OPENAI_API_KEY)\s*=\s*\S+/m.test(readFileSync(envFile, "utf8"));
 }
 
 const configPath = path.resolve(arg("--config") ?? "tah.worklog.json");
@@ -49,8 +42,12 @@ const bundle = composeBundle({
 });
 const { jsonPath: bundlePath } = saveBundle(bundle);
 
-if (!hasKey()) {
-  console.error("run-daily: no DEEPSEEK_API_KEY or OPENAI_API_KEY (env or .env); bundle saved to", bundlePath);
+const keys = findApiKeys(ROOT);
+if (Object.keys(keys).length === 0) {
+  console.error(
+    "run-daily: no DEEPSEEK_API_KEY or OPENAI_API_KEY (env, example .env, or ancestor .env); bundle saved to",
+    bundlePath,
+  );
   process.exit(1);
 }
 
@@ -59,6 +56,7 @@ const prompt =
   "只输出摘要正文，不要调用 save_day_card，不要加标题或解释。";
 const run = spawnSync("pnpm", ["exec", "tah", "run", "--quiet", prompt], {
   cwd: ROOT,
+  env: { ...process.env, ...keys }, // tah 只读 cwd/.env；把祖先 .env 找到的 key 一并传入
   encoding: "utf8",
   stdio: ["ignore", "pipe", "inherit"],
   maxBuffer: 16 * 1024 * 1024,
@@ -73,5 +71,10 @@ if (!summary) {
   process.exit(1);
 }
 
-const saved = saveDayCard(bundle, summary);
-console.log("ok", saved.mdPath);
+try {
+  const saved = saveDayCard(bundle, summary);
+  console.log("ok", saved.mdPath);
+} catch (err) {
+  console.error("run-daily: save day card failed:", err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}

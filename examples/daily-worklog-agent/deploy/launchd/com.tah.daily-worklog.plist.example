@@ -9,6 +9,11 @@
     <string>/ABSOLUTE/PATH/TO/pnpm</string>
     <string>run-daily</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
   <key>WorkingDirectory</key>
   <string>/ABSOLUTE/PATH/TO/examples/daily-worklog-agent</string>
   <key>StartCalendarInterval</key>
