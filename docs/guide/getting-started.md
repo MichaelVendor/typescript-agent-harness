@@ -61,6 +61,7 @@ pnpm build
 cd examples/meeting-actions-agent && pnpm start          # 或: pnpm exec tah serve --yes
 # cd examples/weekly-report-agent && pnpm start
 # cd examples/resume-jd-agent && pnpm start
+# cd examples/daily-worklog-agent && pnpm run-daily   # 夜间日卡，见该目录 README
 ```
 
 试聊时可粘贴各目录 `data/fixtures/` 下的中文样例。无模型验收：`pnpm smoke` / `pnpm eval` / `pnpm test`。说明见各 example 的 `README.md`。
